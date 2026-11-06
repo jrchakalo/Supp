@@ -19,6 +19,9 @@ const EN = {
     addTwo: 'Add at least 2 students to start the competition.',
     topics: 'Question topics',
     selectTopic: 'Select at least one topic to start.',
+    questionLanguage: 'Question language',
+    questionLanguageHelp:
+      'Only the questions and game feedback change. The interface follows the language selector at the top.',
     level: 'Competition level',
     roundsPerDifficulty: 'Rounds per difficulty',
     twoRounds: '2 rounds',
@@ -138,6 +141,9 @@ const PT: { setup: SetupCopy; game: GameCopy } = {
     addTwo: 'Adicione pelo menos 2 alunos para começar a competição.',
     topics: 'Tipos de pergunta',
     selectTopic: 'Selecione pelo menos um tema para começar.',
+    questionLanguage: 'Idioma das perguntas',
+    questionLanguageHelp:
+      'Apenas as perguntas e o feedback do jogo mudam. A interface segue o seletor de idioma no topo.',
     level: 'Nível da competição',
     roundsPerDifficulty: 'Rodadas por dificuldade',
     twoRounds: '2 rodadas',
