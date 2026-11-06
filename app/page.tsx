@@ -34,12 +34,11 @@ import LanguageToggle from '@/components/LanguageToggle';
 import QuestionModal from '@/components/QuestionModal';
 import ThemeToggle from '@/components/ThemeToggle';
 import VolumeControl from '@/components/VolumeControl';
-import { buildCompetitionPhases, COMPETITION_LEVELS, getCompetitionLevelMeta } from '@/lib/competition';
+import { buildCompetitionPhases } from '@/lib/competition';
 import {
   DICE_NUMBERS,
   DIFFICULTIES,
   getDeck,
-  getDifficultyMeta,
   shuffle,
 } from '@/lib/game';
 import {
@@ -60,6 +59,14 @@ import type {
   Theme,
 } from '@/lib/types';
 import type { Language } from '@/lib/i18n';
+import { MENU_COPY } from '@/lib/i18n/menu-copy';
+import {
+  categoryCopy,
+  competitionLevelCopy,
+  competitionLevels,
+  difficultyCopy,
+  localizePhase,
+} from '@/lib/i18n/game-copy';
 import { cn } from '@/lib/utils';
 import { readStorage, writeStorage } from '@/lib/storage';
 
@@ -216,7 +223,30 @@ export default function GamePage() {
   const isClassic = mode === 'classic';
   const isLive = playStyle === 'live';
   const isCompetition = playStyle === 'competition';
-  const difficultyMeta = getDifficultyMeta(difficulty);
+  const c = MENU_COPY[uiLanguage];
+  const titleLines = isHalloween
+    ? isCompetition
+      ? c.titles.halloweenCompetition
+      : isLive
+        ? c.titles.halloweenLive
+        : c.titles.halloweenD20
+    : isCompetition
+      ? c.titles.competition
+      : isLive
+        ? c.titles.live
+        : c.titles.d20;
+  const subtitle = isHalloween
+    ? isCompetition
+      ? c.subtitles.halloweenCompetition
+      : isLive
+        ? c.subtitles.halloweenLive
+        : c.subtitles.halloweenD20
+    : isCompetition
+      ? c.subtitles.competition
+      : isLive
+        ? c.subtitles.live
+        : c.subtitles.d20;
+  const difficultyMeta = difficultyCopy(difficulty, uiLanguage);
   const activeDeck = useMemo(
     () =>
       isClassic
@@ -228,7 +258,11 @@ export default function GamePage() {
   const canStartRound =
     playStyle !== null && (!isClassic || classicCategories.length > 0);
   const roundComplete = roundCount >= ROUND_LENGTH;
-  const competitionLevelMeta = getCompetitionLevelMeta(competitionConfig.level);
+  const competitionLevelMeta = competitionLevelCopy(
+    competitionConfig.level,
+    uiLanguage
+  );
+  const competitionLevelOptions = competitionLevels(uiLanguage);
   const competitionPhases = useMemo(
     () =>
       buildCompetitionPhases(
@@ -237,8 +271,13 @@ export default function GamePage() {
       ),
     [competitionConfig.level, competitionConfig.progressiveRounds]
   );
-  const competitionFirstPhase = competitionPhases[0];
-  const competitionLastPhase = competitionPhases[competitionPhases.length - 1];
+  const localizedCompetitionPhases = useMemo(
+    () => competitionPhases.map((phase) => localizePhase(phase, uiLanguage)),
+    [competitionPhases, uiLanguage]
+  );
+  const competitionFirstPhase = localizedCompetitionPhases[0];
+  const competitionLastPhase =
+    localizedCompetitionPhases[localizedCompetitionPhases.length - 1];
 
   const ensureAudioContext = useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -608,7 +647,6 @@ export default function GamePage() {
     );
   };
 
-  const selectedDifficulty = getDifficultyMeta(difficulty);
   const themeClass = isHalloween
     ? theme === 'dark'
       ? 'theme-halloween'
@@ -655,10 +693,14 @@ export default function GamePage() {
                     className="flex h-9 items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 text-[11px] font-black uppercase tracking-wide text-[var(--accent)] transition hover:brightness-105"
                   >
                     <CalendarHeart className="h-4 w-4" aria-hidden="true" />
-                    Special events
+                    {c.specialEvents}
                   </button>
                   <ThemeToggle theme={theme} onChange={setTheme} />
-                  <LanguageToggle language={uiLanguage} onChange={setUiLanguage} />
+                  <LanguageToggle
+                    language={uiLanguage}
+                    onChange={setUiLanguage}
+                    label={uiLanguage === 'pt' ? 'Idioma da interface' : 'Interface language'}
+                  />
                 </div>
               </div>
 
@@ -669,64 +711,26 @@ export default function GamePage() {
                     isHalloween && 'hw-title'
                   )}
                 >
-                  {isHalloween ? (
-                    isCompetition ? (
-                      <>
-                        Halloween
-                        <br />
-                        Competition
-                      </>
-                    ) : isLive ? (
-                      <>
-                        Halloween
-                        <br />
-                        Live
-                      </>
-                    ) : (
-                      <>
-                        Halloween
-                        <br />
-                        Trivia
-                      </>
-                    )
-                  ) : isCompetition ? (
-                    <>Competition</>
-                  ) : isLive ? (
+                  {titleLines[0]}
+                  {titleLines[1] && (
                     <>
-                      Live
                       <br />
-                      room
-                    </>
-                  ) : (
-                    <>
-                      Can you
-                      <br />
-                      guess?
+                      {titleLines[1]}
                     </>
                   )}
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm font-semibold text-[var(--muted)] sm:text-base">
-                  {isHalloween
-                    ? isCompetition
-                      ? 'Register your students and run a Halloween knockout. Each phase asks one question per student.'
-                      : isLive
-                        ? 'Create a live room and let students answer on their phones with a code or QR.'
-                        : 'Trick or treat! Pick a difficulty, roll a real D20 and answer the spooky true-or-false questions.'
-                    : isCompetition
-                      ? 'Register your students and run a knockout with the topics you selected.'
-                      : isLive
-                        ? 'Create a live room and let students answer on their phones with a code or QR.'
-                        : 'Pick a mode, choose your topics and difficulty, then let the D20 decide.'}
+                  {subtitle}
                 </p>
               </header>
 
-              <section aria-label="Game modes" className="mt-8">
+              <section aria-label={c.gameModes} className="mt-8">
                 <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
                   <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                    Choose how to play
+                    {c.chooseMode}
                   </h2>
                   <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
-                    Step 1 · pick a mode
+                    {c.step1}
                   </span>
                 </div>
 
@@ -734,23 +738,23 @@ export default function GamePage() {
                   {[
                     {
                       id: 'd20' as PlayStyle,
-                      label: 'D20 Roll',
-                      tagline: 'One question at a time',
-                      description: 'Roll a real D20 and tap the number you rolled.',
+                      label: c.modes.d20.label,
+                      tagline: c.modes.d20.tagline,
+                      description: c.modes.d20.description,
                       Icon: Dices,
                     },
                     {
                       id: 'competition' as PlayStyle,
-                      label: 'Competition',
-                      tagline: 'Knockout tournament',
-                      description: 'Register students and run the phase ladder.',
+                      label: c.modes.competition.label,
+                      tagline: c.modes.competition.tagline,
+                      description: c.modes.competition.description,
                       Icon: Trophy,
                     },
                     {
                       id: 'live' as PlayStyle,
-                      label: 'Live',
-                      tagline: 'Phones and QR code',
-                      description: 'Create a room and let students answer on their phones.',
+                      label: c.modes.live.label,
+                      tagline: c.modes.live.tagline,
+                      description: c.modes.live.description,
                       Icon: Wifi,
                     },
                   ].map((item) => {
@@ -816,7 +820,7 @@ export default function GamePage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.2 }}
-                    aria-label="Round configuration"
+                    aria-label={c.roundConfig}
                     className={cn(
                       'mt-6 grid gap-4',
                       isClassic && 'lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]'
@@ -826,10 +830,10 @@ export default function GamePage() {
                       <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                           <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                            Question topics
+                            {c.topics}
                           </h2>
                           <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
-                            {classicCategories.length}/{CLASSIC_CATEGORIES.length} selected
+                            {classicCategories.length}/{CLASSIC_CATEGORIES.length} {c.selected}
                           </span>
                         </div>
 
@@ -871,7 +875,7 @@ export default function GamePage() {
                                   )}
                                 </div>
                                 <p className="mt-2 text-xs font-black leading-tight text-[var(--ink)]">
-                                  {category.label}
+                                  {categoryCopy(category.id, uiLanguage).label}
                                 </p>
                               </motion.button>
                             );
@@ -880,7 +884,7 @@ export default function GamePage() {
 
                         {classicCategories.length === 0 && (
                           <p className="mt-3 rounded-xl border-2 border-[var(--danger)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]">
-                            Select at least one topic to start.
+                            {c.selectTopic}
                           </p>
                         )}
                       </div>
@@ -891,7 +895,7 @@ export default function GamePage() {
                         <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
                           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                             <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                              Competition level
+                              {c.competitionLevel}
                             </h2>
                             <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
                               {competitionLevelMeta.phasesLabel}
@@ -899,7 +903,7 @@ export default function GamePage() {
                           </div>
 
                           <div className="grid grid-cols-2 gap-2">
-                            {COMPETITION_LEVELS.map((item) => {
+                            {competitionLevelOptions.map((item) => {
                               const Icon = COMPETITION_ICONS[item.id];
                               const selected = competitionConfig.level === item.id;
 
@@ -949,7 +953,7 @@ export default function GamePage() {
                           {competitionConfig.level === 'progressive' && (
                             <div className="mt-3 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] p-3">
                               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)]">
-                                Rounds per difficulty
+                                {c.roundsPerDifficulty}
                               </p>
                               <div className="mt-2 grid grid-cols-2 gap-2">
                                 {([2, 3] as ProgressiveRounds[]).map((rounds) => {
@@ -974,7 +978,7 @@ export default function GamePage() {
                                           : 'border-[var(--line-soft)] text-[var(--muted)] hover:border-[var(--line)]'
                                       )}
                                     >
-                                      {rounds} rounds
+                                      {rounds} {c.rounds}
                                     </button>
                                   );
                                 })}
@@ -996,7 +1000,7 @@ export default function GamePage() {
                         <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
                           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                             <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                              Difficulty
+                              {c.difficulty}
                             </h2>
                           </div>
 
@@ -1004,6 +1008,7 @@ export default function GamePage() {
                             {DIFFICULTIES.map((item) => {
                               const Icon = DIFFICULTY_ICONS[item.id];
                               const selected = difficulty === item.id;
+                              const copy = difficultyCopy(item.id, uiLanguage);
 
                               return (
                                 <button
@@ -1029,14 +1034,14 @@ export default function GamePage() {
                                       aria-hidden="true"
                                     />
                                     <span className="text-[9px] font-black uppercase tracking-wider text-[var(--muted)]">
-                                      {item.audience}
+                                      {copy.audience}
                                     </span>
                                   </div>
                                   <p className="mt-2 text-sm font-black text-[var(--ink)]">
-                                    {item.label}
+                                    {copy.label}
                                   </p>
                                   <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
-                                    {item.tagline}
+                                    {copy.tagline}
                                   </p>
                                 </button>
                               );
@@ -1048,13 +1053,16 @@ export default function GamePage() {
                       <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                            Question language
+                            {c.questionLanguage}
                           </h2>
-                          <LanguageToggle language={language} onChange={setLanguage} />
+                          <LanguageToggle
+                            language={language}
+                            onChange={setLanguage}
+                            label={c.questionLanguage}
+                          />
                         </div>
                         <p className="mt-2 text-[11px] font-semibold leading-relaxed text-[var(--muted)]">
-                          Only the questions and game feedback change. The interface follows the
-                          language selector at the top.
+                          {c.questionLanguageHelp}
                         </p>
                       </div>
                     </div>
@@ -1068,7 +1076,7 @@ export default function GamePage() {
                   className="flex min-h-[56px] items-center justify-center gap-2 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] px-5 text-sm font-black uppercase tracking-wide text-[var(--ink)] transition hover:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                 >
                   <Smartphone className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
-                  Join a live room
+                  {c.joinRoom}
                 </a>
 
                 <motion.button
@@ -1087,36 +1095,38 @@ export default function GamePage() {
                     <Sparkles className="h-5 w-5" aria-hidden="true" />
                   )}
                   {playStyle === null
-                    ? 'Choose a mode to start'
+                    ? c.chooseModeToStart
                     : playStyle === 'live'
-                      ? 'Create live room'
+                      ? c.createLiveRoom
                       : playStyle === 'competition'
-                        ? 'Set up competition'
+                        ? c.setupCompetition
                         : isHalloween
-                          ? 'Start the spooky round'
-                          : 'Start game'}
+                          ? c.startSpooky
+                          : c.startGame}
                   <ChevronRight className="h-5 w-5" aria-hidden="true" />
                 </motion.button>
               </div>
 
               <p className="mt-4 text-xs font-semibold leading-relaxed text-[var(--muted)]">
                 {playStyle === 'live'
-                  ? 'The next screen creates the room, shows the QR code and lets you choose rounds and time.'
+                  ? c.liveNext
                   : playStyle === 'competition'
-                    ? `${competitionPhases.length} phases · ${
-                        competitionConfig.order === 'random' ? 'Random order' : 'In order'
-                      }${isClassic ? ` · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics` : ''}.`
+                    ? `${competitionPhases.length} ${c.phasesWord} · ${
+                        competitionConfig.order === 'random'
+                          ? c.randomOrder
+                          : c.inOrder
+                      }${isClassic ? ` · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} ${c.topicsWord}` : ''}.`
                     : playStyle === 'd20'
-                      ? `${selectedDifficulty.label} deck · ${
+                      ? `${difficultyMeta.label} · ${
                           isClassic
-                            ? `${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics · `
+                            ? `${classicCategories.length}/${CLASSIC_CATEGORIES.length} ${c.topicsWord} · `
                             : ''
-                        }${deckSize} questions.`
-                      : 'Pick a mode above to see the options.'}
+                        }${deckSize} ${c.questionsWord}.`
+                      : c.pickMode}
               </p>
 
               <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
-                Tip: press T or F to answer · Esc closes the question
+                {c.tip}
               </p>
             </motion.main>
           )}
@@ -1137,26 +1147,25 @@ export default function GamePage() {
                   className="flex h-10 items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 text-xs font-black uppercase text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                 >
                   <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  Back to games
+                  {c.events.back}
                 </button>
                 <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                  Supp · Special events
+                  {c.events.badge}
                 </span>
               </div>
 
               <header className="mt-6 sm:mt-8">
                 <h1 className="text-balance text-4xl font-black uppercase leading-[0.95] tracking-tight text-[var(--ink)] sm:text-6xl">
-                  Special
+                  {c.events.title[0]}
                   <br />
-                  events
+                  {c.events.title[1]}
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm font-semibold text-[var(--muted)] sm:text-base">
-                  Seasonal decks and limited-time game modes. The default games are always available
-                  from the main menu.
+                  {c.events.subtitle}
                 </p>
               </header>
 
-              <section aria-label="Available events" className="mt-6 grid gap-3 sm:grid-cols-3">
+              <section aria-label={c.availableEvents} className="mt-6 grid gap-3 sm:grid-cols-3">
                 <motion.button
                   type="button"
                   whileHover={{ y: -2 }}
@@ -1173,29 +1182,29 @@ export default function GamePage() {
                       <Ghost className="h-5 w-5" aria-hidden="true" />
                     </span>
                     <span className="rounded-full border-2 border-[var(--accent)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
-                      Live now
+                      {c.events.liveNow}
                     </span>
                   </div>
-                  <h2 className="mt-3 text-xl font-black text-[var(--ink)]">Halloween</h2>
+                  <h2 className="mt-3 text-xl font-black text-[var(--ink)]">{c.events.halloween}</h2>
                   <p className="mt-1 text-xs font-medium leading-relaxed text-[var(--muted)]">
-                    Spooky true-or-false, knockout competition and a live room with QR codes.
+                    {c.events.halloweenDescription}
                   </p>
                   <span className="mt-3 flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-[var(--accent)]">
-                    Open event <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    {c.events.openEvent} <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </span>
                 </motion.button>
 
                 {[
                   {
                     id: 'christmas',
-                    label: 'Christmas',
-                    description: 'Festive questions, holiday movies and a Christmas knockout.',
+                    label: c.events.christmas,
+                    description: c.events.christmasDescription,
                     Icon: Snowflake,
                   },
                   {
                     id: 'easter',
-                    label: 'Easter',
-                    description: 'Spring trivia, chocolate facts and an Easter egg hunt quiz.',
+                    label: c.events.easter,
+                    description: c.events.easterDescription,
                     Icon: Egg,
                   },
                 ].map((event) => (
@@ -1209,7 +1218,7 @@ export default function GamePage() {
                         <event.Icon className="h-5 w-5" aria-hidden="true" />
                       </span>
                       <span className="rounded-full border border-[var(--line-soft)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">
-                        Coming soon
+                        {c.events.comingSoon}
                       </span>
                     </div>
                     <h2 className="mt-3 text-xl font-black text-[var(--ink)]">{event.label}</h2>
@@ -1222,7 +1231,7 @@ export default function GamePage() {
 
               <div className="mt-7">
                 <p className="text-xs font-semibold leading-relaxed text-[var(--muted)]">
-                  More seasonal events will appear here as they are released.
+                  {c.events.more}
                 </p>
               </div>
             </motion.main>
@@ -1243,11 +1252,11 @@ export default function GamePage() {
                   <button
                     type="button"
                     onClick={backToMenu}
-                    aria-label="Back to menu"
+                    aria-label={c.playing.menu}
                     className="flex h-10 items-center justify-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-2.5 text-xs font-black uppercase text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:px-3"
                   >
                     <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    <span className="hidden sm:inline">Menu</span>
+                    <span className="hidden sm:inline">{c.playing.menu}</span>
                   </button>
 
                   <div className="min-w-0">
@@ -1257,12 +1266,12 @@ export default function GamePage() {
                       ) : (
                         <GraduationCap className="h-4 w-4 shrink-0 text-[var(--accent)] sm:h-5 sm:w-5" aria-hidden="true" />
                       )}
-                      {isHalloween ? 'Halloween Trivia' : 'Trivia'}
+                      {isHalloween ? c.playing.halloweenTitle : c.playing.title}
                     </h1>
                     <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] sm:text-xs">
                       {isHalloween
                         ? `${difficultyMeta.label} · ${difficultyMeta.tagline}`
-                        : `${difficultyMeta.label} · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics`}
+                        : `${difficultyMeta.label} · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} ${c.topicsWord}`}
                     </p>
                   </div>
                 </div>
@@ -1270,7 +1279,7 @@ export default function GamePage() {
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <div
                     className="flex h-10 items-center gap-1.5 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 text-xs font-black text-[var(--ink)]"
-                    aria-label={`Score: ${score.correct} correct out of ${score.total}`}
+                    aria-label={`${c.playing.scoreLabel}: ${score.correct}/${score.total}`}
                   >
                     <Trophy className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
                     <span>
@@ -1283,18 +1292,23 @@ export default function GamePage() {
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       className="flex h-10 items-center gap-1 rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2.5 text-xs font-black text-[var(--accent)]"
-                      aria-label={`Streak: ${streak}`}
+                      aria-label={`${c.playing.streakLabel}: ${streak}`}
                     >
                       <Flame className="h-4 w-4" aria-hidden="true" />
                       {streak}
                     </motion.div>
                   )}
 
-                  <LanguageToggle language={language} onChange={setLanguage} />
+                  <LanguageToggle
+                    language={language}
+                    onChange={setLanguage}
+                    label={c.questionLanguage}
+                  />
 
                   <VolumeControl
                     volume={volume}
                     muted={isMuted}
+                    uiLanguage={uiLanguage}
                     onVolumeChange={handleVolumeChange}
                     onToggleMute={toggleMute}
                   />
@@ -1302,21 +1316,21 @@ export default function GamePage() {
                   <button
                     type="button"
                     onClick={startNewRound}
-                    aria-label="Start a new round"
+                    aria-label={c.playing.newRound}
                     className="flex h-10 items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-2.5 text-xs font-black uppercase text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                   >
                     <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                    <span className="hidden sm:inline">New round</span>
+                    <span className="hidden sm:inline">{c.playing.newRound}</span>
                   </button>
                 </div>
               </header>
 
               <main className="flex min-h-0 flex-1 flex-col gap-2 p-2 sm:gap-3 sm:p-4">
                 <div className="flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)] sm:gap-3 sm:text-xs">
-                  <span className="whitespace-nowrap">Round progress</span>
+                  <span className="whitespace-nowrap">{c.playing.roundProgress}</span>
                   <div
                     role="progressbar"
-                    aria-label="Round progress"
+                    aria-label={c.playing.roundProgress}
                     aria-valuemin={0}
                     aria-valuemax={ROUND_LENGTH}
                     aria-valuenow={roundCount}
@@ -1333,7 +1347,7 @@ export default function GamePage() {
                   </span>
                   {bestStreak >= 2 && (
                     <span className="hidden whitespace-nowrap text-[var(--accent)] sm:inline">
-                      Best streak {bestStreak}
+                      {c.playing.bestStreak} {bestStreak}
                     </span>
                   )}
                 </div>
@@ -1346,14 +1360,14 @@ export default function GamePage() {
                   >
                     <span className="flex items-center gap-1.5">
                       <Sparkles className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
-                      20 questions done! Ready for another round?
+                      {c.playing.roundDone}
                     </span>
                     <button
                       type="button"
                       onClick={startNewRound}
                       className="rounded-lg border-2 border-[var(--line)] bg-[var(--cta-bg)] px-3 py-1 text-[11px] font-black uppercase text-[var(--cta-text)]"
                     >
-                      New round
+                      {c.playing.newRound}
                     </button>
                   </motion.div>
                 )}
@@ -1365,7 +1379,7 @@ export default function GamePage() {
                       type="button"
                       onClick={() => handleNumberClick(number)}
                       disabled={isModalOpen}
-                      aria-label={`Open a question for roll ${number}`}
+                      aria-label={`${c.playing.openQuestion} ${number}`}
                       whileHover={{ y: -3 }}
                       whileTap={{ scale: 0.96 }}
                       className="relative flex min-h-0 items-center justify-center rounded-2xl border-[3px] border-[var(--line)] bg-[var(--surface)] text-[var(--ink)] shadow-[var(--tile-shadow)] transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:pointer-events-none sm:border-4"
@@ -1392,6 +1406,7 @@ export default function GamePage() {
               config={competitionConfig}
               categories={classicCategories}
               language={language}
+              uiLanguage={uiLanguage}
               onStudentsChange={setCompetitionStudents}
               onConfigChange={setCompetitionConfig}
               onCategoriesChange={setClassicCategories}
@@ -1409,6 +1424,7 @@ export default function GamePage() {
               config={competitionConfig}
               categories={classicCategories}
               language={language}
+              uiLanguage={uiLanguage}
               volume={volume}
               muted={isMuted}
               onVolumeChange={handleVolumeChange}

@@ -112,7 +112,7 @@ export default function QuestionModal({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close question"
+          aria-label={t('Close question', 'Fechar pergunta')}
           className="absolute right-3 top-3 rounded-full border-2 border-[var(--line-soft)] p-1.5 text-[var(--muted)] transition hover:scale-105 hover:text-[var(--ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:right-4 sm:top-4"
         >
           <X className="h-4 w-4" aria-hidden="true" />

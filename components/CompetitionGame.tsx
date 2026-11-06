@@ -25,9 +25,14 @@ import {
   buildCompetitionPhases,
   buildTiebreakPhase,
   drawPhaseQuestions,
-  getCompetitionLevelMeta,
   orderStudents,
 } from '@/lib/competition';
+import { COMPETITION_COPY } from '@/lib/i18n/competition-copy';
+import {
+  competitionLevelCopy,
+  localizePhase,
+  tierLabel,
+} from '@/lib/i18n/game-copy';
 import type {
   AnswerStatus,
   ClassicCategoryId,
@@ -54,6 +59,7 @@ type CompetitionGameProps = {
   config: CompetitionConfig;
   categories: ClassicCategoryId[];
   language: Language;
+  uiLanguage: Language;
   volume: number;
   muted: boolean;
   onVolumeChange: (value: number) => void;
@@ -72,16 +78,17 @@ type CompetitionGameProps = {
 
 type LineupStatus = 'pending' | 'current' | 'advanced' | 'eliminated';
 
-function statusMeta(status: LineupStatus) {
+function statusMeta(status: LineupStatus, language: Language) {
+  const labels = COMPETITION_COPY[language].game.status;
   switch (status) {
     case 'advanced':
-      return { label: 'Advanced', icon: Check, color: 'text-[var(--accent-2)]' };
+      return { label: labels.advanced, icon: Check, color: 'text-[var(--accent-2)]' };
     case 'eliminated':
-      return { label: 'Eliminated', icon: X, color: 'text-[var(--danger)]' };
+      return { label: labels.eliminated, icon: X, color: 'text-[var(--danger)]' };
     case 'current':
-      return { label: 'Now playing', icon: ChevronRight, color: 'text-[var(--accent)]' };
+      return { label: labels.current, icon: ChevronRight, color: 'text-[var(--accent)]' };
     default:
-      return { label: 'Waiting', icon: Circle, color: 'text-[var(--muted)]' };
+      return { label: labels.pending, icon: Circle, color: 'text-[var(--muted)]' };
   }
 }
 
@@ -91,6 +98,7 @@ export default function CompetitionGame({
   config,
   categories,
   language,
+  uiLanguage,
   volume,
   muted,
   onVolumeChange,
@@ -102,10 +110,14 @@ export default function CompetitionGame({
   onOpenSetup,
 }: CompetitionGameProps) {
   const phases = useMemo(
-    () => buildCompetitionPhases(config.level, config.progressiveRounds),
-    [config.level, config.progressiveRounds]
+    () =>
+      buildCompetitionPhases(config.level, config.progressiveRounds).map((phase) =>
+        localizePhase(phase, uiLanguage)
+      ),
+    [config.level, config.progressiveRounds, uiLanguage]
   );
-  const levelMeta = getCompetitionLevelMeta(config.level);
+  const levelMeta = competitionLevelCopy(config.level, uiLanguage);
+  const copy = COMPETITION_COPY[uiLanguage].game;
   const LevelIcon = LEVEL_ICONS[config.level];
 
   const [phaseIndex, setPhaseIndex] = useState(0);
@@ -316,34 +328,32 @@ export default function CompetitionGame({
     phaseOrder.length > 0 ? (progress / phaseOrder.length) * 100 : 0;
   const continueLabel =
     phaseResults.length >= phaseOrder.length
-      ? language === 'pt'
-        ? 'Ver resultado da fase'
-        : 'See phase results'
-      : language === 'pt'
-        ? 'Próximo aluno'
-        : 'Next student';
+      ? copy.seePhaseResults
+      : copy.nextStudent;
   const phaseSummaryEyebrow = tiebreakNeeded
-    ? 'Final phase complete'
+    ? copy.finalPhaseComplete
     : tiebreakStillTied
-      ? `Tiebreak round ${tiebreakRound} complete`
-      : `Phase ${phaseIndex + 1} complete`;
+      ? copy.tiebreakRoundComplete(tiebreakRound)
+      : copy.phaseComplete(phaseIndex + 1);
   const phaseSummaryTitle = tiebreakNeeded
-    ? 'Tiebreaker needed'
+    ? copy.tiebreakNeeded
     : tiebreakStillTied
-      ? 'Still tied'
-      : `${phaseSurvivors.length} advanced`;
+      ? copy.stillTied
+      : copy.advanced(phaseSurvivors.length);
   const phaseSummaryText = tiebreakNeeded
-    ? `${phaseSurvivors.length} students survived the final phase. Start sudden death: one question each until one champion remains.`
+    ? copy.tiebreakNeededText(phaseSurvivors.length)
     : tiebreakStillTied
-      ? `${phaseSurvivors.length} students are still tied after round ${tiebreakRound}. Another sudden-death round will decide it.`
-      : `${eliminated.length} student${eliminated.length === 1 ? '' : 's'} eliminated in this phase.`;
+      ? copy.stillTiedText(phaseSurvivors.length, tiebreakRound)
+      : copy.eliminatedText(eliminated.length);
   const survivorsLabel =
-    tiebreakNeeded || tiebreakStillTied ? 'Still in contention' : 'Advanced';
+    tiebreakNeeded || tiebreakStillTied
+      ? copy.stillInContention
+      : copy.advancedLabel;
   const nextActionLabel = tiebreakNeeded
-    ? 'Start tiebreaker'
+    ? copy.startTiebreaker
     : tiebreakStillTied
-      ? `Next tiebreak: Round ${tiebreakRound + 1}`
-      : `Next phase: ${phases[phaseIndex + 1]?.shortLabel}`;
+      ? copy.nextTiebreak(tiebreakRound + 1)
+      : copy.nextPhase(phases[phaseIndex + 1]?.shortLabel ?? '');
 
   return (
     <>
@@ -361,23 +371,23 @@ export default function CompetitionGame({
             <button
               type="button"
               onClick={onExit}
-              aria-label="Back to menu"
+              aria-label={copy.menu}
               className="flex h-10 items-center justify-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-2.5 text-xs font-black uppercase text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:px-3"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Menu</span>
+              <span className="hidden sm:inline">{copy.menu}</span>
             </button>
 
             <div className="min-w-0">
               <h1 className="flex items-center gap-1.5 truncate text-base font-black uppercase tracking-tight text-[var(--ink)] sm:text-2xl">
                 <LevelIcon className="h-4 w-4 shrink-0 text-[var(--accent)] sm:h-5 sm:w-5" aria-hidden="true" />
-                {mode === 'classic' ? 'Competition' : 'Halloween Competition'}
+                {mode === 'classic' ? copy.competition : copy.halloweenCompetition}
               </h1>
               <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] sm:text-xs">
                 {levelMeta.label} ·{' '}
                 {isTiebreak
-                  ? `Tiebreaker ${tiebreakRound}`
-                  : `Phase ${phaseIndex + 1}/${phases.length}`}{' '}
+                  ? `${copy.tiebreaker} ${tiebreakRound}`
+                  : `${copy.phase} ${phaseIndex + 1}/${phases.length}`}{' '}
                 · {currentPhase?.label}
               </p>
             </div>
@@ -386,16 +396,17 @@ export default function CompetitionGame({
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <span className="flex h-10 items-center gap-1.5 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 text-[11px] font-black uppercase tracking-wider text-[var(--muted)]">
               <Users className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
-              {activeStudents.length} in phase
+              {activeStudents.length} {copy.inPhase}
             </span>
 
             <span className="hidden h-10 items-center gap-1.5 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 text-[11px] font-black uppercase tracking-wider text-[var(--muted)] sm:flex">
-              {config.order === 'random' ? 'Random order' : 'In order'}
+              {config.order === 'random' ? copy.randomOrder : copy.inOrder}
             </span>
 
             <VolumeControl
               volume={volume}
               muted={muted}
+              uiLanguage={uiLanguage}
               onVolumeChange={onVolumeChange}
               onToggleMute={onToggleMute}
             />
@@ -403,11 +414,11 @@ export default function CompetitionGame({
             <button
               type="button"
               onClick={handleRestart}
-              aria-label="Restart competition"
+              aria-label={copy.restart}
               className="flex h-10 items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-2.5 text-xs font-black uppercase text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
             >
               <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Restart</span>
+              <span className="hidden sm:inline">{copy.restart}</span>
             </button>
           </div>
         </header>
@@ -416,10 +427,10 @@ export default function CompetitionGame({
           <div className="mx-auto grid w-full max-w-6xl gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)] lg:items-start">
             <div className="flex min-w-0 flex-col gap-3">
               <div className="flex items-center gap-2 rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] sm:gap-3 sm:text-xs">
-                <span className="whitespace-nowrap">Phase progress</span>
+                <span className="whitespace-nowrap">{copy.phaseProgress}</span>
                 <div
                   role="progressbar"
-                  aria-label="Phase progress"
+                  aria-label={copy.phaseProgress}
                   aria-valuemin={0}
                   aria-valuemax={Math.max(phaseOrder.length, 1)}
                   aria-valuenow={progress}
@@ -435,7 +446,7 @@ export default function CompetitionGame({
                   {progress}/{phaseOrder.length || activeStudents.length}
                 </span>
                 <span className="hidden whitespace-nowrap text-[var(--accent)] sm:inline">
-                  {totalCorrect}/{totalAnswers} correct
+                  {totalCorrect}/{totalAnswers} {copy.correct}
                 </span>
               </div>
 
@@ -449,14 +460,13 @@ export default function CompetitionGame({
                       <Skull className="h-8 w-8" aria-hidden="true" />
                     </span>
                     <p className="mt-4 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--danger)]">
-                      Competition over
+                      {copy.competitionOver}
                     </p>
                     <h2 className="mt-1 text-3xl font-black uppercase leading-none text-[var(--ink)] sm:text-5xl">
-                      No champion this time
+                      {copy.noChampion}
                     </h2>
                     <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-relaxed text-[var(--muted)] sm:text-base">
-                      Everyone was eliminated in this phase. That is a tough ladder! Run a rematch
-                      or go back to setup and try a different level.
+                      {copy.noChampionText}
                     </p>
                     <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
                       <button
@@ -465,7 +475,7 @@ export default function CompetitionGame({
                         className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-5 text-sm font-black uppercase tracking-wide text-[var(--cta-text)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)]"
                       >
                         <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                        Play again
+                        {copy.playAgain}
                       </button>
                       <button
                         type="button"
@@ -473,7 +483,7 @@ export default function CompetitionGame({
                         className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--surface-2)] px-5 text-sm font-black uppercase tracking-wide text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)]"
                       >
                         <Users className="h-4 w-4" aria-hidden="true" />
-                        New competition
+                        {copy.newCompetition}
                       </button>
                       <button
                         type="button"
@@ -481,7 +491,7 @@ export default function CompetitionGame({
                         className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line-soft)] px-5 text-sm font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)]"
                       >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        Menu
+                        {copy.menu}
                       </button>
                     </div>
                   </section>
@@ -494,7 +504,7 @@ export default function CompetitionGame({
                       <Crown className="h-10 w-10" aria-hidden="true" />
                     </span>
                     <p className="mt-4 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--accent)]">
-                      Champion!
+                      {copy.champion}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
                       {champions.map((champion) => (
@@ -508,13 +518,13 @@ export default function CompetitionGame({
                     </div>
                     <p className="mt-4 text-sm font-semibold leading-relaxed text-[var(--muted)] sm:text-base">
                       {isTiebreak
-                        ? `Won after ${tiebreakRound} tiebreak round${tiebreakRound === 1 ? '' : 's'}`
-                        : `Survived ${phaseIndex + 1} of ${phases.length} phases`}{' '}
-                      with{' '}
+                        ? copy.wonAfter(tiebreakRound)
+                        : copy.survived(phaseIndex + 1, phases.length)}{' '}
+                      {copy.withCorrect}{' '}
                       <span className="font-black text-[var(--ink)]">
                         {totalCorrect}/{totalAnswers}
                       </span>{' '}
-                      correct answers.
+                      {copy.correctAnswers}
                     </p>
                     <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
                       <button
@@ -523,7 +533,7 @@ export default function CompetitionGame({
                         className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-5 text-sm font-black uppercase tracking-wide text-[var(--cta-text)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)]"
                       >
                         <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                        Play again
+                        {copy.playAgain}
                       </button>
                       <button
                         type="button"
@@ -531,7 +541,7 @@ export default function CompetitionGame({
                         className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--surface-2)] px-5 text-sm font-black uppercase tracking-wide text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)]"
                       >
                         <Users className="h-4 w-4" aria-hidden="true" />
-                        New competition
+                        {copy.newCompetition}
                       </button>
                       <button
                         type="button"
@@ -539,7 +549,7 @@ export default function CompetitionGame({
                         className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line-soft)] px-5 text-sm font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)]"
                       >
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        Menu
+                        {copy.menu}
                       </button>
                     </div>
                   </section>
@@ -574,7 +584,7 @@ export default function CompetitionGame({
                       <ul className="mt-2 space-y-1.5">
                         {phaseSurvivors.length === 0 ? (
                           <li className="text-xs font-semibold text-[var(--muted)]">
-                            No one advanced.
+                            {copy.noOneAdvanced}
                           </li>
                         ) : (
                           phaseSurvivors.map((student) => (
@@ -592,12 +602,12 @@ export default function CompetitionGame({
 
                     <div className="rounded-2xl border-2 border-[var(--danger)]/50 bg-[var(--danger)]/10 p-3">
                       <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--danger)]">
-                        Eliminated
+                        {copy.eliminated}
                       </p>
                       <ul className="mt-2 space-y-1.5">
                         {eliminated.length === 0 ? (
                           <li className="text-xs font-semibold text-[var(--muted)]">
-                            No one was eliminated.
+                            {copy.noOneEliminated}
                           </li>
                         ) : (
                           eliminated.map((student) => (
@@ -627,7 +637,7 @@ export default function CompetitionGame({
                 <section className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-5 text-center shadow-[var(--panel-shadow)] sm:p-8">
                   <div className="flex flex-wrap items-center justify-center gap-2">
                     <span className="rounded-full border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">
-                      Turn {Math.min(turnIndex + 1, phaseOrder.length)} of {phaseOrder.length}
+                      {copy.turn(Math.min(turnIndex + 1, phaseOrder.length), phaseOrder.length)}
                     </span>
                     <span className="rounded-full border-2 border-[var(--accent)]/50 bg-[var(--surface-2)] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
                       {currentPhase?.label}
@@ -635,14 +645,13 @@ export default function CompetitionGame({
                   </div>
 
                   <p className="mt-6 text-[11px] font-black uppercase tracking-[0.24em] text-[var(--muted)]">
-                    It&apos;s your turn
+                    {copy.yourTurn}
                   </p>
                   <h2 className="mt-2 text-balance text-4xl font-black uppercase leading-none tracking-tight text-[var(--ink)] sm:text-6xl">
                     {currentStudent?.name}
                   </h2>
                   <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-relaxed text-[var(--muted)] sm:text-base">
-                    The teacher reads the question aloud. Answer true or false to try to reach the
-                    next phase.
+                    {copy.teacherReads}
                   </p>
 
                   <motion.button
@@ -654,11 +663,11 @@ export default function CompetitionGame({
                     className="mx-auto mt-6 flex min-h-[64px] w-full max-w-md items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 sm:text-lg"
                   >
                     <Play className="h-5 w-5" aria-hidden="true" />
-                    Reveal question
+                    {copy.revealQuestion}
                   </motion.button>
 
                   <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--muted)]">
-                    Tip: press T or F to answer · Esc closes the question
+                    {copy.tip}
                   </p>
                 </section>
               )}
@@ -668,7 +677,7 @@ export default function CompetitionGame({
               <div className="flex items-center justify-between gap-2">
                 <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-tight text-[var(--ink)]">
                   <Users className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
-                  Phase lineup
+                  {copy.phaseLineup}
                 </h2>
                 <span className="rounded-full border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">
                   {phaseOrder.length}
@@ -686,7 +695,7 @@ export default function CompetitionGame({
                     : isCurrent
                       ? 'current'
                       : 'pending';
-                  const meta = statusMeta(status);
+                  const meta = statusMeta(status, uiLanguage);
                   const StatusIcon = meta.icon;
 
                   return (
@@ -725,7 +734,7 @@ export default function CompetitionGame({
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <div className="rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-2">
                   <p className="text-[9px] font-black uppercase tracking-wider text-[var(--muted)]">
-                    Advanced
+                    {copy.advancedShort}
                   </p>
                   <p className="text-lg font-black text-[var(--accent-2)]">
                     {phaseSurvivors.length}
@@ -733,7 +742,7 @@ export default function CompetitionGame({
                 </div>
                 <div className="rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-2">
                   <p className="text-[9px] font-black uppercase tracking-wider text-[var(--muted)]">
-                    Eliminated
+                    {copy.eliminated}
                   </p>
                   <p className="text-lg font-black text-[var(--danger)]">{eliminated.length}</p>
                 </div>
@@ -741,7 +750,7 @@ export default function CompetitionGame({
 
               <p className="mt-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
                 <Trophy className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
-                {totalCorrect}/{totalAnswers} correct overall
+                {copy.correctOverall(totalCorrect, totalAnswers)}
               </p>
             </aside>
           </div>
