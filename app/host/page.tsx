@@ -9,6 +9,7 @@ import {
   Play,
   RotateCcw,
   Timer,
+  Trophy,
   UserPlus,
   Wifi,
   X,
@@ -106,6 +107,7 @@ function readSavedSession(): SavedSession | null {
             difficulty,
             questionCount: questionCount ?? 12,
             secondsPerQuestion: secondsPerQuestion ?? 20,
+            showQuestionOnPlayer: parsed.config.showQuestionOnPlayer !== false,
             categories: categories && categories.length > 0 ? categories : undefined,
           },
         };
@@ -196,6 +198,7 @@ export default function HostPage() {
   const [difficulty, setDifficulty] = useState<DifficultyId>('medium');
   const [questionCount, setQuestionCount] = useState<8 | 12 | 16>(12);
   const [secondsPerQuestion, setSecondsPerQuestion] = useState<15 | 20 | 30>(20);
+  const [showQuestionOnPlayer, setShowQuestionOnPlayer] = useState(true);
 
   const [code, setCode] = useState('');
   const [joinUrl, setJoinUrl] = useState('');
@@ -259,9 +262,19 @@ export default function HostPage() {
       difficulty,
       questionCount,
       secondsPerQuestion,
+      showQuestionOnPlayer,
       categories: mode === 'classic' ? categories : undefined,
     }),
-    [categories, difficulty, language, mode, questionCount, secondsPerQuestion, theme]
+    [
+      categories,
+      difficulty,
+      language,
+      mode,
+      questionCount,
+      secondsPerQuestion,
+      showQuestionOnPlayer,
+      theme,
+    ]
   );
 
   const toggleCategory = (categoryId: ClassicCategoryId) => {
@@ -549,6 +562,16 @@ export default function HostPage() {
     broadcast({ kind: 'gameover', leaderboard: rows });
   }, [broadcast]);
 
+  const closeRoom = useCallback(() => {
+    broadcast({ kind: 'roomclosed' });
+    clearSavedSession();
+    const channel = channelRef.current;
+    const client = getSupabaseClient();
+    if (channel && client) void client.removeChannel(channel);
+    channelRef.current = null;
+    window.location.href = '/';
+  }, [broadcast]);
+
   const nextQuestion = useCallback(() => {
     // Debounce: the firing timer and a same-instant manual click must not
     // advance twice (and an accidental double-click gets absorbed too).
@@ -711,13 +734,24 @@ export default function HostPage() {
 
       <div className="relative z-10 w-full max-w-4xl">
         <div className="flex items-center justify-between gap-3">
-          <a
-            href="/"
-            className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)]"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            {copy.menu}
-          </a>
+          {phase === 'setup' ? (
+            <a
+              href="/"
+              className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)]"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              {copy.menu}
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={closeRoom}
+              className="flex items-center gap-1.5 rounded-full border-2 border-[var(--danger)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--danger)] transition hover:bg-[var(--danger)]/10"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+              {copy.closeRoom}
+            </button>
+          )}
           <div className="flex items-center gap-2">
             {mode !== 'halloween' && (
               <ThemeToggle theme={theme} onChange={setTheme} />
@@ -890,6 +924,39 @@ export default function HostPage() {
                 </button>
               </div>
 
+              <div className="mt-4 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-3">
+                <p className="text-sm font-black text-[var(--ink)]">{copy.playerView}</p>
+                <p className="mt-0.5 text-[11px] font-medium text-[var(--muted)]">
+                  {copy.playerViewHelp}
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    aria-pressed={showQuestionOnPlayer}
+                    onClick={() => setShowQuestionOnPlayer(true)}
+                    className={
+                      showQuestionOnPlayer
+                        ? 'rounded-lg border-2 border-[var(--accent)] bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]'
+                        : 'rounded-lg border-2 border-[var(--line-soft)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] hover:border-[var(--line)]'
+                    }
+                  >
+                    {copy.playerViewFull}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={!showQuestionOnPlayer}
+                    onClick={() => setShowQuestionOnPlayer(false)}
+                    className={
+                      !showQuestionOnPlayer
+                        ? 'rounded-lg border-2 border-[var(--accent)] bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]'
+                        : 'rounded-lg border-2 border-[var(--line-soft)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] hover:border-[var(--line)]'
+                    }
+                  >
+                    {copy.playerViewShapes}
+                  </button>
+                </div>
+              </div>
+
               <button
                 type="button"
                 disabled={status === 'connecting' || !canOpenRoom}
@@ -911,6 +978,7 @@ export default function HostPage() {
                     setDifficulty(savedSession.config.difficulty);
                     setQuestionCount(savedSession.config.questionCount);
                     setSecondsPerQuestion(savedSession.config.secondsPerQuestion);
+                    setShowQuestionOnPlayer(savedSession.config.showQuestionOnPlayer);
                     void openRoom(savedSession.code);
                   }}
                   className="mt-3 block w-full rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-5 py-2.5 text-sm font-black uppercase tracking-wide text-[var(--muted)] disabled:opacity-60 sm:w-auto sm:min-w-64"
@@ -967,8 +1035,10 @@ export default function HostPage() {
                 <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center">
                   <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">{copy.scanToJoin}</h2>
                   {joinUrl ? (
-                    <div className="mt-3 rounded-2xl bg-white p-3">
-                      <QRCodeSVG value={joinUrl} size={168} fgColor="#1c0b33" bgColor="#ffffff" />
+                    <div className="mt-3 flex justify-center">
+                      <div className="rounded-2xl bg-white p-3 shadow-sm">
+                        <QRCodeSVG value={joinUrl} size={168} fgColor="#1c0b33" bgColor="#ffffff" />
+                      </div>
                     </div>
                   ) : null}
                   <p className="mt-3 break-all text-[11px] font-semibold text-[var(--muted)]">{joinUrl}</p>
@@ -1193,7 +1263,12 @@ export default function HostPage() {
               transition={{ duration: 0.2 }}
               className="mt-6 rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8"
             >
-              <h1 className="text-3xl font-black uppercase tracking-tight text-[var(--ink)] sm:text-4xl">{copy.gameOver}</h1>
+              <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-4 border-[var(--accent)] bg-[var(--surface-2)] text-[var(--accent)]">
+                <Trophy className="h-8 w-8" aria-hidden="true" />
+              </span>
+              <h1 className="mt-4 text-center text-3xl font-black uppercase tracking-tight text-[var(--ink)] sm:text-4xl">
+                {copy.gameOver}
+              </h1>
 
               <div className="mx-auto mt-6 grid max-w-md grid-cols-3 items-end gap-2 sm:gap-3">
                 {[
@@ -1202,7 +1277,7 @@ export default function HostPage() {
                   { place: 1, row: finalRows[0] },
                 ].map((slot, index) => {
                   const revealed = podiumStep >= index + 1;
-                  const rankHeight = slot.place === 1 ? 'h-40 sm:h-48' : slot.place === 2 ? 'h-32 sm:h-36' : 'h-24 sm:h-28';
+                  const rankHeight = slot.place === 1 ? 'min-h-48 sm:min-h-56' : slot.place === 2 ? 'min-h-40 sm:min-h-44' : 'min-h-32 sm:min-h-36';
                   return (
                     <motion.div
                       key={slot.place}
