@@ -45,13 +45,14 @@ import type {
   Student,
 } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { readStorage, writeStorage } from '@/lib/storage';
 
 // "Danse Macabre - Busy Strings" by Kevin MacLeod (incompetech.com), CC BY 3.0.
 const HALLOWEEN_BGM_URL =
   'https://upload.wikimedia.org/wikipedia/commons/3/32/Danse_Macabre_-_Busy_Strings_%28ISRC_USUAN1100556%29.mp3';
 const CLASSIC_BGM_URL = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
-const VOLUME_STORAGE_KEY = 'd20-classroom-volume';
-const COMPETITION_STORAGE_KEY = 'd20-classroom-competition-setup';
+const VOLUME_STORAGE_KEY = 'volume';
+const COMPETITION_STORAGE_KEY = 'competition-setup';
 const DEFAULT_VOLUME = 0.7;
 const ROUND_LENGTH = 20;
 const HALLOWEEN_CONFETTI = ['#ff7a18', '#a855f7', '#7dfabf', '#ffd166', '#ff4d6d'];
@@ -95,7 +96,7 @@ function readCompetitionConfig(): CompetitionConfig | null {
   if (typeof window === 'undefined') return null;
 
   try {
-    const raw = window.localStorage.getItem(COMPETITION_STORAGE_KEY);
+    const raw = readStorage(COMPETITION_STORAGE_KEY);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as { config?: unknown };
@@ -145,7 +146,7 @@ export default function GamePage() {
     if (typeof window === 'undefined') return DEFAULT_VOLUME;
 
     try {
-      const stored = window.localStorage.getItem(VOLUME_STORAGE_KEY);
+      const stored = readStorage(VOLUME_STORAGE_KEY);
       if (stored === null) return DEFAULT_VOLUME;
 
       const parsed = Number(stored);
@@ -254,22 +255,14 @@ export default function GamePage() {
   }, [isMuted, volume]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(VOLUME_STORAGE_KEY, String(volume));
-    } catch {
-      // Storage can be unavailable in private or restricted browsing modes.
-    }
+    writeStorage(VOLUME_STORAGE_KEY, String(volume));
   }, [volume]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        COMPETITION_STORAGE_KEY,
-        JSON.stringify({ config: competitionConfig })
-      );
-    } catch {
-      // Storage can be unavailable in private or restricted browsing modes.
-    }
+    writeStorage(
+      COMPETITION_STORAGE_KEY,
+      JSON.stringify({ config: competitionConfig })
+    );
   }, [competitionConfig]);
 
   useEffect(() => {
@@ -459,7 +452,7 @@ export default function GamePage() {
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--ink)] shadow-[var(--tile-shadow)]">
-                  D20 Classroom
+                  Supp
                 </span>
                 <span className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
                   {isHalloween ? (

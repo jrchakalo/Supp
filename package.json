@@ -1,7 +1,8 @@
 {
-  "name": "ai-studio-applet",
+  "name": "supp",
   "version": "0.1.0",
   "private": true,
+  "description": "Supp — classroom trivia, competition and live room game.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

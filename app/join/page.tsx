@@ -11,6 +11,7 @@ import {
   type RevealMessage,
 } from '@/lib/live/protocol';
 import { getSupabaseClient } from '@/lib/live/supabase';
+import { readStorage, writeStorage } from '@/lib/storage';
 import { ANSWER_BUTTONS, formatPoints, randomId, sanitizeRoomCode } from '@/lib/live/room';
 
 type Phase = 'entry' | 'connecting' | 'lobby' | 'question' | 'answered' | 'reveal' | 'over';
@@ -20,12 +21,12 @@ type StoredPlayer = {
   name: string;
 };
 
-const PLAYER_STORAGE_KEY = 'd20-classroom-live-player';
+const PLAYER_STORAGE_KEY = 'live-player';
 
 function readStoredPlayer(): StoredPlayer | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(PLAYER_STORAGE_KEY);
+    const raw = readStorage(PLAYER_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<StoredPlayer>;
     if (typeof parsed.id === 'string' && typeof parsed.name === 'string') {
@@ -38,11 +39,7 @@ function readStoredPlayer(): StoredPlayer | null {
 }
 
 function saveStoredPlayer(player: StoredPlayer) {
-  try {
-    window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(player));
-  } catch {
-    // Storage disabled: the player id simply regenerates on reload.
-  }
+  writeStorage(PLAYER_STORAGE_KEY, JSON.stringify(player));
 }
 
 function secondsLeft(startedAt: number, timeoutMs: number): number {

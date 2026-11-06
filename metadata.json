@@ -1,6 +1,6 @@
 {
-  "name": "D20 Classroom — Halloween Trivia",
-  "description": "A fun, interactive classroom icebreaker game using a 20-sided die. Includes a spooky Halloween mode with 60-question Easy, Medium and Hard decks plus the original mixed-topics classroom deck.",
+  "name": "Supp — Classroom Trivia",
+  "description": "Supp is a fun, interactive classroom icebreaker game using a 20-sided die. It includes a classic mixed-topics deck, special-event modes such as Halloween, a knockout competition and a live multiplayer room.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
