@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import HalloweenBackdrop from '@/components/HalloweenBackdrop';
+import LanguageToggle from '@/components/LanguageToggle';
 import { CLASSIC_ALL_CATEGORIES, CLASSIC_CATEGORIES } from '@/lib/classic-questions';
 import { DIFFICULTIES } from '@/lib/game';
+import { localizeLiveQuestions, type Language } from '@/lib/i18n';
 import {
   channelNameFor,
   type HostToPlayerMessage,
@@ -90,11 +92,13 @@ function readSavedSession(): SavedSession | null {
               CLASSIC_CATEGORIES.some((category) => category.id === id)
             )
           : undefined;
+        const language: Language = parsed.config.language === 'en' ? 'en' : 'pt';
 
         return {
           code,
           config: {
             mode,
+            language,
             difficulty,
             questionCount: questionCount ?? 12,
             secondsPerQuestion: secondsPerQuestion ?? 20,
@@ -131,6 +135,7 @@ const ROUND_SECONDS: { value: 15 | 20 | 30; label: string }[] = [
 
 export default function HostPage() {
   const [mode, setMode] = useState<ModeId>('classic');
+  const [language, setLanguage] = useState<Language>('pt');
   const [categories, setCategories] = useState<ClassicCategoryId[]>(
     CLASSIC_ALL_CATEGORIES
   );
@@ -154,6 +159,13 @@ export default function HostPage() {
           CLASSIC_CATEGORIES.some((category) => category.id === id)
         );
       if (parsed.length > 0) setCategories(parsed);
+    }
+
+    const requestedLanguage = params.get('lang');
+    if (requestedLanguage === 'en' || requestedLanguage === 'pt') {
+      setLanguage(requestedLanguage);
+    } else {
+      setLanguage(readStorage('language') === 'en' ? 'en' : 'pt');
     }
 
     setRealtimeReady(
@@ -215,12 +227,13 @@ export default function HostPage() {
   const liveConfig = useMemo<LiveGameConfig>(
     () => ({
       mode,
+      language,
       difficulty,
       questionCount,
       secondsPerQuestion,
       categories: mode === 'classic' ? categories : undefined,
     }),
-    [categories, difficulty, mode, questionCount, secondsPerQuestion]
+    [categories, difficulty, language, mode, questionCount, secondsPerQuestion]
   );
 
   const toggleCategory = (categoryId: ClassicCategoryId) => {
@@ -470,7 +483,10 @@ export default function HostPage() {
   );
 
   const startGame = useCallback(() => {
-    const nextRun = buildQuestionRun(mode, difficulty, questionCount, categories);
+    const nextRun = localizeLiveQuestions(
+      buildQuestionRun(mode, difficulty, questionCount, categories),
+      language
+    );
     if (nextRun.length === 0) return;
 
     runRef.current = nextRun;
@@ -479,7 +495,7 @@ export default function HostPage() {
     setScores({});
     revealedIdsRef.current = new Set();
     askQuestion(0);
-  }, [askQuestion, categories, difficulty, mode, questionCount]);
+  }, [askQuestion, categories, difficulty, language, mode, questionCount]);
 
   /* The question is read on the projector: enter fullscreen as the teacher hits play. */
   const enterFullscreen = useCallback(() => {
@@ -672,9 +688,12 @@ export default function HostPage() {
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
             Menu
           </a>
-          <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-            {mode === 'halloween' ? 'Halloween Live' : 'Classic Live'} · Host
-          </span>
+          <div className="flex items-center gap-2">
+            <LanguageToggle language={language} onChange={setLanguage} />
+            <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+              {mode === 'halloween' ? 'Halloween Live' : 'Classic Live'} · Host
+            </span>
+          </div>
         </div>
 
         {phase === 'setup' && (

@@ -1,4 +1,5 @@
 import type { ClassicCategoryId, DifficultyId, ModeId } from '../types';
+import type { Language } from '../i18n/types';
 
 /**
  * Message protocol between the host device (teacher) and player devices for
@@ -17,6 +18,7 @@ export const MAX_PLAYERS = 60;
 
 export type LiveGameConfig = {
   mode: ModeId;
+  language: Language;
   difficulty: DifficultyId;
   questionCount: 8 | 12 | 16;
   secondsPerQuestion: 15 | 20 | 30;

@@ -38,6 +38,7 @@ import type {
   Question,
   Student,
 } from '@/lib/types';
+import type { Language } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 const LEVEL_ICONS = {
@@ -52,6 +53,7 @@ type CompetitionGameProps = {
   students: Student[];
   config: CompetitionConfig;
   categories: ClassicCategoryId[];
+  language: Language;
   volume: number;
   muted: boolean;
   onVolumeChange: (value: number) => void;
@@ -88,6 +90,7 @@ export default function CompetitionGame({
   students,
   config,
   categories,
+  language,
   volume,
   muted,
   onVolumeChange,
@@ -312,7 +315,13 @@ export default function CompetitionGame({
   const progressPercent =
     phaseOrder.length > 0 ? (progress / phaseOrder.length) * 100 : 0;
   const continueLabel =
-    phaseResults.length >= phaseOrder.length ? 'See phase results' : 'Next student';
+    phaseResults.length >= phaseOrder.length
+      ? language === 'pt'
+        ? 'Ver resultado da fase'
+        : 'See phase results'
+      : language === 'pt'
+        ? 'Próximo aluno'
+        : 'Next student';
   const phaseSummaryEyebrow = tiebreakNeeded
     ? 'Final phase complete'
     : tiebreakStillTied
@@ -747,6 +756,7 @@ export default function CompetitionGame({
             phaseLabel={currentPhase.label}
             mode={mode}
             difficulty={currentPhase.difficulty}
+            language={language}
             status={answerStatus}
             continueLabel={continueLabel}
             onAnswer={handleAnswer}

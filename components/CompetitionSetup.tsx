@@ -31,6 +31,8 @@ import {
   parseStudentNames,
 } from '@/lib/competition';
 import { CLASSIC_CATEGORIES } from '@/lib/classic-questions';
+import LanguageToggle from './LanguageToggle';
+import type { Language } from '@/lib/i18n';
 import type {
   ClassicCategoryId,
   CompetitionConfig,
@@ -64,9 +66,11 @@ type CompetitionSetupProps = {
   students: Student[];
   config: CompetitionConfig;
   categories: ClassicCategoryId[];
+  language: Language;
   onStudentsChange: (students: Student[]) => void;
   onConfigChange: (config: CompetitionConfig) => void;
   onCategoriesChange: (categories: ClassicCategoryId[]) => void;
+  onLanguageChange: (language: Language) => void;
   onStart: () => void;
   onBack: () => void;
 };
@@ -76,9 +80,11 @@ export default function CompetitionSetup({
   students,
   config,
   categories,
+  language,
   onStudentsChange,
   onConfigChange,
   onCategoriesChange,
+  onLanguageChange,
   onStart,
   onBack,
 }: CompetitionSetupProps) {
@@ -191,6 +197,7 @@ export default function CompetitionSetup({
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
           {isClassic ? 'Classic competition' : 'Halloween competition'}
         </span>
+        <LanguageToggle language={language} onChange={onLanguageChange} />
       </header>
 
       <div>

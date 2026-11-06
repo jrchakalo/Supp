@@ -32,6 +32,7 @@ import {
 import CompetitionGame from '@/components/CompetitionGame';
 import CompetitionSetup from '@/components/CompetitionSetup';
 import HalloweenBackdrop from '@/components/HalloweenBackdrop';
+import LanguageToggle from '@/components/LanguageToggle';
 import QuestionModal from '@/components/QuestionModal';
 import VolumeControl from '@/components/VolumeControl';
 import { buildCompetitionPhases, COMPETITION_LEVELS, getCompetitionLevelMeta } from '@/lib/competition';
@@ -58,6 +59,7 @@ import type {
   Question,
   Student,
 } from '@/lib/types';
+import type { Language } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { readStorage, writeStorage } from '@/lib/storage';
 
@@ -67,6 +69,7 @@ const HALLOWEEN_BGM_URL =
 const CLASSIC_BGM_URL = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
 const VOLUME_STORAGE_KEY = 'volume';
 const COMPETITION_STORAGE_KEY = 'competition-setup';
+const LANGUAGE_STORAGE_KEY = 'language';
 const DEFAULT_VOLUME = 0.7;
 const ROUND_LENGTH = 20;
 const HALLOWEEN_CONFETTI = ['#ff7a18', '#a855f7', '#7dfabf', '#ffd166', '#ff4d6d'];
@@ -141,6 +144,9 @@ export default function GamePage() {
   const [difficulty, setDifficulty] = useState<DifficultyId>('medium');
   const [classicCategories, setClassicCategories] = useState<ClassicCategoryId[]>(
     CLASSIC_ALL_CATEGORIES
+  );
+  const [language, setLanguage] = useState<Language>(() =>
+    readStorage(LANGUAGE_STORAGE_KEY) === 'en' ? 'en' : 'pt'
   );
   const [playStyle, setPlayStyle] = useState<PlayStyle>('d20');
   // Only the competition settings persist; every new session starts with an empty roster.
@@ -288,6 +294,10 @@ export default function GamePage() {
   useEffect(() => {
     writeStorage(VOLUME_STORAGE_KEY, String(volume));
   }, [volume]);
+
+  useEffect(() => {
+    writeStorage(LANGUAGE_STORAGE_KEY, language);
+  }, [language]);
 
   useEffect(() => {
     writeStorage(
@@ -504,14 +514,17 @@ export default function GamePage() {
                 <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--ink)] shadow-[var(--tile-shadow)]">
                   Supp
                 </span>
-                <span className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
-                  {isHalloween ? (
-                    <Moon className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
-                  ) : (
-                    <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
-                  )}
-                  {isHalloween ? 'Spooky season special' : 'Year-round fun'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <LanguageToggle language={language} onChange={setLanguage} />
+                  <span className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
+                    {isHalloween ? (
+                      <Moon className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
+                    )}
+                    {isHalloween ? 'Spooky season special' : 'Year-round fun'}
+                  </span>
+                </div>
               </div>
 
               <AnimatePresence mode="wait">
@@ -1263,6 +1276,8 @@ export default function GamePage() {
                     </motion.div>
                   )}
 
+                  <LanguageToggle language={language} onChange={setLanguage} />
+
                   <VolumeControl
                     volume={volume}
                     muted={isMuted}
@@ -1362,9 +1377,11 @@ export default function GamePage() {
               students={competitionStudents}
               config={competitionConfig}
               categories={classicCategories}
+              language={language}
               onStudentsChange={setCompetitionStudents}
               onConfigChange={setCompetitionConfig}
               onCategoriesChange={setClassicCategories}
+              onLanguageChange={setLanguage}
               onStart={startCompetition}
               onBack={backToMenu}
             />
@@ -1377,6 +1394,7 @@ export default function GamePage() {
               students={competitionStudents}
               config={competitionConfig}
               categories={classicCategories}
+              language={language}
               volume={volume}
               muted={isMuted}
               onVolumeChange={handleVolumeChange}
@@ -1397,6 +1415,7 @@ export default function GamePage() {
               diceNumber={currentNumber}
               mode={mode}
               difficulty={difficulty}
+              language={language}
               status={answerStatus}
               onAnswer={handleAnswer}
               onClose={closeQuestion}
