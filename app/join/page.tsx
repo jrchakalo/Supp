@@ -55,7 +55,7 @@ export default function JoinPage() {
   const [uiLanguage] = useState<Language>(() =>
     readStorage('ui-language') === 'en' ? 'en' : 'pt'
   );
-  const [theme] = useState<Theme>(() =>
+  const [theme, setTheme] = useState<Theme>(() =>
     readStorage('theme') === 'dark' ? 'dark' : 'light'
   );
   const [codeInput, setCodeInput] = useState('');
@@ -128,6 +128,7 @@ export default function JoinPage() {
       // A new round starts: forget the previous game's sequence.
       setMode(payload.config.mode);
       setLanguage(payload.config.language === 'en' ? 'en' : 'pt');
+      setTheme(payload.config.theme === 'dark' ? 'dark' : 'light');
       seqRef.current = -1;
       chosenSeqRef.current = -1;
       setQuestion(null);
@@ -260,9 +261,7 @@ export default function JoinPage() {
 
   const themeClass =
     mode === 'halloween'
-      ? theme === 'dark'
-        ? 'theme-halloween'
-        : 'theme-halloween-light'
+      ? 'theme-halloween'
       : theme === 'dark'
         ? 'theme-dark'
         : 'theme-light';
@@ -271,7 +270,7 @@ export default function JoinPage() {
     <main
       className={`game-shell ${themeClass} relative flex min-h-dvh w-full flex-col items-center px-4 py-6`}
     >
-      {mode === 'halloween' && theme === 'dark' && (
+      {mode === 'halloween' && (
         <HalloweenBackdrop dimmed={phase !== 'entry'} />
       )}
 
