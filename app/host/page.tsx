@@ -17,6 +17,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import HalloweenBackdrop from '@/components/HalloweenBackdrop';
 import LanguageToggle from '@/components/LanguageToggle';
+import ThemeToggle from '@/components/ThemeToggle';
 import { CLASSIC_ALL_CATEGORIES, CLASSIC_CATEGORIES } from '@/lib/classic-questions';
 import { DIFFICULTIES } from '@/lib/game';
 import { localizeLiveQuestions, type Language } from '@/lib/i18n';
@@ -41,7 +42,7 @@ import {
   scoreForAnswer,
   sortLeaderboard,
 } from '@/lib/live/room';
-import type { ClassicCategoryId, DifficultyId, ModeId } from '@/lib/types';
+import type { ClassicCategoryId, DifficultyId, ModeId, Theme } from '@/lib/types';
 
 type Phase = 'setup' | 'lobby' | 'question' | 'reveal' | 'over';
 
@@ -136,6 +137,9 @@ const ROUND_SECONDS: { value: 15 | 20 | 30; label: string }[] = [
 export default function HostPage() {
   const [mode, setMode] = useState<ModeId>('classic');
   const [language, setLanguage] = useState<Language>('pt');
+  const [theme, setTheme] = useState<Theme>(() =>
+    readStorage('theme') === 'dark' ? 'dark' : 'light'
+  );
   const [categories, setCategories] = useState<ClassicCategoryId[]>(
     CLASSIC_ALL_CATEGORIES
   );
@@ -202,6 +206,10 @@ export default function HostPage() {
   useEffect(() => {
     writeStorage('language', language);
   }, [language]);
+
+  useEffect(() => {
+    writeStorage('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     setSavedSession(readSavedSession());
@@ -635,14 +643,21 @@ export default function HostPage() {
   /* Render                                                              */
   /* ------------------------------------------------------------------ */
 
+  const themeClass =
+    mode === 'halloween'
+      ? theme === 'dark'
+        ? 'theme-halloween'
+        : 'theme-halloween-light'
+      : theme === 'dark'
+        ? 'theme-dark'
+        : 'theme-light';
+
   if (!mounted) {
     return (
       <main
-        className={`game-shell ${
-          mode === 'halloween' ? 'theme-halloween' : 'theme-classic'
-        } relative flex min-h-dvh items-center justify-center`}
+        className={`game-shell ${themeClass} relative flex min-h-dvh items-center justify-center`}
       >
-        {mode === 'halloween' && <HalloweenBackdrop dimmed />}
+        {mode === 'halloween' && theme === 'dark' && <HalloweenBackdrop dimmed />}
         <span className="relative z-10 h-10 w-10 animate-pulse rounded-full bg-[var(--surface-2)]" />
       </main>
     );
@@ -651,11 +666,9 @@ export default function HostPage() {
   if (!realtimeReady) {
     return (
       <main
-        className={`${
-          mode === 'halloween' ? 'theme-halloween' : 'theme-classic'
-        } game-shell relative flex min-h-dvh items-center justify-center px-4`}
+        className={`${themeClass} game-shell relative flex min-h-dvh items-center justify-center px-4`}
       >
-        {mode === 'halloween' && <HalloweenBackdrop dimmed />}
+        {mode === 'halloween' && theme === 'dark' && <HalloweenBackdrop dimmed />}
         <div className="relative z-10 max-w-md rounded-2xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center">
           <Wifi className="mx-auto h-8 w-8 text-[var(--muted)]" aria-hidden="true" />
           <h1 className="mt-3 text-xl font-black text-[var(--ink)]">Realtime not configured</h1>
@@ -677,11 +690,11 @@ export default function HostPage() {
 
   return (
     <main
-      className={`game-shell ${
-        mode === 'halloween' ? 'theme-halloween' : 'theme-classic'
-      } relative flex min-h-dvh w-full flex-col items-center px-4 py-6 sm:px-8`}
+      className={`game-shell ${themeClass} relative flex min-h-dvh w-full flex-col items-center px-4 py-6 sm:px-8`}
     >
-      {mode === 'halloween' && <HalloweenBackdrop dimmed={phase !== 'lobby'} />}
+      {mode === 'halloween' && theme === 'dark' && (
+        <HalloweenBackdrop dimmed={phase !== 'lobby'} />
+      )}
 
       <div className="relative z-10 w-full max-w-4xl">
         <div className="flex items-center justify-between gap-3">
@@ -693,6 +706,7 @@ export default function HostPage() {
             Menu
           </a>
           <div className="flex items-center gap-2">
+            <ThemeToggle theme={theme} onChange={setTheme} />
             <LanguageToggle language={language} onChange={setLanguage} />
             <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
               {mode === 'halloween' ? 'Halloween Live' : 'Classic Live'} · Host

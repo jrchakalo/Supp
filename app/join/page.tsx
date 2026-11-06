@@ -14,7 +14,7 @@ import { getSupabaseClient } from '@/lib/live/supabase';
 import { readStorage, writeStorage } from '@/lib/storage';
 import { ANSWER_BUTTONS, formatPoints, randomId, sanitizeRoomCode } from '@/lib/live/room';
 import type { Language } from '@/lib/i18n';
-import type { ModeId } from '@/lib/types';
+import type { ModeId, Theme } from '@/lib/types';
 
 type Phase = 'entry' | 'connecting' | 'lobby' | 'question' | 'answered' | 'reveal' | 'over';
 
@@ -52,6 +52,9 @@ export default function JoinPage() {
   const [phase, setPhase] = useState<Phase>('entry');
   const [mode, setMode] = useState<ModeId>('classic');
   const [language, setLanguage] = useState<Language>('pt');
+  const [theme] = useState<Theme>(() =>
+    readStorage('theme') === 'dark' ? 'dark' : 'light'
+  );
   const [codeInput, setCodeInput] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [error, setError] = useState('');
@@ -252,13 +255,22 @@ export default function JoinPage() {
     startedAt && timeoutMs ? Math.max(secondsLeft(startedAt, timeoutMs) / (timeoutMs / 1000), 0) : 0;
   const t = (en: string, pt: string) => (language === 'pt' ? pt : en);
 
+  const themeClass =
+    mode === 'halloween'
+      ? theme === 'dark'
+        ? 'theme-halloween'
+        : 'theme-halloween-light'
+      : theme === 'dark'
+        ? 'theme-dark'
+        : 'theme-light';
+
   return (
     <main
-      className={`game-shell ${
-        mode === 'halloween' ? 'theme-halloween' : 'theme-classic'
-      } relative flex min-h-dvh w-full flex-col items-center px-4 py-6`}
+      className={`game-shell ${themeClass} relative flex min-h-dvh w-full flex-col items-center px-4 py-6`}
     >
-      {mode === 'halloween' && <HalloweenBackdrop dimmed={phase !== 'entry'} />}
+      {mode === 'halloween' && theme === 'dark' && (
+        <HalloweenBackdrop dimmed={phase !== 'entry'} />
+      )}
 
       <div
         className={`relative z-10 flex w-full flex-1 flex-col ${

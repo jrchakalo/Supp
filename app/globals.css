@@ -24,7 +24,7 @@
 /* Theme tokens                                                        */
 /* ------------------------------------------------------------------ */
 
-.theme-classic {
+.theme-light {
   color-scheme: light;
   --surface: #ffffff;
   --surface-2: #fff6dc;
@@ -41,6 +41,44 @@
   --panel-shadow: 6px 6px 0 #073b4c;
   --tile-shadow: 5px 5px 0 #073b4c;
   --page-bg: #ffd166;
+}
+
+.theme-dark {
+  color-scheme: dark;
+  --surface: #151a2e;
+  --surface-2: #202845;
+  --ink: #f4f7ff;
+  --muted: #aab6d3;
+  --accent: #4cc9f0;
+  --accent-2: #7dfabf;
+  --danger: #ff5d8f;
+  --line: #4a5a8a;
+  --line-soft: rgba(170, 182, 211, 0.24);
+  --cta-bg: #ffd166;
+  --cta-text: #101426;
+  --card-shadow: 0 30px 80px -24px rgba(0, 0, 0, 0.9), 0 0 60px -25px rgba(76, 201, 240, 0.35);
+  --panel-shadow: 0 10px 30px -18px rgba(0, 0, 0, 0.9), 0 0 30px -20px rgba(76, 201, 240, 0.4);
+  --tile-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
+  --page-bg: #0b1020;
+}
+
+.theme-halloween-light {
+  color-scheme: light;
+  --surface: #fffaf2;
+  --surface-2: #ffefd9;
+  --ink: #3b1d0e;
+  --muted: #7a4a2a;
+  --accent: #e36414;
+  --accent-2: #2a9d8f;
+  --danger: #d62828;
+  --line: #7a3e1d;
+  --line-soft: rgba(122, 62, 29, 0.24);
+  --cta-bg: #ffb703;
+  --cta-text: #3b1d0e;
+  --card-shadow: 12px 12px 0 #7a3e1d;
+  --panel-shadow: 6px 6px 0 #7a3e1d;
+  --tile-shadow: 5px 5px 0 #7a3e1d;
+  --page-bg: #ffb703;
 }
 
 .theme-halloween {
@@ -75,11 +113,25 @@
   background-color: var(--page-bg);
 }
 
-.theme-classic.game-shell {
+.theme-light.game-shell {
   background:
     radial-gradient(circle at 12% 0%, #fff1bd 0%, transparent 45%),
     radial-gradient(circle at 88% 8%, #ffc94d 0%, transparent 40%),
     linear-gradient(180deg, #ffd166 0%, #f7bd45 100%);
+}
+
+.theme-dark.game-shell {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(76, 201, 240, 0.18) 0%, transparent 42%),
+    radial-gradient(circle at 88% 8%, rgba(168, 85, 247, 0.16) 0%, transparent 40%),
+    linear-gradient(180deg, #0b1020 0%, #11172b 55%, #090d18 100%);
+}
+
+.theme-halloween-light.game-shell {
+  background:
+    radial-gradient(circle at 82% 4%, rgba(227, 100, 20, 0.16) 0%, transparent 36%),
+    radial-gradient(circle at 12% 18%, rgba(255, 183, 3, 0.24) 0%, transparent 44%),
+    linear-gradient(180deg, #fff1d6 0%, #ffd9a3 100%);
 }
 
 .theme-halloween.game-shell {
@@ -96,6 +148,14 @@
   background-clip: text;
   color: transparent;
   filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35)) drop-shadow(0 0 28px rgba(255, 138, 31, 0.3));
+}
+
+.theme-halloween-light .hw-title {
+  background: linear-gradient(100deg, #7a3e1d 0%, #e36414 45%, #c2410c 75%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.45));
 }
 
 /* ------------------------------------------------------------------ */
