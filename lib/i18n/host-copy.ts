@@ -15,6 +15,11 @@ const EN = {
   autoAdvance: 'Auto-advance next question',
   autoAdvanceHelp:
     'On: the reveal screen jumps to the next question on its own after 7 s. Off: the host drives Next question manually.',
+  playerView: 'Student devices',
+  playerViewHelp:
+    'Choose what students see on their phones while answering. Full text helps large rooms; shapes only keeps the quiz-show look.',
+  playerViewFull: 'Question + answers',
+  playerViewShapes: 'Shapes only',
   on: 'On',
   off: 'Off',
   openRoom: 'Open room',
@@ -49,7 +54,7 @@ const EN = {
   finishGame: 'Finish game',
   nextQuestion: 'Next question',
   endGame: 'End game',
-  gameOver: 'Game over 🎉',
+  gameOver: 'Game over',
   points: 'pts',
   playAgainSameRoom: 'Play again (same room)',
   closeRoom: 'Close room',
@@ -72,6 +77,11 @@ const PT: HostCopy = {
   autoAdvance: 'Avançar automaticamente para a próxima pergunta',
   autoAdvanceHelp:
     'Ligado: a tela de revelação avança sozinha após 7 s. Desligado: o host controla a próxima pergunta manualmente.',
+  playerView: 'Celulares dos alunos',
+  playerViewHelp:
+    'Escolha o que os alunos veem no celular enquanto respondem. O texto completo ajuda em salas grandes; somente figuras mantém o visual de quiz show.',
+  playerViewFull: 'Pergunta + respostas',
+  playerViewShapes: 'Somente figuras',
   on: 'Ligado',
   off: 'Desligado',
   openRoom: 'Abrir sala',
@@ -106,7 +116,7 @@ const PT: HostCopy = {
   finishGame: 'Encerrar jogo',
   nextQuestion: 'Próxima pergunta',
   endGame: 'Encerrar',
-  gameOver: 'Fim de jogo 🎉',
+  gameOver: 'Fim de jogo',
   points: 'pts',
   playAgainSameRoom: 'Jogar de novo (mesma sala)',
   closeRoom: 'Fechar sala',
