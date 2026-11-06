@@ -5,17 +5,21 @@ import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import confetti from 'canvas-confetti';
 import {
   ArrowLeft,
+  CalendarHeart,
   Candy,
   Check,
   ChevronRight,
   Dices,
+  Egg,
   Flame,
   Ghost,
   GraduationCap,
   Moon,
+  PartyPopper,
   RotateCcw,
   Skull,
   Smartphone,
+  Snowflake,
   Sparkles,
   Trophy,
   Wifi,
@@ -90,7 +94,7 @@ const MODE_ICONS = {
 } as const;
 
 type PlayStyle = 'd20' | 'competition';
-type Screen = 'menu' | 'playing' | 'competition-setup' | 'competition';
+type Screen = 'menu' | 'events' | 'playing' | 'competition-setup' | 'competition';
 
 function readCompetitionConfig(): CompetitionConfig | null {
   if (typeof window === 'undefined') return null;
@@ -120,7 +124,7 @@ function readCompetitionConfig(): CompetitionConfig | null {
 
 export default function GamePage() {
   const [screen, setScreen] = useState<Screen>('menu');
-  const [mode, setMode] = useState<ModeId>('halloween');
+  const [mode, setMode] = useState<ModeId>('classic');
   const [difficulty, setDifficulty] = useState<DifficultyId>('medium');
   const [playStyle, setPlayStyle] = useState<PlayStyle>('d20');
   // Only the competition settings persist; every new session starts with an empty roster.
@@ -130,7 +134,7 @@ export default function GamePage() {
   const [competitionStudents, setCompetitionStudents] = useState<Student[]>([]);
   const [competitionRun, setCompetitionRun] = useState(0);
 
-  const [queue, setQueue] = useState<Question[]>(() => shuffle(getDeck('halloween', 'medium')));
+  const [queue, setQueue] = useState<Question[]>(() => shuffle(getDeck('classic', 'medium')));
   const [roundCount, setRoundCount] = useState(0);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [streak, setStreak] = useState(0);
@@ -511,59 +515,61 @@ export default function GamePage() {
                 </motion.header>
               </AnimatePresence>
 
-              <section aria-label="Game mode" className="mt-6 grid gap-3 sm:grid-cols-2">
-                {MODES.map((item) => {
-                  const Icon = MODE_ICONS[item.id];
-                  const selected = mode === item.id;
-
-                  return (
-                    <motion.button
-                      key={item.id}
+              <AnimatePresence mode="wait">
+                <motion.section
+                  key={`mode-${mode}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                  aria-label={isHalloween ? 'Special event' : 'Special events'}
+                  className="mt-6"
+                >
+                  {isHalloween ? (
+                    <button
                       type="button"
-                      aria-pressed={selected}
-                      whileHover={{ y: -2 }}
-                      whileTap={{ scale: 0.99 }}
-                      onClick={() => {
-                        setMode(item.id);
-                        if (item.id === 'classic') setPlayStyle('d20');
-                      }}
-                      className={cn(
-                        'relative overflow-hidden rounded-2xl border-4 p-4 text-left transition-colors sm:p-5',
-                        selected
-                          ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-[var(--panel-shadow)]'
-                          : 'border-[var(--line-soft)] bg-[var(--surface)] hover:border-[var(--line)]'
-                      )}
+                      onClick={() => setScreen('events')}
+                      className="flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] p-4 text-left transition-colors hover:border-[var(--accent)] sm:p-5"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <span
-                          className={cn(
-                            'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2',
-                            selected
-                              ? 'border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]'
-                              : 'border-[var(--line-soft)] text-[var(--muted)]'
-                          )}
-                        >
-                          <Icon className="h-5 w-5" aria-hidden="true" />
+                      <span className="flex items-start gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
+                          <CalendarHeart className="h-5 w-5" aria-hidden="true" />
                         </span>
-                        <span
-                          className={cn(
-                            'flex h-6 w-6 items-center justify-center rounded-full border-2 transition',
-                            selected
-                              ? 'border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]'
-                              : 'border-[var(--line-soft)] text-transparent'
-                          )}
-                        >
-                          <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>
+                          <span className="block text-lg font-black text-[var(--ink)]">
+                            Back to special events
+                          </span>
+                          <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
+                            Halloween is live. Christmas and Easter are coming next.
+                          </span>
                         </span>
-                      </div>
-                      <h2 className="mt-3 text-lg font-black text-[var(--ink)] sm:text-xl">{item.label}</h2>
-                      <p className="mt-1 text-xs font-medium leading-relaxed text-[var(--muted)] sm:text-sm">
-                        {item.description}
-                      </p>
-                    </motion.button>
-                  );
-                })}
-              </section>
+                      </span>
+                      <ArrowLeft className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setScreen('events')}
+                      className="group flex w-full items-center justify-between gap-3 rounded-2xl border-4 border-dashed border-[var(--accent)] bg-[var(--surface)] p-4 text-left transition-colors hover:bg-[var(--surface-2)] sm:p-5"
+                    >
+                      <span className="flex items-start gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
+                          <PartyPopper className="h-5 w-5" aria-hidden="true" />
+                        </span>
+                        <span>
+                          <span className="block text-lg font-black text-[var(--ink)]">
+                            Special events
+                          </span>
+                          <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
+                            Halloween is available now. Christmas and Easter are coming soon.
+                          </span>
+                        </span>
+                      </span>
+                      <ChevronRight className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+                    </button>
+                  )}
+                </motion.section>
+              </AnimatePresence>
 
               <AnimatePresence initial={false}>
                 {isHalloween && (
@@ -944,6 +950,129 @@ export default function GamePage() {
                 Tip: press T or F to answer · Esc closes the question
               </p>
 
+            </motion.main>
+          )}
+
+          {screen === 'events' && (
+            <motion.main
+              key="events"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.25 }}
+              className="relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col justify-center px-4 py-8 sm:px-8"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('classic');
+                    setPlayStyle('d20');
+                    setScreen('menu');
+                  }}
+                  className="flex h-10 items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 text-xs font-black uppercase text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  Classic menu
+                </button>
+                <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                  Supp · Special events
+                </span>
+              </div>
+
+              <header className="mt-6 sm:mt-8">
+                <h1 className="text-balance text-4xl font-black uppercase leading-[0.95] tracking-tight text-[var(--ink)] sm:text-6xl">
+                  Special
+                  <br />
+                  events
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm font-semibold text-[var(--muted)] sm:text-base">
+                  Seasonal decks and limited-time game modes. The classic classroom deck is always
+                  available from the main menu.
+                </p>
+              </header>
+
+              <section aria-label="Available events" className="mt-6 grid gap-3 sm:grid-cols-3">
+                <motion.button
+                  type="button"
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() => {
+                    setMode('halloween');
+                    setPlayStyle('d20');
+                    setScreen('menu');
+                  }}
+                  className="relative overflow-hidden rounded-2xl border-4 border-[var(--accent)] bg-[var(--surface)] p-4 text-left shadow-[var(--panel-shadow)] transition-colors hover:bg-[var(--surface-2)] sm:p-5"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
+                      <Ghost className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <span className="rounded-full border-2 border-[var(--accent)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
+                      Live now
+                    </span>
+                  </div>
+                  <h2 className="mt-3 text-xl font-black text-[var(--ink)]">Halloween</h2>
+                  <p className="mt-1 text-xs font-medium leading-relaxed text-[var(--muted)]">
+                    Spooky true-or-false, knockout competition and a live room with QR codes.
+                  </p>
+                  <span className="mt-3 flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-[var(--accent)]">
+                    Open event <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
+                </motion.button>
+
+                {[
+                  {
+                    id: 'christmas',
+                    label: 'Christmas',
+                    description: 'Festive questions, holiday movies and a Christmas knockout.',
+                    Icon: Snowflake,
+                  },
+                  {
+                    id: 'easter',
+                    label: 'Easter',
+                    description: 'Spring trivia, chocolate facts and an Easter egg hunt quiz.',
+                    Icon: Egg,
+                  },
+                ].map((event) => (
+                  <div
+                    key={event.id}
+                    aria-disabled="true"
+                    className="relative overflow-hidden rounded-2xl border-2 border-dashed border-[var(--line-soft)] bg-[var(--surface)] p-4 opacity-70 sm:p-5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--line-soft)] text-[var(--muted)]">
+                        <event.Icon className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <span className="rounded-full border border-[var(--line-soft)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">
+                        Coming soon
+                      </span>
+                    </div>
+                    <h2 className="mt-3 text-xl font-black text-[var(--ink)]">{event.label}</h2>
+                    <p className="mt-1 text-xs font-medium leading-relaxed text-[var(--muted)]">
+                      {event.description}
+                    </p>
+                  </div>
+                ))}
+              </section>
+
+              <div className="mt-7 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('classic');
+                    setPlayStyle('d20');
+                    setScreen('menu');
+                  }}
+                  className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] sm:w-auto"
+                >
+                  <GraduationCap className="h-5 w-5" aria-hidden="true" />
+                  Back to classic
+                </button>
+                <p className="text-xs font-semibold leading-relaxed text-[var(--muted)]">
+                  More seasonal events will appear here as they are released.
+                </p>
+              </div>
             </motion.main>
           )}
 
