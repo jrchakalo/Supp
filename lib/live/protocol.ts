@@ -1,4 +1,4 @@
-import type { DifficultyId } from '../types';
+import type { ClassicCategoryId, DifficultyId, ModeId } from '../types';
 
 /**
  * Message protocol between the host device (teacher) and player devices for
@@ -16,9 +16,12 @@ export const CHANNEL_PREFIX = 'supp-live';
 export const MAX_PLAYERS = 60;
 
 export type LiveGameConfig = {
+  mode: ModeId;
   difficulty: DifficultyId;
   questionCount: 8 | 12 | 16;
   secondsPerQuestion: 15 | 20 | 30;
+  /** Classic topics. Ignored by Halloween rooms. */
+  categories?: ClassicCategoryId[];
 };
 
 export type LivePlayerRef = {
