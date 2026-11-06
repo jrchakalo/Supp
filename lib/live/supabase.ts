@@ -22,7 +22,7 @@ export function getSupabaseClient() {
     if (!warned) {
       warned = true;
       console.warn(
-        '[d20-live] Realtime is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.'
+        '[supp-live] Realtime is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.'
       );
     }
     return null;

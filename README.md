@@ -1,5 +1,5 @@
 <div align="center">
-   <h1>🎲 D20 Classroom</h1>
+   <h1>🎲 Supp</h1>
    <p>
       <img src="https://img.shields.io/badge/Next.js-15-black" alt="Next.js" />
       <img src="https://img.shields.io/badge/React-19-61dafb" alt="React" />

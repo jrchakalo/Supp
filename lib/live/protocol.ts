@@ -9,8 +9,8 @@ import type { DifficultyId } from '../types';
  * their answers and everything else they receive.
  */
 
-/** Channel namespace. The room code is appended: `d20-live:AB3D9K`. */
-export const CHANNEL_PREFIX = 'd20-live';
+/** Channel namespace. The room code is appended: `supp-live:AB3D9K`. */
+export const CHANNEL_PREFIX = 'supp-live';
 
 /** Player cap per room. Supabase Realtime handles presence up to 100–200 clients. */
 export const MAX_PLAYERS = 60;

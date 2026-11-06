@@ -24,6 +24,7 @@ import {
   MAX_PLAYERS,
 } from '@/lib/live/protocol';
 import { getSupabaseClient } from '@/lib/live/supabase';
+import { readStorage, writeStorage, removeStorage } from '@/lib/storage';
 import {
   ANSWER_BUTTONS,
   buildQuestionRun,
@@ -58,8 +59,7 @@ type ScoreEntry = {
   streak: number;
 };
 
-const PLAYER_STORAGE_KEY = 'd20-classroom-live-player';
-const HOST_SESSION_KEY = 'd20-classroom-live-host';
+const HOST_SESSION_KEY = 'live-host';
 
 type SavedSession = {
   code: string;
@@ -69,7 +69,7 @@ type SavedSession = {
 function readSavedSession(): SavedSession | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(HOST_SESSION_KEY);
+    const raw = readStorage(HOST_SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SavedSession>;
     if (typeof parsed.code === 'string' && parsed.config && typeof parsed.config === 'object') {
@@ -93,19 +93,11 @@ function readSavedSession(): SavedSession | null {
 }
 
 function saveSavedSession(session: SavedSession) {
-  try {
-    window.localStorage.setItem(HOST_SESSION_KEY, JSON.stringify(session));
-  } catch {
-    // Storage disabled: the host simply cannot rejoin after a refresh.
-  }
+  writeStorage(HOST_SESSION_KEY, JSON.stringify(session));
 }
 
 function clearSavedSession() {
-  try {
-    window.localStorage.removeItem(HOST_SESSION_KEY);
-  } catch {
-    // Storage disabled: nothing to clear.
-  }
+  removeStorage(HOST_SESSION_KEY);
 }
 
 const ROUND_LENGTHS: { value: 8 | 12 | 16; label: string }[] = [
