@@ -23,6 +23,8 @@ export type LiveGameConfig = {
   difficulty: DifficultyId;
   questionCount: 8 | 12 | 16;
   secondsPerQuestion: 15 | 20 | 30;
+  /** When true, player devices show the question and answer texts. */
+  showQuestionOnPlayer: boolean;
   /** Classic topics. Ignored by Halloween rooms. */
   categories?: ClassicCategoryId[];
 };
@@ -79,11 +81,17 @@ export type GameOverMessage = {
   leaderboard: LiveScoreRow[];
 };
 
+/** Host → players: the host closed the room. */
+export type RoomClosedMessage = {
+  kind: 'roomclosed';
+};
+
 export type HostToPlayerMessage =
   | LobbyMessage
   | QuestionStartMessage
   | RevealMessage
-  | GameOverMessage;
+  | GameOverMessage
+  | RoomClosedMessage;
 
 /** Player → host: one locked answer. */
 export type AnswerMessage = {

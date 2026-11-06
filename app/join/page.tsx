@@ -66,6 +66,7 @@ export default function JoinPage() {
   const [startedAt, setStartedAt] = useState(0);
   const [timeoutMs, setTimeoutMs] = useState(0);
   const [chosenIndex, setChosenIndex] = useState<number | null>(null);
+  const [showQuestionOnPlayer, setShowQuestionOnPlayer] = useState(true);
   const [reveal, setReveal] = useState<RevealMessage | null>(null);
   const [gameover, setGameover] = useState<{ leaderboard: LiveScoreRow[] } | null>(null);
 
@@ -129,6 +130,7 @@ export default function JoinPage() {
       setMode(payload.config.mode);
       setLanguage(payload.config.language === 'en' ? 'en' : 'pt');
       setTheme(payload.config.theme === 'dark' ? 'dark' : 'light');
+      setShowQuestionOnPlayer(payload.config.showQuestionOnPlayer !== false);
       seqRef.current = -1;
       chosenSeqRef.current = -1;
       setQuestion(null);
@@ -159,8 +161,12 @@ export default function JoinPage() {
     if (payload.kind === 'gameover') {
       setGameover({ leaderboard: payload.leaderboard });
       setPhase('over');
+      return;
     }
-  }, []);
+    if (payload.kind === 'roomclosed') {
+      leaveRoom();
+    }
+  }, [leaveRoom]);
 
   function setChosenSeqRef(value: number) {
     chosenSeqRef.current = value;
@@ -303,7 +309,7 @@ export default function JoinPage() {
               <input
                 value={codeInput}
                 onChange={(event) => setCodeInput(event.target.value.toUpperCase())}
-                placeholder="K7T2M"
+                placeholder={t('Type your code', 'Digite o seu código')}
                 autoComplete="off"
                 autoCapitalize="characters"
                 maxLength={6}
@@ -316,7 +322,7 @@ export default function JoinPage() {
               <input
                 value={nameInput}
                 onChange={(event) => setNameInput(event.target.value.slice(0, 16))}
-                placeholder="Ghost 👻"
+                placeholder={t('Your nickname', 'Seu apelido')}
                 autoComplete="off"
                 maxLength={16}
                 className="mt-1 w-full rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-3 text-lg font-black text-[var(--ink)] outline-none"
@@ -388,38 +394,74 @@ export default function JoinPage() {
                 </div>
               </div>
 
-              {/* Only the answer tiles show here: the question lives on the projector.
-                  The grid fills the screen (timer included) and widens the tiles so they
-                  stay as close to square as the viewport allows — never scrolls. */}
-              <div
-                className="mx-auto mt-3 grid w-full min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2.5"
-                style={{ maxWidth: 'min(56rem, calc((100dvh - 12rem) * 2))' }}
-              >
-                {question.options.map((_, index) => {
-                  const style = ANSWER_BUTTONS[index];
-                  const locked = chosenSeqRef.current === seqRef.current;
-                  const chosen = chosenIndex === index;
-                  const disabled = locked || (reveal !== null);
+              {showQuestionOnPlayer ? (
+                <div className="mx-auto mt-3 flex w-full min-h-0 flex-1 flex-col gap-2.5">
+                  <div className="rounded-2xl bg-white/90 p-3 text-center">
+                    <p className="max-h-24 overflow-y-auto text-sm font-black leading-snug text-slate-900">
+                      {question.text}
+                    </p>
+                  </div>
+                  <div className="grid min-h-0 flex-1 grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    {question.options.map((option, index) => {
+                      const style = ANSWER_BUTTONS[index];
+                      const locked = chosenSeqRef.current === seqRef.current;
+                      const chosen = chosenIndex === index;
+                      const disabled = locked || (reveal !== null);
 
-                  return (
-                    <motion.button
-                      key={index}
-                      type="button"
-                      whileTap={disabled ? undefined : { scale: 0.97 }}
-                      disabled={disabled}
-                      onClick={() => answer(index)}
-                      className={`flex h-full min-h-0 w-full items-center justify-center rounded-3xl text-white shadow-xl transition-opacity ${
-                        locked && !chosen ? 'opacity-40' : ''
-                      } ${chosen ? 'ring-4 ring-white/80' : ''}`}
-                      style={{ backgroundColor: style.bg }}
-                    >
-                      <span className="text-6xl sm:text-7xl" aria-hidden="true">
-                        {style.shape}
-                      </span>
-                    </motion.button>
-                  );
-                })}
-              </div>
+                      return (
+                        <motion.button
+                          key={index}
+                          type="button"
+                          whileTap={disabled ? undefined : { scale: 0.97 }}
+                          disabled={disabled}
+                          onClick={() => answer(index)}
+                          className={`flex min-h-[64px] w-full items-center gap-3 rounded-2xl px-4 text-left text-white shadow-xl transition-opacity ${
+                            locked && !chosen ? 'opacity-40' : ''
+                          } ${chosen ? 'ring-4 ring-white/80' : ''}`}
+                          style={{ backgroundColor: style.bg }}
+                        >
+                          <span className="shrink-0 text-3xl sm:text-4xl" aria-hidden="true">
+                            {style.shape}
+                          </span>
+                          <span className="min-w-0 flex-1 break-words text-sm font-black leading-tight">
+                            {option}
+                          </span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="mx-auto mt-3 grid w-full min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2.5"
+                  style={{ maxWidth: 'min(56rem, calc((100dvh - 12rem) * 2))' }}
+                >
+                  {question.options.map((_, index) => {
+                    const style = ANSWER_BUTTONS[index];
+                    const locked = chosenSeqRef.current === seqRef.current;
+                    const chosen = chosenIndex === index;
+                    const disabled = locked || (reveal !== null);
+
+                    return (
+                      <motion.button
+                        key={index}
+                        type="button"
+                        whileTap={disabled ? undefined : { scale: 0.97 }}
+                        disabled={disabled}
+                        onClick={() => answer(index)}
+                        className={`flex h-full min-h-0 w-full items-center justify-center rounded-3xl text-white shadow-xl transition-opacity ${
+                          locked && !chosen ? 'opacity-40' : ''
+                        } ${chosen ? 'ring-4 ring-white/80' : ''}`}
+                        style={{ backgroundColor: style.bg }}
+                      >
+                        <span className="text-6xl sm:text-7xl" aria-hidden="true">
+                          {style.shape}
+                        </span>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              )}
 
               {phase === 'answered' ? (
                 <p className="mb-1 mt-3 text-center text-xs font-black uppercase tracking-wide text-emerald-400">
