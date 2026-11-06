@@ -1243,12 +1243,12 @@ export default function GamePage() {
                       ) : (
                         <GraduationCap className="h-4 w-4 shrink-0 text-[var(--accent)] sm:h-5 sm:w-5" aria-hidden="true" />
                       )}
-                      {isHalloween ? 'Halloween Trivia' : 'Teacher Trivia'}
+                      {isHalloween ? 'Halloween Trivia' : 'Classic Trivia'}
                     </h1>
                     <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] sm:text-xs">
                       {isHalloween
                         ? `${difficultyMeta.label} · ${difficultyMeta.tagline}`
-                        : 'Classroom classic · mixed topics'}
+                        : `Classic · ${difficultyMeta.label} · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics`}
                     </p>
                   </div>
                 </div>

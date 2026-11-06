@@ -35,7 +35,7 @@ export const MODES: { id: ModeId; label: string; description: string }[] = [
   },
   {
     id: 'classic',
-    label: 'Classroom Classic',
+    label: 'Classic',
     description: 'The original mixed-topic deck with games, tech and pop culture.',
   },
 ];
