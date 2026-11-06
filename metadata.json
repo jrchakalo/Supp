@@ -1,6 +1,6 @@
 {
-  "name": "Supp — Classroom Trivia",
-  "description": "Supp is a fun, interactive classroom icebreaker game using a 20-sided die. It includes a classic mixed-topics deck, special-event modes such as Halloween, a knockout competition and a live multiplayer room.",
+  "name": "Supp — Classroom Games & Trivia",
+  "description": "Supp is a classroom platform with D20 trivia, knockout competitions, live multiplayer rooms, bilingual PT/EN questions, light and dark themes and seasonal events such as Halloween.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
