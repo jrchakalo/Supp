@@ -1,4 +1,4 @@
-import type { ClassicCategoryId, DifficultyId, ModeId } from '../types';
+import type { ClassicCategoryId, DifficultyId, ModeId, Theme } from '../types';
 import type { Language } from '../i18n/types';
 
 /**
@@ -19,6 +19,7 @@ export const MAX_PLAYERS = 60;
 export type LiveGameConfig = {
   mode: ModeId;
   language: Language;
+  theme: Theme;
   difficulty: DifficultyId;
   questionCount: 8 | 12 | 16;
   secondsPerQuestion: 15 | 20 | 30;

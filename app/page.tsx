@@ -656,9 +656,7 @@ export default function GamePage() {
   };
 
   const themeClass = isHalloween
-    ? theme === 'dark'
-      ? 'theme-halloween'
-      : 'theme-halloween-light'
+    ? 'theme-halloween'
     : theme === 'dark'
       ? 'theme-dark'
       : 'theme-light';
@@ -672,7 +670,7 @@ export default function GamePage() {
           screen === 'playing' ? 'h-dvh overflow-hidden' : 'overflow-x-hidden'
         )}
       >
-        {isHalloween && theme === 'dark' && (
+        {isHalloween && (
           <HalloweenBackdrop dimmed={screen !== 'menu'} />
         )}
 
@@ -703,7 +701,9 @@ export default function GamePage() {
                     <CalendarHeart className="h-4 w-4" aria-hidden="true" />
                     {c.specialEvents}
                   </button>
-                  <ThemeToggle theme={theme} onChange={setTheme} />
+                  {!isHalloween && (
+                    <ThemeToggle theme={theme} onChange={setTheme} />
+                  )}
                   <LanguageToggle
                     language={uiLanguage}
                     onChange={setUiLanguage}
@@ -951,6 +951,31 @@ export default function GamePage() {
                   </div>
                 ))}
               </section>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('classic');
+                  setPlayStyle(null);
+                  setScreen('menu');
+                }}
+                className="mt-4 flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] p-4 text-left transition hover:border-[var(--accent)] sm:p-5"
+              >
+                <span className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
+                    <GraduationCap className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span>
+                    <span className="block text-lg font-black text-[var(--ink)]">
+                      {c.events.defaultGames}
+                    </span>
+                    <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
+                      {c.events.defaultGamesDescription}
+                    </span>
+                  </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+              </button>
 
               <div className="mt-7">
                 <p className="text-xs font-semibold leading-relaxed text-[var(--muted)]">

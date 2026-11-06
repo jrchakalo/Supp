@@ -80,6 +80,8 @@ const EN = {
     liveNow: 'Live now',
     comingSoon: 'Coming soon',
     openEvent: 'Open event',
+    defaultGames: 'Default games',
+    defaultGamesDescription: 'D20 Roll, Competition and Live rooms.',
     halloween: 'Halloween',
     halloweenDescription:
       'Spooky true-or-false, knockout competition and a live room with QR codes.',
@@ -185,6 +187,8 @@ const PT: MenuCopy = {
     liveNow: 'Disponível',
     comingSoon: 'Em breve',
     openEvent: 'Abrir evento',
+    defaultGames: 'Jogos padrão',
+    defaultGamesDescription: 'Rolar D20, Competição e salas ao vivo.',
     halloween: 'Halloween',
     halloweenDescription:
       'Verdadeiro ou falso assustador, competição eliminatória e sala ao vivo com QR code.',

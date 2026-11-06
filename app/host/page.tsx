@@ -95,12 +95,14 @@ function readSavedSession(): SavedSession | null {
             )
           : undefined;
         const language: Language = parsed.config.language === 'en' ? 'en' : 'pt';
+        const theme: Theme = parsed.config.theme === 'dark' ? 'dark' : 'light';
 
         return {
           code,
           config: {
             mode,
             language,
+            theme,
             difficulty,
             questionCount: questionCount ?? 12,
             secondsPerQuestion: secondsPerQuestion ?? 20,
@@ -253,12 +255,13 @@ export default function HostPage() {
     () => ({
       mode,
       language,
+      theme,
       difficulty,
       questionCount,
       secondsPerQuestion,
       categories: mode === 'classic' ? categories : undefined,
     }),
-    [categories, difficulty, language, mode, questionCount, secondsPerQuestion]
+    [categories, difficulty, language, mode, questionCount, secondsPerQuestion, theme]
   );
 
   const toggleCategory = (categoryId: ClassicCategoryId) => {
@@ -658,9 +661,7 @@ export default function HostPage() {
 
   const themeClass =
     mode === 'halloween'
-      ? theme === 'dark'
-        ? 'theme-halloween'
-        : 'theme-halloween-light'
+      ? 'theme-halloween'
       : theme === 'dark'
         ? 'theme-dark'
         : 'theme-light';
@@ -671,7 +672,7 @@ export default function HostPage() {
       <main
         className={`game-shell ${themeClass} relative flex min-h-dvh items-center justify-center`}
       >
-        {mode === 'halloween' && theme === 'dark' && <HalloweenBackdrop dimmed />}
+        {mode === 'halloween' && <HalloweenBackdrop dimmed />}
         <span className="relative z-10 h-10 w-10 animate-pulse rounded-full bg-[var(--surface-2)]" />
       </main>
     );
@@ -682,7 +683,7 @@ export default function HostPage() {
       <main
         className={`${themeClass} game-shell relative flex min-h-dvh items-center justify-center px-4`}
       >
-        {mode === 'halloween' && theme === 'dark' && <HalloweenBackdrop dimmed />}
+        {mode === 'halloween' && <HalloweenBackdrop dimmed />}
         <div className="relative z-10 max-w-md rounded-2xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center">
           <Wifi className="mx-auto h-8 w-8 text-[var(--muted)]" aria-hidden="true" />
           <h1 className="mt-3 text-xl font-black text-[var(--ink)]">{copy.realtimeTitle}</h1>
@@ -704,7 +705,7 @@ export default function HostPage() {
     <main
       className={`game-shell ${themeClass} relative flex min-h-dvh w-full flex-col items-center px-4 py-6 sm:px-8`}
     >
-      {mode === 'halloween' && theme === 'dark' && (
+      {mode === 'halloween' && (
         <HalloweenBackdrop dimmed={phase !== 'lobby'} />
       )}
 
@@ -718,7 +719,9 @@ export default function HostPage() {
             {copy.menu}
           </a>
           <div className="flex items-center gap-2">
-            <ThemeToggle theme={theme} onChange={setTheme} />
+            {mode !== 'halloween' && (
+              <ThemeToggle theme={theme} onChange={setTheme} />
+            )}
             <LanguageToggle
               language={language}
               onChange={setLanguage}
