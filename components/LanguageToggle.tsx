@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 type LanguageToggleProps = {
   language: Language;
   onChange: (language: Language) => void;
+  label?: string;
   className?: string;
 };
 
@@ -17,12 +18,13 @@ const OPTIONS: { id: Language; label: string; title: string }[] = [
 export default function LanguageToggle({
   language,
   onChange,
+  label,
   className,
 }: LanguageToggleProps) {
   return (
     <div
       role="group"
-      aria-label="Question language"
+      aria-label={label ?? 'Question language'}
       className={cn(
         'flex items-center gap-0.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] p-0.5',
         className

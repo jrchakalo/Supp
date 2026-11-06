@@ -52,6 +52,9 @@ export default function JoinPage() {
   const [phase, setPhase] = useState<Phase>('entry');
   const [mode, setMode] = useState<ModeId>('classic');
   const [language, setLanguage] = useState<Language>('pt');
+  const [uiLanguage] = useState<Language>(() =>
+    readStorage('ui-language') === 'en' ? 'en' : 'pt'
+  );
   const [theme] = useState<Theme>(() =>
     readStorage('theme') === 'dark' ? 'dark' : 'light'
   );
@@ -253,7 +256,7 @@ export default function JoinPage() {
 
   const ratio =
     startedAt && timeoutMs ? Math.max(secondsLeft(startedAt, timeoutMs) / (timeoutMs / 1000), 0) : 0;
-  const t = (en: string, pt: string) => (language === 'pt' ? pt : en);
+  const t = (en: string, pt: string) => (uiLanguage === 'pt' ? pt : en);
 
   const themeClass =
     mode === 'halloween'
@@ -287,7 +290,9 @@ export default function JoinPage() {
               className="m-auto w-full rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8"
             >
               <span className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                {mode === 'halloween' ? 'Halloween Live' : 'Live'}
+                {mode === 'halloween'
+                  ? t('Halloween Live', 'Halloween ao vivo')
+                  : t('Live', 'Ao vivo')}
               </span>
               <h1 className="mt-1 text-3xl font-black uppercase tracking-tight text-[var(--ink)]">
                 {t('Join a room', 'Entrar na sala')}
@@ -484,7 +489,7 @@ export default function JoinPage() {
                         </p>
                       )}
                       <p className="text-xs font-black uppercase tracking-wide text-[var(--muted)]">
-                        {t('Total', 'Total')}: {row.total.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US')}
+                        {t('Total', 'Total')}: {row.total.toLocaleString(uiLanguage === 'pt' ? 'pt-BR' : 'en-US')}
                       </p>
                     </div>
                   );
@@ -526,7 +531,7 @@ export default function JoinPage() {
                 return (
                   <>
                     <h1 className="mt-2 text-3xl font-black uppercase text-[var(--ink)]">
-                      {row.total.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US')}{' '}
+                      {row.total.toLocaleString(uiLanguage === 'pt' ? 'pt-BR' : 'en-US')}{' '}
                       {t('points', 'pontos')}
                     </h1>
                     <p className="mt-1 text-sm font-semibold text-[var(--muted)]">

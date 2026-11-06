@@ -25,12 +25,17 @@ import {
 } from 'lucide-react';
 import {
   buildCompetitionPhases,
-  COMPETITION_LEVELS,
   createStudent,
-  getCompetitionLevelMeta,
   parseStudentNames,
 } from '@/lib/competition';
 import { CLASSIC_CATEGORIES } from '@/lib/classic-questions';
+import { COMPETITION_COPY } from '@/lib/i18n/competition-copy';
+import {
+  categoryCopy,
+  competitionLevelCopy,
+  competitionLevels,
+  localizePhase,
+} from '@/lib/i18n/game-copy';
 import LanguageToggle from './LanguageToggle';
 import type { Language } from '@/lib/i18n';
 import type {
@@ -67,6 +72,7 @@ type CompetitionSetupProps = {
   config: CompetitionConfig;
   categories: ClassicCategoryId[];
   language: Language;
+  uiLanguage: Language;
   onStudentsChange: (students: Student[]) => void;
   onConfigChange: (config: CompetitionConfig) => void;
   onCategoriesChange: (categories: ClassicCategoryId[]) => void;
@@ -81,6 +87,7 @@ export default function CompetitionSetup({
   config,
   categories,
   language,
+  uiLanguage,
   onStudentsChange,
   onConfigChange,
   onCategoriesChange,
@@ -93,8 +100,13 @@ export default function CompetitionSetup({
     null
   );
 
-  const levelMeta = getCompetitionLevelMeta(config.level);
-  const phases = buildCompetitionPhases(config.level, config.progressiveRounds);
+  const copy = COMPETITION_COPY[uiLanguage].setup;
+  const levels = competitionLevels(uiLanguage);
+  const levelMeta = competitionLevelCopy(config.level, uiLanguage);
+  const phases = buildCompetitionPhases(
+    config.level,
+    config.progressiveRounds
+  ).map((phase) => localizePhase(phase, uiLanguage));
   const firstPhase = phases[0];
   const lastPhase = phases[phases.length - 1];
   const isClassic = mode === 'classic';
@@ -112,14 +124,14 @@ export default function CompetitionSetup({
     if (students.length >= MAX_STUDENTS) {
       setMessage({
         type: 'error',
-        text: `You can register up to ${MAX_STUDENTS} students.`,
+        text: copy.maxStudents(MAX_STUDENTS),
       });
       return;
     }
 
     const parsed = parseStudentNames(nameInput);
     if (parsed.length === 0) {
-      setMessage({ type: 'error', text: 'Type a student name first.' });
+      setMessage({ type: 'error', text: copy.typeName });
       return;
     }
 
@@ -148,7 +160,7 @@ export default function CompetitionSetup({
     if (accepted.length === 0) {
       setMessage({
         type: 'error',
-        text: 'Those names are already on the list or are too long.',
+        text: copy.duplicates,
       });
       return;
     }
@@ -159,9 +171,9 @@ export default function CompetitionSetup({
       skipped.length > 0
         ? {
             type: 'notice',
-            text: `Added ${accepted.length}. Skipped ${skipped.length} duplicate, long or extra name(s).`,
+            text: copy.skipped(accepted.length, skipped.length),
           }
-        : { type: 'notice', text: `Added ${accepted.length} student(s).` }
+        : { type: 'notice', text: copy.added(accepted.length) }
     );
   };
 
@@ -172,7 +184,7 @@ export default function CompetitionSetup({
 
   const clearStudents = () => {
     onStudentsChange([]);
-    setMessage({ type: 'notice', text: 'Student list cleared.' });
+    setMessage({ type: 'notice', text: copy.cleared });
   };
 
   return (
@@ -191,22 +203,25 @@ export default function CompetitionSetup({
           className="flex h-10 items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 text-xs font-black uppercase text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Menu
+          {copy.menu}
         </button>
         <span className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          {isClassic ? 'Competition' : 'Halloween competition'}
+          {isClassic ? copy.competition : copy.halloweenCompetition}
         </span>
-        <LanguageToggle language={language} onChange={onLanguageChange} />
+        <LanguageToggle
+          language={language}
+          onChange={onLanguageChange}
+          label={uiLanguage === 'pt' ? 'Idioma das perguntas' : 'Question language'}
+        />
       </header>
 
       <div>
         <h1 className="text-balance text-3xl font-black uppercase leading-none tracking-tight text-[var(--ink)] sm:text-5xl">
-          Competition setup
+          {copy.title}
         </h1>
         <p className="mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-[var(--muted)] sm:text-base">
-          Register the students, choose the ladder and how the next student is picked. Each
-          phase asks one question per student: correct answers move on, wrong answers are out.
+          {copy.description}
         </p>
       </div>
 
@@ -221,7 +236,7 @@ export default function CompetitionSetup({
               className="flex items-center gap-2 text-lg font-black uppercase tracking-tight text-[var(--ink)]"
             >
               <Users className="h-5 w-5 text-[var(--accent)]" aria-hidden="true" />
-              Students
+              {copy.students}
             </h2>
             <div className="flex items-center gap-2">
               <span className="rounded-full border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-[var(--muted)]">
@@ -233,7 +248,7 @@ export default function CompetitionSetup({
                   onClick={clearStudents}
                   className="rounded-lg border-2 border-[var(--line-soft)] px-2 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--muted)] transition hover:border-[var(--danger)] hover:text-[var(--danger)]"
                 >
-                  Clear
+                  {copy.clear}
                 </button>
               )}
             </div>
@@ -247,7 +262,7 @@ export default function CompetitionSetup({
             className="mt-4 flex flex-col gap-2 sm:flex-row"
           >
             <label htmlFor="student-name" className="sr-only">
-              Student name
+              {copy.studentName}
             </label>
             <input
               id="student-name"
@@ -255,7 +270,7 @@ export default function CompetitionSetup({
               value={nameInput}
               onChange={(event) => setNameInput(event.target.value)}
               maxLength={500}
-              placeholder="Type a name, or paste several separated by commas"
+              placeholder={copy.namePlaceholder}
               autoComplete="off"
               className="h-12 min-w-0 flex-1 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 text-sm font-bold text-[var(--ink)] outline-none transition placeholder:font-semibold placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
             />
@@ -264,12 +279,12 @@ export default function CompetitionSetup({
               className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl border-2 border-[var(--line)] bg-[var(--cta-bg)] px-4 text-sm font-black uppercase tracking-wide text-[var(--cta-text)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
             >
               <UserPlus className="h-4 w-4" aria-hidden="true" />
-              Add
+              {copy.add}
             </button>
           </form>
 
           <p className="mt-2 text-[11px] font-semibold leading-relaxed text-[var(--muted)]">
-            Tip: paste a whole class list at once, separated by commas or line breaks.
+            {copy.tip}
           </p>
 
           {message && (
@@ -292,10 +307,10 @@ export default function CompetitionSetup({
                 <Users className="h-9 w-9 text-[var(--muted)]" aria-hidden="true" />
                 <div>
                   <p className="text-sm font-black uppercase tracking-wide text-[var(--ink)]">
-                    No students yet
+                    {copy.noStudents}
                   </p>
                   <p className="mt-1 text-xs font-semibold leading-relaxed text-[var(--muted)]">
-                    Add at least 2 students to start the competition.
+                    {copy.addTwo}
                   </p>
                 </div>
               </div>
@@ -321,7 +336,7 @@ export default function CompetitionSetup({
                     <button
                       type="button"
                       onClick={() => removeStudent(student.id)}
-                      aria-label={`Remove ${student.name}`}
+                      aria-label={`${copy.remove} ${student.name}`}
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--muted)] transition hover:bg-[var(--danger)]/15 hover:text-[var(--danger)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--danger)]"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -344,7 +359,7 @@ export default function CompetitionSetup({
                   id="topics-title"
                   className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]"
                 >
-                  Question topics
+                  {copy.topics}
                 </h2>
                 <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
                   {categories.length}/{CLASSIC_CATEGORIES.length}
@@ -382,7 +397,7 @@ export default function CompetitionSetup({
                         )}
                       </div>
                       <p className="mt-2 text-sm font-black text-[var(--ink)]">
-                        {category.label}
+                        {categoryCopy(category.id, uiLanguage).label}
                       </p>
                     </button>
                   );
@@ -391,7 +406,7 @@ export default function CompetitionSetup({
 
               {categories.length === 0 && (
                 <p className="mt-2 rounded-xl border-2 border-[var(--danger)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]">
-                  Select at least one topic to start.
+                  {copy.selectTopic}
                 </p>
               )}
             </section>
@@ -405,11 +420,11 @@ export default function CompetitionSetup({
               id="level-title"
               className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]"
             >
-              Competition level
+              {copy.level}
             </h2>
 
             <div className="mt-3 grid grid-cols-2 gap-2">
-              {COMPETITION_LEVELS.map((item) => {
+              {levels.map((item) => {
                 const Icon = LEVEL_ICONS[item.id];
                 const selected = config.level === item.id;
 
@@ -453,7 +468,7 @@ export default function CompetitionSetup({
             {config.level === 'progressive' && (
               <div className="mt-3 rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] p-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)]">
-                  Rounds per difficulty
+                  {copy.roundsPerDifficulty}
                 </p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   {([2, 3] as ProgressiveRounds[]).map((rounds) => {
@@ -473,7 +488,7 @@ export default function CompetitionSetup({
                             : 'border-[var(--line-soft)] text-[var(--muted)] hover:border-[var(--line)]'
                         )}
                       >
-                        {rounds} rounds
+                        {rounds === 2 ? copy.twoRounds : copy.threeRounds}
                       </button>
                     );
                   })}
@@ -497,20 +512,20 @@ export default function CompetitionSetup({
               id="order-title"
               className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]"
             >
-              Next student
+              {copy.nextStudent}
             </h2>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {[
                 {
                   id: 'sequential' as StudentOrder,
-                  label: 'In order',
-                  description: 'Follow the list',
+                  label: copy.inOrder,
+                  description: copy.followList,
                   Icon: ListOrdered,
                 },
                 {
                   id: 'random' as StudentOrder,
-                  label: 'Random',
-                  description: 'Shuffle each phase',
+                  label: copy.random,
+                  description: copy.shuffle,
                   Icon: Shuffle,
                 },
               ].map((item) => {
@@ -554,29 +569,28 @@ export default function CompetitionSetup({
               className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]"
             >
               <Info className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
-              How it works
+              {copy.howItWorks}
             </h2>
             <ul className="mt-3 space-y-2 text-xs font-semibold leading-relaxed text-[var(--muted)]">
               <li className="flex gap-2">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-2)]" aria-hidden="true" />
-                One question per student in each phase.
+                {copy.rule1}
               </li>
               <li className="flex gap-2">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-2)]" aria-hidden="true" />
-                Correct answer: the student advances to the next phase.
+                {copy.rule2}
               </li>
               <li className="flex gap-2">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--danger)]" aria-hidden="true" />
-                Wrong answer: the student is eliminated.
+                {copy.rule3}
               </li>
               <li className="flex gap-2">
                 <Users className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden="true" />
-                The last surviving student wins.
+                {copy.rule4}
               </li>
               <li className="flex gap-2">
                 <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden="true" />
-                If 2 or more students remain after the final phase, sudden-death tiebreak rounds
-                decide the champion.
+                {copy.rule5}
               </li>
             </ul>
           </section>
@@ -586,13 +600,19 @@ export default function CompetitionSetup({
       <div className="mt-auto flex flex-col gap-3 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--panel-shadow)] sm:flex-row sm:items-center sm:justify-between">
         <div className="text-xs font-semibold leading-relaxed text-[var(--muted)]">
           <p className="font-black uppercase tracking-wider text-[var(--ink)]">
-            {students.length} student{students.length === 1 ? '' : 's'} · {phases.length} phases ·{' '}
-            {config.order === 'random' ? 'Random order' : 'In order'}
+            {copy.summary(
+              students.length,
+              phases.length,
+              config.order === 'random' ? copy.random : copy.inOrder
+            )}
           </p>
           <p>
             {canStart
-              ? `First phase: ${firstPhase?.shortLabel}. Last phase: ${lastPhase?.shortLabel}.`
-              : 'Add at least 2 students to unlock the start button.'}
+              ? copy.firstLast(
+                  firstPhase?.shortLabel ?? '',
+                  lastPhase?.shortLabel ?? ''
+                )
+              : copy.addTwoStart}
           </p>
         </div>
         <motion.button
@@ -604,7 +624,7 @@ export default function CompetitionSetup({
           className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 sm:w-auto"
         >
           <Play className="h-5 w-5" aria-hidden="true" />
-          Start competition
+          {copy.start}
         </motion.button>
       </div>
     </motion.main>

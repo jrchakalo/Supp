@@ -20,6 +20,8 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { CLASSIC_ALL_CATEGORIES, CLASSIC_CATEGORIES } from '@/lib/classic-questions';
 import { DIFFICULTIES } from '@/lib/game';
 import { localizeLiveQuestions, type Language } from '@/lib/i18n';
+import { HOST_COPY } from '@/lib/i18n/host-copy';
+import { categoryCopy, difficultyCopy } from '@/lib/i18n/game-copy';
 import {
   channelNameFor,
   type HostToPlayerMessage,
@@ -121,16 +123,16 @@ function clearSavedSession() {
   removeStorage(HOST_SESSION_KEY);
 }
 
-const ROUND_LENGTHS: { value: 8 | 12 | 16; label: string }[] = [
-  { value: 8, label: '8 questions' },
-  { value: 12, label: '12 questions' },
-  { value: 16, label: '16 questions' },
+const ROUND_LENGTHS: { value: 8 | 12 | 16 }[] = [
+  { value: 8 },
+  { value: 12 },
+  { value: 16 },
 ];
 
-const ROUND_SECONDS: { value: 15 | 20 | 30; label: string }[] = [
-  { value: 15, label: '15 s' },
-  { value: 20, label: '20 s' },
-  { value: 30, label: '30 s' },
+const ROUND_SECONDS: { value: 15 | 20 | 30 }[] = [
+  { value: 15 },
+  { value: 20 },
+  { value: 30 },
 ];
 
 export default function HostPage() {
@@ -138,6 +140,9 @@ export default function HostPage() {
   const [language, setLanguage] = useState<Language>('pt');
   const [theme, setTheme] = useState<Theme>(() =>
     readStorage('theme') === 'dark' ? 'dark' : 'light'
+  );
+  const [uiLanguage] = useState<Language>(() =>
+    readStorage('ui-language') === 'en' ? 'en' : 'pt'
   );
   const [categories, setCategories] = useState<ClassicCategoryId[]>(
     CLASSIC_ALL_CATEGORIES
@@ -659,6 +664,7 @@ export default function HostPage() {
       : theme === 'dark'
         ? 'theme-dark'
         : 'theme-light';
+  const copy = HOST_COPY[uiLanguage];
 
   if (!mounted) {
     return (
@@ -679,17 +685,15 @@ export default function HostPage() {
         {mode === 'halloween' && theme === 'dark' && <HalloweenBackdrop dimmed />}
         <div className="relative z-10 max-w-md rounded-2xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center">
           <Wifi className="mx-auto h-8 w-8 text-[var(--muted)]" aria-hidden="true" />
-          <h1 className="mt-3 text-xl font-black text-[var(--ink)]">Realtime not configured</h1>
+          <h1 className="mt-3 text-xl font-black text-[var(--ink)]">{copy.realtimeTitle}</h1>
           <p className="mt-2 text-sm font-medium text-[var(--muted)]">
-            Add <code className="rounded bg-[var(--surface-2)] px-1">NEXT_PUBLIC_SUPABASE_URL</code> and{' '}
-            <code className="rounded bg-[var(--surface-2)] px-1">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to your{' '}
-            <code className="rounded bg-[var(--surface-2)] px-1">.env.local</code>, then restart the dev server.
+            {copy.realtimeHelp}
           </p>
           <a
             href="/"
             className="mt-5 inline-block rounded-xl bg-[var(--cta-bg)] px-4 py-2 text-sm font-black text-[var(--cta-text)]"
           >
-            Back to menu
+            {copy.backToMenu}
           </a>
         </div>
       </main>
@@ -711,13 +715,17 @@ export default function HostPage() {
             className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)]"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            Menu
+            {copy.menu}
           </a>
           <div className="flex items-center gap-2">
             <ThemeToggle theme={theme} onChange={setTheme} />
-            <LanguageToggle language={language} onChange={setLanguage} />
+            <LanguageToggle
+              language={language}
+              onChange={setLanguage}
+              label={uiLanguage === 'pt' ? 'Idioma das perguntas' : 'Question language'}
+            />
             <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-              {mode === 'halloween' ? 'Halloween Live' : 'Live'} · Host
+              {mode === 'halloween' ? copy.halloweenLiveHost : copy.liveHost}
             </span>
           </div>
         </div>
@@ -732,18 +740,17 @@ export default function HostPage() {
               className="mt-8 rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8"
             >
               <h1 className="text-3xl font-black uppercase tracking-tight text-[var(--ink)] sm:text-4xl">
-                Create a live room
+                {copy.createRoom}
               </h1>
               <p className="mt-2 text-sm font-semibold text-[var(--muted)] sm:text-base">
-                Students join with the room code or the QR code, then answer on their own phones while the question
-                stays on this screen.
+                {copy.createRoomHelp}
               </p>
 
               {mode === 'classic' && (
                 <div className="mt-6">
                   <div className="flex items-center justify-between gap-3">
                     <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                      Question topics
+                      {copy.topics}
                     </h2>
                     <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
                       {categories.length}/{CLASSIC_CATEGORIES.length}
@@ -765,14 +772,14 @@ export default function HostPage() {
                               : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--ink)] hover:border-[var(--line)]'
                           }
                         >
-                          {category.label}
+                          {categoryCopy(category.id, uiLanguage).label}
                         </button>
                       );
                     })}
                   </div>
                   {categories.length === 0 && (
                     <p className="mt-2 rounded-xl border-2 border-[var(--danger)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]">
-                      Select at least one topic to open a room.
+                      {copy.selectTopic}
                     </p>
                   )}
                 </div>
@@ -780,10 +787,11 @@ export default function HostPage() {
 
               <div className="mt-6 grid gap-5 sm:grid-cols-3">
                 <div>
-                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Deck</h2>
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">{copy.deck}</h2>
                   <div className="mt-2 grid gap-2">
                     {DIFFICULTIES.map((item) => {
                       const selected = difficulty === item.id;
+                      const difficultyText = difficultyCopy(item.id, uiLanguage);
                       return (
                         <button
                           key={item.id}
@@ -796,19 +804,19 @@ export default function HostPage() {
                               : 'flex items-center justify-between rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-left hover:border-[var(--line)]'
                           }
                         >
-                          <span className="text-sm font-black text-[var(--ink)]">{item.label}</span>
-                          <span className="text-[10px] font-bold uppercase text-[var(--accent)]">{item.audience}</span>
+                          <span className="text-sm font-black text-[var(--ink)]">{difficultyText.label}</span>
+                          <span className="text-[10px] font-bold uppercase text-[var(--accent)]">{difficultyText.audience}</span>
                         </button>
                       );
                     })}
                   </div>
                   <p className="mt-2 text-[11px] font-medium text-[var(--muted)]">
-                    {getLiveDeck(mode, difficulty, categories).length} multiple-choice questions ready.
+                    {copy.questionsReady(getLiveDeck(mode, difficulty, categories).length)}
                   </p>
                 </div>
 
                 <div>
-                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Rounds</h2>
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">{copy.rounds}</h2>
                   <div className="mt-2 grid gap-2">
                     {ROUND_LENGTHS.map((item) => {
                       const selected = questionCount === item.value;
@@ -824,7 +832,7 @@ export default function HostPage() {
                               : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-left text-sm font-black text-[var(--ink)] hover:border-[var(--line)]'
                           }
                         >
-                          {item.label}
+                          {copy.questionCount(item.value)}
                         </button>
                       );
                     })}
@@ -832,7 +840,7 @@ export default function HostPage() {
                 </div>
 
                 <div>
-                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Time per question</h2>
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">{copy.timePerQuestion}</h2>
                   <div className="mt-2 grid gap-2">
                     {ROUND_SECONDS.map((item) => {
                       const selected = secondsPerQuestion === item.value;
@@ -849,7 +857,7 @@ export default function HostPage() {
                           }
                         >
                           <Timer className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
-                          {item.label}
+                          {copy.seconds(item.value)}
                         </button>
                       );
                     })}
@@ -859,10 +867,9 @@ export default function HostPage() {
 
               <div className="mt-5 flex items-center justify-between rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-3">
                 <div className="text-left">
-                  <p className="text-sm font-black text-[var(--ink)]">Auto-advance next question</p>
+                  <p className="text-sm font-black text-[var(--ink)]">{copy.autoAdvance}</p>
                   <p className="mt-0.5 text-[11px] font-medium text-[var(--muted)]">
-                    On: the reveal screen jumps to the next question on its own after 7 s. Off: the host drives Next
-                    question manually.
+                    {copy.autoAdvanceHelp}
                   </p>
                 </div>
                 <button
@@ -876,7 +883,7 @@ export default function HostPage() {
                       : 'border-2 border-[var(--line)] bg-[var(--surface)] text-[var(--muted)]'
                   }`}
                 >
-                  {autoAdvance ? 'On' : 'Off'}
+                  {autoAdvance ? copy.on : copy.off}
                 </button>
               </div>
 
@@ -886,7 +893,7 @@ export default function HostPage() {
                 onClick={() => void openRoom()}
                 className="mt-7 w-full rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--tile-shadow)] disabled:opacity-60 sm:w-auto sm:min-w-64"
               >
-                {status === 'connecting' ? 'Opening room…' : 'Open room'}
+                {status === 'connecting' ? copy.openingRoom : copy.openRoom}
               </button>
 
               {savedSession && savedSession.code !== code ? (
@@ -905,7 +912,7 @@ export default function HostPage() {
                   }}
                   className="mt-3 block w-full rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-5 py-2.5 text-sm font-black uppercase tracking-wide text-[var(--muted)] disabled:opacity-60 sm:w-auto sm:min-w-64"
                 >
-                  Rejoin room {savedSession.code} (after refresh)
+                  {copy.rejoin(savedSession.code)}
                 </button>
               ) : null}
             </motion.section>
@@ -922,7 +929,7 @@ export default function HostPage() {
             >
               <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
                 <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
-                  <h1 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Room code</h1>
+                  <h1 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">{copy.roomCode}</h1>
                   <p
                     className={`mt-1 text-6xl font-black tracking-[0.14em] text-[var(--accent)] sm:text-7xl ${
                       mode === 'halloween' ? 'hw-title' : ''
@@ -931,15 +938,13 @@ export default function HostPage() {
                     {code}
                   </p>
                   <p className="mt-3 max-w-sm text-sm font-semibold text-[var(--muted)]">
-                    Students open{' '}
-                    <span className="rounded bg-[var(--surface-2)] px-1 font-mono">/join</span>, type the code, pick a
-                    nickname and wait for the first question.
+                    {copy.joinHelp}
                   </p>
 
                   <div className="mt-5 flex items-center gap-2 text-sm font-black text-[var(--ink)]">
                     <UserPlus className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
                     {players.length}
-                    <span className="text-[var(--muted)]">/ {MAX_PLAYERS} players in the room</span>
+                    <span className="text-[var(--muted)]">{copy.playersInRoom(MAX_PLAYERS)}</span>
                   </div>
 
                   <button
@@ -952,12 +957,12 @@ export default function HostPage() {
                     className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--tile-shadow)] disabled:opacity-50 sm:w-auto sm:min-w-56"
                   >
                     <Play className="h-5 w-5" aria-hidden="true" />
-                    Start ({questionCount} questions)
+                    {copy.start(questionCount)}
                   </button>
                 </div>
 
                 <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center">
-                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Scan to join</h2>
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">{copy.scanToJoin}</h2>
                   {joinUrl ? (
                     <div className="mt-3 rounded-2xl bg-white p-3">
                       <QRCodeSVG value={joinUrl} size={168} fgColor="#1c0b33" bgColor="#ffffff" />
@@ -968,10 +973,10 @@ export default function HostPage() {
               </div>
 
               <div className="mt-4 rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-5">
-                <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Lobby</h2>
+                <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">{copy.lobby}</h2>
                 {players.length === 0 ? (
                   <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
-                    Waiting for the first player… show the QR code to the class.
+                    {copy.waiting}
                   </p>
                 ) : (
                   <ul className="mt-3 flex flex-wrap gap-2">
@@ -1002,18 +1007,18 @@ export default function HostPage() {
               <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
                 <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
                   <span className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                    Question {seq + 1} / {run.length}
+                    {copy.questionOf(seq + 1, run.length)}
                   </span>
                   <h1 className="mt-2 text-2xl font-black leading-snug text-[var(--ink)] sm:text-4xl">{question.text}</h1>
                 </div>
 
                 <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center">
-                  <span className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Time left</span>
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">{copy.timeLeft}</span>
                   <p className="hw-title mt-1 text-5xl font-black text-[var(--accent)] sm:text-6xl">
                     {Math.ceil(msLeft / 1000)}
                   </p>
                   <p className="mt-2 text-sm font-black text-[var(--ink)]">
-                    {replies.length}/{players.length || '?'} answered
+                    {copy.answered(replies.length, players.length || '?')}
                   </p>
                 </div>
               </div>
@@ -1037,7 +1042,7 @@ export default function HostPage() {
               </div>
 
               <p className="mt-4 text-center text-xs font-semibold text-[var(--muted)]">
-                Students read the answers here and tap them on the phones until the timer runs out.
+                {copy.studentsRead}
               </p>
             </motion.section>
           )}
@@ -1053,7 +1058,7 @@ export default function HostPage() {
             >
               <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
                 <span className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                  Question {reveal.seq + 1} / {run.length}
+                  {copy.questionOf(reveal.seq + 1, run.length)}
                 </span>
                 <h1 className="mt-1 text-xl font-black text-[var(--ink)] sm:text-2xl">{question.text}</h1>
                 {reveal.explanation ? (
@@ -1063,7 +1068,7 @@ export default function HostPage() {
 
               <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto]">
                 <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-5">
-                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Answers</h2>
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">{copy.answers}</h2>
                   <ul className="mt-3 space-y-2">
                     {question.options.map((option, index) => {
                       const style = ANSWER_BUTTONS[index];
@@ -1104,7 +1109,7 @@ export default function HostPage() {
                 </div>
 
                 <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-5">
-                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Leaderboard</h2>
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">{copy.leaderboard}</h2>
                   <ol className="mt-3 space-y-1.5">
                     {reveal.leaderboard.slice(0, 8).map((row, position) => (
                       <li key={row.playerId} className="flex items-center gap-2 rounded-xl bg-[var(--surface-2)] px-3 py-2">
@@ -1123,9 +1128,9 @@ export default function HostPage() {
               <p className="mt-4 text-center text-xs font-black uppercase tracking-wide text-[var(--muted)]">
                 {autoAdvance
                   ? revealCountdown > 0
-                    ? `Next question automatically in ${revealCountdown} s`
-                    : 'Advancing…'
-                  : 'Auto-advance is off — press Next question when the room is ready.'}
+                    ? copy.nextAuto(revealCountdown)
+                    : copy.advancing
+                  : copy.autoOff}
               </p>
               <div className="mt-2 flex justify-center">
                 <button
@@ -1139,7 +1144,7 @@ export default function HostPage() {
                       : 'border-2 border-[var(--line)] bg-[var(--surface)] text-[var(--muted)]'
                   }`}
                 >
-                  Auto-advance: {autoAdvance ? 'On' : 'Off'}
+                  {copy.autoAdvanceToggle(autoAdvance)}
                 </button>
               </div>
 
@@ -1152,12 +1157,12 @@ export default function HostPage() {
                   {seq + 1 >= run.length ? (
                     <>
                       <RotateCcw className="h-5 w-5" aria-hidden="true" />
-                      Finish game
+                      {copy.finishGame}
                     </>
                   ) : (
                     <>
                       <Play className="h-5 w-5" aria-hidden="true" />
-                      Next question
+                      {copy.nextQuestion}
                     </>
                   )}
                 </button>
@@ -1170,7 +1175,7 @@ export default function HostPage() {
                   className="flex items-center justify-center gap-2 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-5 py-3 text-sm font-black uppercase tracking-wide text-[var(--muted)]"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
-                  End game
+                  {copy.endGame}
                 </button>
               </div>
             </motion.section>
@@ -1185,7 +1190,7 @@ export default function HostPage() {
               transition={{ duration: 0.2 }}
               className="mt-6 rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8"
             >
-              <h1 className="text-3xl font-black uppercase tracking-tight text-[var(--ink)] sm:text-4xl">Game over 🎉</h1>
+              <h1 className="text-3xl font-black uppercase tracking-tight text-[var(--ink)] sm:text-4xl">{copy.gameOver}</h1>
 
               <div className="mx-auto mt-6 grid max-w-md grid-cols-3 items-end gap-2 sm:gap-3">
                 {[
@@ -1222,7 +1227,7 @@ export default function HostPage() {
                           </span>
                           {slot.row ? (
                             <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">
-                              {slot.row.total.toLocaleString('pt-BR')} pts
+                              {slot.row.total.toLocaleString(uiLanguage === 'pt' ? 'pt-BR' : 'en-US')} {copy.points}
                             </span>
                           ) : null}
                         </>
@@ -1257,7 +1262,7 @@ export default function HostPage() {
                   className="flex items-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3 text-sm font-black uppercase tracking-wide text-[var(--cta-text)]"
                 >
                   <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                  Play again (same room)
+                  {copy.playAgainSameRoom}
                 </button>
                 <a
                   href="/"
@@ -1265,7 +1270,7 @@ export default function HostPage() {
                   className="flex items-center gap-2 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-5 py-3 text-sm font-black uppercase tracking-wide text-[var(--muted)]"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
-                  Close room
+                  {copy.closeRoom}
                 </a>
               </div>
             </motion.section>

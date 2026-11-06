@@ -3,10 +3,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { Language } from '@/lib/i18n';
 
 type VolumeControlProps = {
   volume: number;
   muted: boolean;
+  uiLanguage: Language;
   onVolumeChange: (value: number) => void;
   onToggleMute: () => void;
 };
@@ -14,6 +16,7 @@ type VolumeControlProps = {
 export default function VolumeControl({
   volume,
   muted,
+  uiLanguage,
   onVolumeChange,
   onToggleMute,
 }: VolumeControlProps) {
@@ -50,7 +53,7 @@ export default function VolumeControl({
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
-        aria-label="Audio settings"
+        aria-label={uiLanguage === 'pt' ? 'Configurações de áudio' : 'Audio settings'}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         className={cn(
@@ -59,13 +62,21 @@ export default function VolumeControl({
         )}
       >
         <Icon className="h-4 w-4" aria-hidden="true" />
-        <span className="hidden sm:inline">{muted ? 'Muted' : 'Sound'}</span>
+        <span className="hidden sm:inline">
+          {muted
+            ? uiLanguage === 'pt'
+              ? 'Mudo'
+              : 'Muted'
+            : uiLanguage === 'pt'
+              ? 'Som'
+              : 'Sound'}
+        </span>
       </button>
 
       {isOpen && (
         <div
           role="dialog"
-          aria-label="Audio settings"
+          aria-label={uiLanguage === 'pt' ? 'Configurações de áudio' : 'Audio settings'}
           className="fixed inset-x-3 bottom-4 z-50 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--panel-shadow)] md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-[calc(100%+8px)] md:w-64"
         >
           <div className="flex items-center justify-between gap-3">
@@ -73,7 +84,7 @@ export default function VolumeControl({
               htmlFor={sliderId}
               className="text-[11px] font-black uppercase tracking-[0.14em] text-[var(--muted)]"
             >
-              Volume
+              {uiLanguage === 'pt' ? 'Volume' : 'Volume'}
             </label>
             <span className="text-xs font-black text-[var(--ink)]">{percent}%</span>
           </div>
@@ -100,11 +111,17 @@ export default function VolumeControl({
             ) : (
               <VolumeX className="h-4 w-4" aria-hidden="true" />
             )}
-            {muted ? 'Unmute' : 'Mute'}
+            {muted
+              ? uiLanguage === 'pt'
+                ? 'Ativar som'
+                : 'Unmute'
+              : uiLanguage === 'pt'
+                ? 'Silenciar'
+                : 'Mute'}
           </button>
 
           <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-            Music and sound effects
+            {uiLanguage === 'pt' ? 'Música e efeitos sonoros' : 'Music and sound effects'}
           </p>
         </div>
       )}
