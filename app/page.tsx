@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import confetti from 'canvas-confetti';
+import Image from 'next/image';
 import {
   ArrowLeft,
   CalendarHeart,
@@ -439,6 +440,20 @@ export default function GamePage() {
   }, [theme]);
 
   useEffect(() => {
+    const href = isHalloween ? '/supp-icon-halloween.png' : '/supp-icon.png';
+    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+
+    link.href = href;
+    link.type = 'image/png';
+  }, [isHalloween]);
+
+  useEffect(() => {
     writeStorage(
       COMPETITION_STORAGE_KEY,
       JSON.stringify({ config: competitionConfig })
@@ -688,8 +703,15 @@ export default function GamePage() {
                 <button
                   type="button"
                   onClick={goHome}
-                  className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--ink)] shadow-[var(--tile-shadow)] transition hover:brightness-105"
+                  className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--ink)] shadow-[var(--tile-shadow)] transition hover:brightness-105"
                 >
+                  <Image
+                    src={isHalloween ? '/supp-icon-halloween.png' : '/supp-icon.png'}
+                    alt=""
+                    width={64}
+                    height={64}
+                    className="h-5 w-5 rounded-[5px]"
+                  />
                   Supp
                 </button>
                 <div className="flex flex-wrap items-center gap-2">
@@ -713,6 +735,21 @@ export default function GamePage() {
               </div>
 
               <header className="mt-8">
+                <div
+                  className={cn(
+                    'mb-4 inline-flex',
+                    !isHalloween && theme === 'dark' && 'rounded-2xl bg-white px-3 py-1.5'
+                  )}
+                >
+                  <Image
+                    src={isHalloween ? '/supp-logo-halloween.png' : '/supp-logo.png'}
+                    alt="Supp"
+                    width={isHalloween ? 1959 : 1898}
+                    height={isHalloween ? 708 : 704}
+                    priority
+                    className="h-12 w-auto sm:h-16"
+                  />
+                </div>
                 <h1
                   className={cn(
                     'text-balance text-4xl font-black uppercase leading-[0.95] tracking-tight text-[var(--ink)] sm:text-6xl',

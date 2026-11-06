@@ -1,4 +1,5 @@
 <div align="center">
+   <p><img src="public/supp-logo.png" alt="Supp logo" width="320" /></p>
    <h1>Supp</h1>
    <p>
       <img src="https://img.shields.io/badge/Next.js-15-black" alt="Next.js" />
