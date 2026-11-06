@@ -287,7 +287,7 @@ export default function JoinPage() {
               className="m-auto w-full rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8"
             >
               <span className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                {mode === 'halloween' ? 'Halloween Live' : 'Classic Live'}
+                {mode === 'halloween' ? 'Halloween Live' : 'Live'}
               </span>
               <h1 className="mt-1 text-3xl font-black uppercase tracking-tight text-[var(--ink)]">
                 {t('Join a room', 'Entrar na sala')}

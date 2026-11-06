@@ -17,8 +17,6 @@ import {
   Gamepad2,
   Ghost,
   GraduationCap,
-  Moon,
-  PartyPopper,
   PawPrint,
   RotateCcw,
   Skull,
@@ -81,6 +79,7 @@ const CLASSIC_BGM_URLS = Array.from(
 const VOLUME_STORAGE_KEY = 'volume';
 const COMPETITION_STORAGE_KEY = 'competition-setup';
 const LANGUAGE_STORAGE_KEY = 'language';
+const UI_LANGUAGE_STORAGE_KEY = 'ui-language';
 const THEME_STORAGE_KEY = 'theme';
 const DEFAULT_VOLUME = 0.7;
 const ROUND_LENGTH = 20;
@@ -121,7 +120,7 @@ const CATEGORY_ICONS = {
   tech: Cpu,
 } as const;
 
-type PlayStyle = 'd20' | 'competition';
+type PlayStyle = 'd20' | 'competition' | 'live';
 type Screen = 'menu' | 'events' | 'playing' | 'competition-setup' | 'competition';
 
 function readCompetitionConfig(): CompetitionConfig | null {
@@ -160,10 +159,15 @@ export default function GamePage() {
   const [language, setLanguage] = useState<Language>(() =>
     readStorage(LANGUAGE_STORAGE_KEY) === 'en' ? 'en' : 'pt'
   );
+  const [uiLanguage, setUiLanguage] = useState<Language>(() => {
+    const stored =
+      readStorage(UI_LANGUAGE_STORAGE_KEY) ?? readStorage(LANGUAGE_STORAGE_KEY);
+    return stored === 'en' ? 'en' : 'pt';
+  });
   const [theme, setTheme] = useState<Theme>(() =>
     readStorage(THEME_STORAGE_KEY) === 'dark' ? 'dark' : 'light'
   );
-  const [playStyle, setPlayStyle] = useState<PlayStyle>('d20');
+  const [playStyle, setPlayStyle] = useState<PlayStyle | null>(null);
   // Only the competition settings persist; every new session starts with an empty roster.
   const [competitionConfig, setCompetitionConfig] = useState<CompetitionConfig>(
     () => readCompetitionConfig() ?? DEFAULT_COMPETITION_CONFIG
@@ -210,7 +214,8 @@ export default function GamePage() {
 
   const isHalloween = mode === 'halloween';
   const isClassic = mode === 'classic';
-  const effectivePlayStyle: PlayStyle = playStyle;
+  const isLive = playStyle === 'live';
+  const isCompetition = playStyle === 'competition';
   const difficultyMeta = getDifficultyMeta(difficulty);
   const activeDeck = useMemo(
     () =>
@@ -220,7 +225,8 @@ export default function GamePage() {
     [classicCategories, difficulty, isClassic]
   );
   const deckSize = activeDeck.length;
-  const canStartRound = !isClassic || classicCategories.length > 0;
+  const canStartRound =
+    playStyle !== null && (!isClassic || classicCategories.length > 0);
   const roundComplete = roundCount >= ROUND_LENGTH;
   const competitionLevelMeta = getCompetitionLevelMeta(competitionConfig.level);
   const competitionPhases = useMemo(
@@ -379,6 +385,10 @@ export default function GamePage() {
   }, [language]);
 
   useEffect(() => {
+    writeStorage(UI_LANGUAGE_STORAGE_KEY, uiLanguage);
+  }, [uiLanguage]);
+
+  useEffect(() => {
     writeStorage(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
@@ -452,6 +462,31 @@ export default function GamePage() {
     setScreen('competition-setup');
     playTone(392, 'triangle', 0.09, 0.055);
   }, [playTone]);
+
+  const openLiveRoom = useCallback(() => {
+    const params = new URLSearchParams({ mode, lang: language });
+    if (mode === 'classic') {
+      params.set('categories', classicCategories.join(','));
+      params.set('difficulty', difficulty);
+    }
+    window.location.href = `/host?${params.toString()}`;
+  }, [classicCategories, difficulty, language, mode]);
+
+  const goHome = useCallback(() => {
+    setMode('classic');
+    setPlayStyle(null);
+    setScreen('menu');
+  }, []);
+
+  const handlePrimaryAction = useCallback(() => {
+    if (playStyle === 'd20') {
+      startGame();
+    } else if (playStyle === 'competition') {
+      openCompetitionSetup();
+    } else if (playStyle === 'live') {
+      openLiveRoom();
+    }
+  }, [openCompetitionSetup, openLiveRoom, playStyle, startGame]);
 
   const startCompetition = useCallback(() => {
     if (competitionStudents.length < 2) return;
@@ -606,584 +641,483 @@ export default function GamePage() {
               className="relative z-10 mx-auto flex min-h-dvh w-full max-w-6xl flex-col justify-center px-4 py-8 sm:px-8"
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--ink)] shadow-[var(--tile-shadow)]">
+                <button
+                  type="button"
+                  onClick={goHome}
+                  className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--ink)] shadow-[var(--tile-shadow)] transition hover:brightness-105"
+                >
                   Supp
-                </span>
-                <div className="flex items-center gap-2">
+                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setScreen('events')}
+                    className="flex h-9 items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 text-[11px] font-black uppercase tracking-wide text-[var(--accent)] transition hover:brightness-105"
+                  >
+                    <CalendarHeart className="h-4 w-4" aria-hidden="true" />
+                    Special events
+                  </button>
                   <ThemeToggle theme={theme} onChange={setTheme} />
-                  <LanguageToggle language={language} onChange={setLanguage} />
-                  <span className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
-                    {isHalloween ? (
-                      <Moon className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
-                    ) : (
-                      <Sparkles className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
-                    )}
-                    {isHalloween ? 'Spooky season special' : 'Year-round fun'}
-                  </span>
+                  <LanguageToggle language={uiLanguage} onChange={setUiLanguage} />
                 </div>
               </div>
 
-              <AnimatePresence mode="wait">
-                <motion.header
-                  key={`${mode}-${effectivePlayStyle}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.22 }}
-                  className="mt-6 sm:mt-8"
+              <header className="mt-8">
+                <h1
+                  className={cn(
+                    'text-balance text-4xl font-black uppercase leading-[0.95] tracking-tight text-[var(--ink)] sm:text-6xl',
+                    isHalloween && 'hw-title'
+                  )}
                 >
-                  <h1
-                    className={cn(
-                      'text-balance text-4xl font-black uppercase leading-[0.95] tracking-tight text-[var(--ink)] sm:text-6xl',
-                      isHalloween && 'hw-title'
-                    )}
-                  >
-                    {isHalloween ? (
-                      effectivePlayStyle === 'competition' ? (
-                        <>
-                          Halloween
-                          <br />
-                          Competition
-                        </>
-                      ) : (
-                        <>
-                          Halloween
-                          <br />
-                          Trivia
-                        </>
-                      )
-                    ) : effectivePlayStyle === 'competition' ? (
+                  {isHalloween ? (
+                    isCompetition ? (
                       <>
-                        Classic
+                        Halloween
                         <br />
                         Competition
                       </>
+                    ) : isLive ? (
+                      <>
+                        Halloween
+                        <br />
+                        Live
+                      </>
                     ) : (
                       <>
-                        Can you
+                        Halloween
                         <br />
-                        guess?
+                        Trivia
                       </>
-                    )}
-                  </h1>
-                  <p className="mt-3 max-w-2xl text-sm font-semibold text-[var(--muted)] sm:text-base">
-                    {isHalloween
-                      ? effectivePlayStyle === 'competition'
-                        ? 'Register your students and run a Halloween knockout. Each phase asks one question per student: correct answers advance, wrong answers are out.'
-                        : 'Trick or treat! Pick a difficulty, roll a real D20 and answer the spooky true-or-false questions.'
-                      : effectivePlayStyle === 'competition'
-                        ? 'Register your students and run a knockout with the topics you selected. Each phase asks one question per student.'
-                        : 'The original classroom icebreaker. Pick your topics, choose a difficulty and let the D20 decide.'}
-                  </p>
-                </motion.header>
-              </AnimatePresence>
-
-              <AnimatePresence mode="wait">
-                <motion.section
-                  key={`mode-${mode}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.2 }}
-                  aria-label={isHalloween ? 'Special event' : 'Special events'}
-                  className="mt-6"
-                >
-                  {isHalloween ? (
-                    <button
-                      type="button"
-                      onClick={() => setScreen('events')}
-                      className="flex w-full items-center justify-between gap-3 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] p-4 text-left transition-colors hover:border-[var(--accent)] sm:p-5"
-                    >
-                      <span className="flex items-start gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
-                          <CalendarHeart className="h-5 w-5" aria-hidden="true" />
-                        </span>
-                        <span>
-                          <span className="block text-lg font-black text-[var(--ink)]">
-                            Back to special events
-                          </span>
-                          <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
-                            Halloween is live. Christmas and Easter are coming next.
-                          </span>
-                        </span>
-                      </span>
-                      <ArrowLeft className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
-                    </button>
+                    )
+                  ) : isCompetition ? (
+                    <>Competition</>
+                  ) : isLive ? (
+                    <>
+                      Live
+                      <br />
+                      room
+                    </>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => setScreen('events')}
-                      className="group flex w-full items-center justify-between gap-3 rounded-2xl border-4 border-dashed border-[var(--accent)] bg-[var(--surface)] p-4 text-left transition-colors hover:bg-[var(--surface-2)] sm:p-5"
-                    >
-                      <span className="flex items-start gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
-                          <PartyPopper className="h-5 w-5" aria-hidden="true" />
-                        </span>
-                        <span>
-                          <span className="block text-lg font-black text-[var(--ink)]">
-                            Special events
-                          </span>
-                          <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
-                            Halloween is available now. Christmas and Easter are coming soon.
-                          </span>
-                        </span>
-                      </span>
-                      <ChevronRight className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
-                    </button>
+                    <>
+                      Can you
+                      <br />
+                      guess?
+                    </>
                   )}
-                </motion.section>
-              </AnimatePresence>
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm font-semibold text-[var(--muted)] sm:text-base">
+                  {isHalloween
+                    ? isCompetition
+                      ? 'Register your students and run a Halloween knockout. Each phase asks one question per student.'
+                      : isLive
+                        ? 'Create a live room and let students answer on their phones with a code or QR.'
+                        : 'Trick or treat! Pick a difficulty, roll a real D20 and answer the spooky true-or-false questions.'
+                    : isCompetition
+                      ? 'Register your students and run a knockout with the topics you selected.'
+                      : isLive
+                        ? 'Create a live room and let students answer on their phones with a code or QR.'
+                        : 'Pick a mode, choose your topics and difficulty, then let the D20 decide.'}
+                </p>
+              </header>
 
-              <motion.section
-                key="play-style"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                aria-label="Play style"
-                className="mt-6"
-              >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                        Choose how to play
-                      </h2>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
-                        All modes
-                      </span>
-                    </div>
+              <section aria-label="Game modes" className="mt-8">
+                <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                  <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Choose how to play
+                  </h2>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
+                    Step 1 · pick a mode
+                  </span>
+                </div>
 
-                    <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
-                      {[
-                        {
-                          id: 'd20' as PlayStyle,
-                          label: 'D20 Roll',
-                          tagline: 'One question at a time',
-                          description: 'Roll a real D20 and tap the number you rolled.',
-                          Icon: Dices,
-                        },
-                        {
-                          id: 'competition' as PlayStyle,
-                          label: 'Competition',
-                          tagline: 'Knockout tournament',
-                          description: 'Register students and run the phase ladder.',
-                          Icon: Trophy,
-                        },
-                      ].map((item) => {
-                        const selected = effectivePlayStyle === item.id;
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    {
+                      id: 'd20' as PlayStyle,
+                      label: 'D20 Roll',
+                      tagline: 'One question at a time',
+                      description: 'Roll a real D20 and tap the number you rolled.',
+                      Icon: Dices,
+                    },
+                    {
+                      id: 'competition' as PlayStyle,
+                      label: 'Competition',
+                      tagline: 'Knockout tournament',
+                      description: 'Register students and run the phase ladder.',
+                      Icon: Trophy,
+                    },
+                    {
+                      id: 'live' as PlayStyle,
+                      label: 'Live',
+                      tagline: 'Phones and QR code',
+                      description: 'Create a room and let students answer on their phones.',
+                      Icon: Wifi,
+                    },
+                  ].map((item) => {
+                    const selected = playStyle === item.id;
 
-                        return (
-                          <motion.button
-                            key={item.id}
-                            type="button"
-                            aria-pressed={selected}
-                            whileHover={{ y: -2 }}
-                            whileTap={{ scale: 0.99 }}
-                            onClick={() => setPlayStyle(item.id)}
+                    return (
+                      <motion.button
+                        key={item.id}
+                        type="button"
+                        aria-pressed={selected}
+                        whileHover={{ y: -2 }}
+                        whileTap={{ scale: 0.99 }}
+                        onClick={() => setPlayStyle(item.id)}
+                        className={cn(
+                          'rounded-2xl border-2 p-4 text-left transition-colors sm:p-5',
+                          selected
+                            ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-[var(--panel-shadow)]'
+                            : 'border-[var(--line-soft)] bg-[var(--surface)] hover:border-[var(--line)]'
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <span
                             className={cn(
-                              'rounded-2xl border-2 p-3 text-left transition-colors sm:p-4',
+                              'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2',
                               selected
-                                ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-[var(--panel-shadow)]'
-                                : 'border-[var(--line-soft)] bg-[var(--surface)] hover:border-[var(--line)]'
+                                ? 'border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]'
+                                : 'border-[var(--line-soft)] text-[var(--muted)]'
                             )}
                           >
-                            <div className="flex items-center justify-between gap-2">
-                              <span
-                                className={cn(
-                                  'flex h-9 w-9 items-center justify-center rounded-xl border-2',
-                                  selected
-                                    ? 'border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]'
-                                    : 'border-[var(--line-soft)] text-[var(--muted)]'
-                                )}
-                              >
-                                <item.Icon className="h-4 w-4" aria-hidden="true" />
-                              </span>
-                              <span
-                                className={cn(
-                                  'flex h-5 w-5 items-center justify-center rounded-full border-2 transition',
-                                  selected
-                                    ? 'border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]'
-                                    : 'border-[var(--line-soft)] text-transparent'
-                                )}
-                              >
-                                <Check className="h-3 w-3" aria-hidden="true" />
-                              </span>
-                            </div>
-                            <p className="mt-2 text-base font-black text-[var(--ink)]">{item.label}</p>
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
-                              {item.tagline}
-                            </p>
-                            <p className="mt-1 hidden text-xs leading-snug text-[var(--muted)] sm:block">
-                              {item.description}
-                            </p>
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                  </motion.section>
+                            <item.Icon className="h-5 w-5" aria-hidden="true" />
+                          </span>
+                          <span
+                            className={cn(
+                              'flex h-6 w-6 items-center justify-center rounded-full border-2 transition',
+                              selected
+                                ? 'border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]'
+                                : 'border-[var(--line-soft)] text-transparent'
+                            )}
+                          >
+                            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                          </span>
+                        </div>
+                        <h3 className="mt-3 text-lg font-black text-[var(--ink)]">
+                          {item.label}
+                        </h3>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
+                          {item.tagline}
+                        </p>
+                        <p className="mt-1 hidden text-xs leading-snug text-[var(--muted)] sm:block">
+                          {item.description}
+                        </p>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </section>
 
               <AnimatePresence initial={false}>
-                {isClassic && (
+                {playStyle !== null && (
                   <motion.section
-                    key="classic-topics"
+                    key="config"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
                     transition={{ duration: 0.2 }}
-                    aria-label="Question topics"
-                    className="mt-6"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                        Question topics
-                      </h2>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
-                        {classicCategories.length}/{CLASSIC_CATEGORIES.length} selected
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
-                      {CLASSIC_CATEGORIES.map((category) => {
-                        const Icon = CATEGORY_ICONS[category.id];
-                        const selected = classicCategories.includes(category.id);
-
-                        return (
-                          <motion.button
-                            key={category.id}
-                            type="button"
-                            aria-pressed={selected}
-                            whileHover={{ y: -2 }}
-                            whileTap={{ scale: 0.99 }}
-                            onClick={() => toggleClassicCategory(category.id)}
-                            className={cn(
-                              'rounded-2xl border-2 p-3 text-left transition-colors',
-                              selected
-                                ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-[var(--panel-shadow)]'
-                                : 'border-[var(--line-soft)] bg-[var(--surface)] hover:border-[var(--line)]'
-                            )}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <Icon
-                                className={cn(
-                                  'h-5 w-5',
-                                  selected ? 'text-[var(--accent)]' : 'text-[var(--muted)]'
-                                )}
-                                aria-hidden="true"
-                              />
-                              {selected && (
-                                <Check className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
-                              )}
-                            </div>
-                            <p className="mt-2 text-sm font-black leading-tight text-[var(--ink)]">
-                              {category.label}
-                            </p>
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-
-                    {classicCategories.length === 0 && (
-                      <p className="mt-2 rounded-xl border-2 border-[var(--danger)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]">
-                        Select at least one topic to start a round.
-                      </p>
+                    aria-label="Round configuration"
+                    className={cn(
+                      'mt-6 grid gap-4',
+                      isClassic && 'lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]'
                     )}
-                  </motion.section>
-                )}
-              </AnimatePresence>
-
-              <motion.a
-                key="live-room"
-                href={
-                  isClassic
-                    ? `/host?mode=classic&categories=${classicCategories.join(',')}`
-                    : '/host?mode=halloween'
-                }
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className="mt-4 flex items-center justify-between gap-3 rounded-2xl border-4 border-dashed border-[var(--accent)] bg-[var(--surface)] p-4 sm:p-5"
-              >
-                <span className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
-                    <Wifi className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <span>
-                    <span className="block text-lg font-black text-[var(--ink)]">
-                      {isHalloween ? 'Halloween Live' : 'Classic Live'}
-                    </span>
-                    <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
-                      Live room: students join with a code or QR and answer on their own phones.
-                    </span>
-                  </span>
-                </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
-              </motion.a>
-
-              {/* Students: direct shortcut to type the room code on a phone. */}
-              <motion.a
-                key="join-room"
-                href="/join"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2 }}
-                className="mt-4 flex items-center justify-between gap-3 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--accent)] sm:p-5"
-              >
-                <span className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
-                    <Smartphone className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <span>
-                    <span className="block text-lg font-black text-[var(--ink)]">Join a live room</span>
-                    <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
-                      Student? Open the join page, type the room code shown on the projector and answer on your phone.
-                    </span>
-                  </span>
-                </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
-              </motion.a>
-
-              <AnimatePresence initial={false} mode="wait">
-                {effectivePlayStyle === 'd20' && (
-                  <motion.section
-                    key="difficulty"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.2 }}
-                    aria-label="Difficulty"
-                    className="mt-6"
                   >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                        Choose your difficulty
-                      </h2>
-                    </div>
-
-                    <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
-                      {DIFFICULTIES.map((item) => {
-                        const Icon = DIFFICULTY_ICONS[item.id];
-                        const selected = difficulty === item.id;
-
-                        return (
-                          <motion.button
-                            key={item.id}
-                            type="button"
-                            aria-pressed={selected}
-                            whileHover={{ y: -2 }}
-                            whileTap={{ scale: 0.99 }}
-                            onClick={() => setDifficulty(item.id)}
-                            className={cn(
-                              'rounded-2xl border-2 p-3 text-left transition-colors',
-                              selected
-                                ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-[var(--panel-shadow)]'
-                                : 'border-[var(--line-soft)] bg-[var(--surface)] hover:border-[var(--line)]'
-                            )}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <Icon
-                                className={cn(
-                                  'h-5 w-5',
-                                  selected ? 'text-[var(--accent)]' : 'text-[var(--muted)]'
-                                )}
-                                aria-hidden="true"
-                              />
-                              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">
-                                {item.audience}
-                              </span>
-                            </div>
-                            <p className="mt-2 text-base font-black text-[var(--ink)]">{item.label}</p>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--accent)]">
-                              {item.tagline}
-                            </p>
-                            <p className="mt-1 hidden text-xs leading-snug text-[var(--muted)] sm:block">
-                              {item.description}
-                            </p>
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                  </motion.section>
-                )}
-
-                {effectivePlayStyle === 'competition' && (
-                  <motion.section
-                    key="competition-level"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.2 }}
-                    aria-label="Competition level"
-                    className="mt-6"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                        Competition level
-                      </h2>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
-                        {competitionLevelMeta.phasesLabel}
-                      </span>
-                    </div>
-
-                    <div className="grid gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
-                      {COMPETITION_LEVELS.map((item) => {
-                        const Icon = COMPETITION_ICONS[item.id];
-                        const selected = competitionConfig.level === item.id;
-
-                        return (
-                          <motion.button
-                            key={item.id}
-                            type="button"
-                            aria-pressed={selected}
-                            whileHover={{ y: -2 }}
-                            whileTap={{ scale: 0.99 }}
-                            onClick={() =>
-                              setCompetitionConfig((previous) => ({
-                                ...previous,
-                                level: item.id,
-                              }))
-                            }
-                            className={cn(
-                              'rounded-2xl border-2 p-3 text-left transition-colors',
-                              selected
-                                ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-[var(--panel-shadow)]'
-                                : 'border-[var(--line-soft)] bg-[var(--surface)] hover:border-[var(--line)]'
-                            )}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <Icon
-                                className={cn(
-                                  'h-5 w-5',
-                                  selected ? 'text-[var(--accent)]' : 'text-[var(--muted)]'
-                                )}
-                                aria-hidden="true"
-                              />
-                              <span className="text-[9px] font-black uppercase tracking-wider text-[var(--muted)]">
-                                {item.phasesLabel}
-                              </span>
-                            </div>
-                            <p className="mt-2 text-base font-black text-[var(--ink)]">{item.label}</p>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--accent)]">
-                              {item.tagline}
-                            </p>
-                            <p className="mt-1 hidden text-xs leading-snug text-[var(--muted)] sm:block">
-                              {item.description}
-                            </p>
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-
-                    {competitionConfig.level === 'progressive' && (
-                      <div className="mt-3 flex flex-col gap-2 rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)]">
-                            Rounds per difficulty
-                          </p>
-                          <p className="mt-1 text-xs font-semibold leading-relaxed text-[var(--muted)]">
-                            Two or three rounds in Easy, Medium and Hard.
-                          </p>
+                    {isClassic && (
+                      <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                          <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                            Question topics
+                          </h2>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
+                            {classicCategories.length}/{CLASSIC_CATEGORIES.length} selected
+                          </span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 sm:w-56">
-                          {([2, 3] as ProgressiveRounds[]).map((rounds) => {
-                            const selected = competitionConfig.progressiveRounds === rounds;
+
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {CLASSIC_CATEGORIES.map((category) => {
+                            const Icon = CATEGORY_ICONS[category.id];
+                            const selected = classicCategories.includes(category.id);
 
                             return (
-                              <button
-                                key={rounds}
+                              <motion.button
+                                key={category.id}
                                 type="button"
                                 aria-pressed={selected}
-                                onClick={() =>
-                                  setCompetitionConfig((previous) => ({
-                                    ...previous,
-                                    progressiveRounds: rounds,
-                                  }))
-                                }
+                                whileHover={{ y: -2 }}
+                                whileTap={{ scale: 0.99 }}
+                                onClick={() => toggleClassicCategory(category.id)}
                                 className={cn(
-                                  'rounded-xl border-2 px-3 py-2 text-xs font-black uppercase tracking-wide transition',
+                                  'rounded-xl border-2 p-3 text-left transition-colors',
                                   selected
-                                    ? 'border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]'
-                                    : 'border-[var(--line-soft)] text-[var(--muted)] hover:border-[var(--line)]'
+                                    ? 'border-[var(--accent)] bg-[var(--surface-2)]'
+                                    : 'border-[var(--line-soft)] bg-[var(--surface-2)] hover:border-[var(--line)]'
                                 )}
                               >
-                                {rounds} rounds
-                              </button>
+                                <div className="flex items-center justify-between gap-2">
+                                  <Icon
+                                    className={cn(
+                                      'h-4 w-4',
+                                      selected
+                                        ? 'text-[var(--accent)]'
+                                        : 'text-[var(--muted)]'
+                                    )}
+                                    aria-hidden="true"
+                                  />
+                                  {selected && (
+                                    <Check
+                                      className="h-3.5 w-3.5 text-[var(--accent)]"
+                                      aria-hidden="true"
+                                    />
+                                  )}
+                                </div>
+                                <p className="mt-2 text-xs font-black leading-tight text-[var(--ink)]">
+                                  {category.label}
+                                </p>
+                              </motion.button>
                             );
                           })}
                         </div>
+
+                        {classicCategories.length === 0 && (
+                          <p className="mt-3 rounded-xl border-2 border-[var(--danger)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]">
+                            Select at least one topic to start.
+                          </p>
+                        )}
                       </div>
                     )}
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">
-                      <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-1 text-[var(--accent)]">
-                        {competitionFirstPhase?.shortLabel}
-                      </span>
-                      <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-1 text-[var(--accent)]">
-                        {competitionLastPhase?.shortLabel}
-                      </span>
+                    <div className="flex flex-col gap-4">
+                      {isCompetition ? (
+                        <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                              Competition level
+                            </h2>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
+                              {competitionLevelMeta.phasesLabel}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            {COMPETITION_LEVELS.map((item) => {
+                              const Icon = COMPETITION_ICONS[item.id];
+                              const selected = competitionConfig.level === item.id;
+
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  aria-pressed={selected}
+                                  onClick={() =>
+                                    setCompetitionConfig((previous) => ({
+                                      ...previous,
+                                      level: item.id,
+                                    }))
+                                  }
+                                  className={cn(
+                                    'rounded-xl border-2 p-3 text-left transition-colors',
+                                    selected
+                                      ? 'border-[var(--accent)] bg-[var(--surface-2)]'
+                                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] hover:border-[var(--line)]'
+                                  )}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <Icon
+                                      className={cn(
+                                        'h-4 w-4',
+                                        selected
+                                          ? 'text-[var(--accent)]'
+                                          : 'text-[var(--muted)]'
+                                      )}
+                                      aria-hidden="true"
+                                    />
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-[var(--muted)]">
+                                      {item.phasesLabel}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 text-sm font-black text-[var(--ink)]">
+                                    {item.label}
+                                  </p>
+                                  <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
+                                    {item.tagline}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {competitionConfig.level === 'progressive' && (
+                            <div className="mt-3 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] p-3">
+                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)]">
+                                Rounds per difficulty
+                              </p>
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                {([2, 3] as ProgressiveRounds[]).map((rounds) => {
+                                  const selected =
+                                    competitionConfig.progressiveRounds === rounds;
+
+                                  return (
+                                    <button
+                                      key={rounds}
+                                      type="button"
+                                      aria-pressed={selected}
+                                      onClick={() =>
+                                        setCompetitionConfig((previous) => ({
+                                          ...previous,
+                                          progressiveRounds: rounds,
+                                        }))
+                                      }
+                                      className={cn(
+                                        'rounded-lg border-2 px-3 py-1.5 text-xs font-black uppercase tracking-wide transition',
+                                        selected
+                                          ? 'border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]'
+                                          : 'border-[var(--line-soft)] text-[var(--muted)] hover:border-[var(--line)]'
+                                      )}
+                                    >
+                                      {rounds} rounds
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
+                            <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-1 text-[var(--accent)]">
+                              {competitionFirstPhase?.shortLabel}
+                            </span>
+                            <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                            <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-1 text-[var(--accent)]">
+                              {competitionLastPhase?.shortLabel}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                              Difficulty
+                            </h2>
+                          </div>
+
+                          <div className="grid gap-2 sm:grid-cols-3">
+                            {DIFFICULTIES.map((item) => {
+                              const Icon = DIFFICULTY_ICONS[item.id];
+                              const selected = difficulty === item.id;
+
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  aria-pressed={selected}
+                                  onClick={() => setDifficulty(item.id)}
+                                  className={cn(
+                                    'rounded-xl border-2 p-3 text-left transition-colors',
+                                    selected
+                                      ? 'border-[var(--accent)] bg-[var(--surface-2)]'
+                                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] hover:border-[var(--line)]'
+                                  )}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <Icon
+                                      className={cn(
+                                        'h-4 w-4',
+                                        selected
+                                          ? 'text-[var(--accent)]'
+                                          : 'text-[var(--muted)]'
+                                      )}
+                                      aria-hidden="true"
+                                    />
+                                    <span className="text-[9px] font-black uppercase tracking-wider text-[var(--muted)]">
+                                      {item.audience}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 text-sm font-black text-[var(--ink)]">
+                                    {item.label}
+                                  </p>
+                                  <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
+                                    {item.tagline}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                            Question language
+                          </h2>
+                          <LanguageToggle language={language} onChange={setLanguage} />
+                        </div>
+                        <p className="mt-2 text-[11px] font-semibold leading-relaxed text-[var(--muted)]">
+                          Only the questions and game feedback change. The interface follows the
+                          language selector at the top.
+                        </p>
+                      </div>
                     </div>
                   </motion.section>
                 )}
               </AnimatePresence>
 
-              <div className="mt-7 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-                {effectivePlayStyle === 'competition' ? (
-                  <>
-                    <motion.button
-                      type="button"
-                      whileHover={canStartRound ? { scale: 1.02 } : undefined}
-                      whileTap={canStartRound ? { scale: 0.97 } : undefined}
-                      onClick={openCompetitionSetup}
-                      disabled={!canStartRound}
-                      className="flex min-h-[64px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-7 text-lg font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 sm:w-auto sm:text-xl"
-                    >
-                      <Trophy className="h-5 w-5" aria-hidden="true" />
-                      Set up competition
-                      <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                    </motion.button>
+              <div className="mt-8 flex flex-col gap-3 border-t-2 border-[var(--line-soft)] pt-6 sm:flex-row sm:items-center">
+                <a
+                  href="/join"
+                  className="flex min-h-[56px] items-center justify-center gap-2 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] px-5 text-sm font-black uppercase tracking-wide text-[var(--ink)] transition hover:border-[var(--accent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+                >
+                  <Smartphone className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                  Join a live room
+                </a>
 
-                    <div className="text-xs font-semibold leading-relaxed text-[var(--muted)]">
-                      <p>Register your students and choose the level on the next screen.</p>
-                      <p>
-                        {competitionPhases.length} phases ·{' '}
-                        {competitionConfig.order === 'random' ? 'Random order' : 'In order'}
-                        {isClassic
-                          ? ` · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics`
-                          : ''}
-                        .
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <motion.button
-                      type="button"
-                      whileHover={canStartRound ? { scale: 1.02 } : undefined}
-                      whileTap={canStartRound ? { scale: 0.97 } : undefined}
-                      onClick={startGame}
-                      disabled={!canStartRound}
-                      className="flex min-h-[64px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-7 text-lg font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 sm:w-auto sm:text-xl"
-                    >
-                      <Sparkles className="h-5 w-5" aria-hidden="true" />
-                      {isHalloween ? 'Start the spooky round' : 'Start game'}
-                      <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                    </motion.button>
-
-                    <div className="text-xs font-semibold leading-relaxed text-[var(--muted)]">
-                      <p>Roll a real D20, then tap the number you rolled.</p>
-                      <p>
-                        {isHalloween
-                          ? `${selectedDifficulty.label} deck: ${selectedDifficulty.tagline} · ${deckSize} questions.`
-                          : `${selectedDifficulty.label} deck · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics · ${deckSize} questions.`}
-                      </p>
-                    </div>
-                  </>
-                )}
+                <motion.button
+                  type="button"
+                  whileHover={canStartRound ? { scale: 1.02 } : undefined}
+                  whileTap={canStartRound ? { scale: 0.97 } : undefined}
+                  onClick={handlePrimaryAction}
+                  disabled={!canStartRound}
+                  className="flex min-h-[56px] flex-1 items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 sm:text-lg"
+                >
+                  {playStyle === 'live' ? (
+                    <Wifi className="h-5 w-5" aria-hidden="true" />
+                  ) : playStyle === 'competition' ? (
+                    <Trophy className="h-5 w-5" aria-hidden="true" />
+                  ) : (
+                    <Sparkles className="h-5 w-5" aria-hidden="true" />
+                  )}
+                  {playStyle === null
+                    ? 'Choose a mode to start'
+                    : playStyle === 'live'
+                      ? 'Create live room'
+                      : playStyle === 'competition'
+                        ? 'Set up competition'
+                        : isHalloween
+                          ? 'Start the spooky round'
+                          : 'Start game'}
+                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                </motion.button>
               </div>
 
-              <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
-                Tip: press T or F to answer · Esc closes the question
+              <p className="mt-4 text-xs font-semibold leading-relaxed text-[var(--muted)]">
+                {playStyle === 'live'
+                  ? 'The next screen creates the room, shows the QR code and lets you choose rounds and time.'
+                  : playStyle === 'competition'
+                    ? `${competitionPhases.length} phases · ${
+                        competitionConfig.order === 'random' ? 'Random order' : 'In order'
+                      }${isClassic ? ` · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics` : ''}.`
+                    : playStyle === 'd20'
+                      ? `${selectedDifficulty.label} deck · ${
+                          isClassic
+                            ? `${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics · `
+                            : ''
+                        }${deckSize} questions.`
+                      : 'Pick a mode above to see the options.'}
               </p>
 
+              <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                Tip: press T or F to answer · Esc closes the question
+              </p>
             </motion.main>
           )}
 
@@ -1199,15 +1133,11 @@ export default function GamePage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setMode('classic');
-                    setPlayStyle('d20');
-                    setScreen('menu');
-                  }}
+                  onClick={() => setScreen('menu')}
                   className="flex h-10 items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 text-xs font-black uppercase text-[var(--ink)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
                 >
                   <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  Classic menu
+                  Back to games
                 </button>
                 <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
                   Supp · Special events
@@ -1221,8 +1151,8 @@ export default function GamePage() {
                   events
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm font-semibold text-[var(--muted)] sm:text-base">
-                  Seasonal decks and limited-time game modes. The classic classroom deck is always
-                  available from the main menu.
+                  Seasonal decks and limited-time game modes. The default games are always available
+                  from the main menu.
                 </p>
               </header>
 
@@ -1233,7 +1163,7 @@ export default function GamePage() {
                   whileTap={{ scale: 0.99 }}
                   onClick={() => {
                     setMode('halloween');
-                    setPlayStyle('d20');
+                    setPlayStyle(null);
                     setScreen('menu');
                   }}
                   className="relative overflow-hidden rounded-2xl border-4 border-[var(--accent)] bg-[var(--surface)] p-4 text-left shadow-[var(--panel-shadow)] transition-colors hover:bg-[var(--surface-2)] sm:p-5"
@@ -1290,19 +1220,7 @@ export default function GamePage() {
                 ))}
               </section>
 
-              <div className="mt-7 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('classic');
-                    setPlayStyle('d20');
-                    setScreen('menu');
-                  }}
-                  className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] sm:w-auto"
-                >
-                  <GraduationCap className="h-5 w-5" aria-hidden="true" />
-                  Back to classic
-                </button>
+              <div className="mt-7">
                 <p className="text-xs font-semibold leading-relaxed text-[var(--muted)]">
                   More seasonal events will appear here as they are released.
                 </p>
@@ -1339,12 +1257,12 @@ export default function GamePage() {
                       ) : (
                         <GraduationCap className="h-4 w-4 shrink-0 text-[var(--accent)] sm:h-5 sm:w-5" aria-hidden="true" />
                       )}
-                      {isHalloween ? 'Halloween Trivia' : 'Classic Trivia'}
+                      {isHalloween ? 'Halloween Trivia' : 'Trivia'}
                     </h1>
                     <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] sm:text-xs">
                       {isHalloween
                         ? `${difficultyMeta.label} · ${difficultyMeta.tagline}`
-                        : `Classic · ${difficultyMeta.label} · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics`}
+                        : `${difficultyMeta.label} · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics`}
                     </p>
                   </div>
                 </div>

@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   Check,
   Ghost,
-  GraduationCap,
   Play,
   RotateCcw,
   Timer,
@@ -170,6 +169,15 @@ export default function HostPage() {
       setLanguage(requestedLanguage);
     } else {
       setLanguage(readStorage('language') === 'en' ? 'en' : 'pt');
+    }
+
+    const requestedDifficulty = params.get('difficulty');
+    if (
+      requestedDifficulty === 'easy' ||
+      requestedDifficulty === 'medium' ||
+      requestedDifficulty === 'hard'
+    ) {
+      setDifficulty(requestedDifficulty);
     }
 
     setRealtimeReady(
@@ -709,7 +717,7 @@ export default function HostPage() {
             <ThemeToggle theme={theme} onChange={setTheme} />
             <LanguageToggle language={language} onChange={setLanguage} />
             <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-              {mode === 'halloween' ? 'Halloween Live' : 'Classic Live'} · Host
+              {mode === 'halloween' ? 'Halloween Live' : 'Live'} · Host
             </span>
           </div>
         </div>
@@ -731,63 +739,8 @@ export default function HostPage() {
                 stays on this screen.
               </p>
 
-              <div className="mt-6">
-                <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                  Game mode
-                </h2>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {[
-                    {
-                      id: 'classic' as ModeId,
-                      label: 'Classic',
-                      description: 'Year-round mixed topics',
-                      Icon: GraduationCap,
-                    },
-                    {
-                      id: 'halloween' as ModeId,
-                      label: 'Halloween',
-                      description: 'Spooky special event',
-                      Icon: Ghost,
-                    },
-                  ].map((item) => {
-                    const selected = mode === item.id;
-
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() => setMode(item.id)}
-                        className={
-                          selected
-                            ? 'flex items-center gap-3 rounded-xl border-4 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-left'
-                            : 'flex items-center gap-3 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-left hover:border-[var(--line)]'
-                        }
-                      >
-                        <item.Icon
-                          className={
-                            selected
-                              ? 'h-5 w-5 shrink-0 text-[var(--accent)]'
-                              : 'h-5 w-5 shrink-0 text-[var(--muted)]'
-                          }
-                          aria-hidden="true"
-                        />
-                        <span>
-                          <span className="block text-sm font-black text-[var(--ink)]">
-                            {item.label}
-                          </span>
-                          <span className="block text-[10px] font-semibold text-[var(--muted)]">
-                            {item.description}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
               {mode === 'classic' && (
-                <div className="mt-5">
+                <div className="mt-6">
                   <div className="flex items-center justify-between gap-3">
                     <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
                       Question topics
