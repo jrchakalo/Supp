@@ -209,11 +209,6 @@ export default function CompetitionSetup({
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
           {isClassic ? copy.competition : copy.halloweenCompetition}
         </span>
-        <LanguageToggle
-          language={language}
-          onChange={onLanguageChange}
-          label={uiLanguage === 'pt' ? 'Idioma das perguntas' : 'Question language'}
-        />
       </header>
 
       <div>
@@ -502,6 +497,28 @@ export default function CompetitionSetup({
               </span>{' '}
               {firstPhase?.shortLabel} → {lastPhase?.shortLabel}
             </div>
+          </section>
+
+          <section
+            aria-labelledby="language-title"
+            className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--panel-shadow)] sm:p-6"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2
+                id="language-title"
+                className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]"
+              >
+                {copy.questionLanguage}
+              </h2>
+              <LanguageToggle
+                language={language}
+                onChange={onLanguageChange}
+                label={copy.questionLanguage}
+              />
+            </div>
+            <p className="mt-2 text-[11px] font-semibold leading-relaxed text-[var(--muted)]">
+              {copy.questionLanguageHelp}
+            </p>
           </section>
 
           <section

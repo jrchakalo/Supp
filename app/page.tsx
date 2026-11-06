@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import CompetitionGame from '@/components/CompetitionGame';
 import CompetitionSetup from '@/components/CompetitionSetup';
+import D20Setup from '@/components/D20Setup';
 import HalloweenBackdrop from '@/components/HalloweenBackdrop';
 import LanguageToggle from '@/components/LanguageToggle';
 import QuestionModal from '@/components/QuestionModal';
@@ -128,7 +129,13 @@ const CATEGORY_ICONS = {
 } as const;
 
 type PlayStyle = 'd20' | 'competition' | 'live';
-type Screen = 'menu' | 'events' | 'playing' | 'competition-setup' | 'competition';
+type Screen =
+  | 'menu'
+  | 'events'
+  | 'd20-setup'
+  | 'playing'
+  | 'competition-setup'
+  | 'competition';
 
 function readCompetitionConfig(): CompetitionConfig | null {
   if (typeof window === 'undefined') return null;
@@ -495,6 +502,12 @@ export default function GamePage() {
     bgmRef.current?.pause();
   }, []);
 
+  const openD20Setup = useCallback(() => {
+    bgmRef.current?.pause();
+    setScreen('d20-setup');
+    playTone(392, 'triangle', 0.09, 0.055);
+  }, [playTone]);
+
   const openCompetitionSetup = useCallback(() => {
     setPlayStyle('competition');
     bgmRef.current?.pause();
@@ -503,13 +516,8 @@ export default function GamePage() {
   }, [playTone]);
 
   const openLiveRoom = useCallback(() => {
-    const params = new URLSearchParams({ mode, lang: language });
-    if (mode === 'classic') {
-      params.set('categories', classicCategories.join(','));
-      params.set('difficulty', difficulty);
-    }
-    window.location.href = `/host?${params.toString()}`;
-  }, [classicCategories, difficulty, language, mode]);
+    window.location.href = `/host?mode=${mode}`;
+  }, [mode]);
 
   const goHome = useCallback(() => {
     setMode('classic');
@@ -519,13 +527,13 @@ export default function GamePage() {
 
   const handlePrimaryAction = useCallback(() => {
     if (playStyle === 'd20') {
-      startGame();
+      openD20Setup();
     } else if (playStyle === 'competition') {
       openCompetitionSetup();
     } else if (playStyle === 'live') {
       openLiveRoom();
     }
-  }, [openCompetitionSetup, openLiveRoom, playStyle, startGame]);
+  }, [openCompetitionSetup, openD20Setup, openLiveRoom, playStyle]);
 
   const startCompetition = useCallback(() => {
     if (competitionStudents.length < 2) return;
@@ -729,9 +737,6 @@ export default function GamePage() {
                   <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
                     {c.chooseMode}
                   </h2>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
-                    {c.step1}
-                  </span>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -812,264 +817,6 @@ export default function GamePage() {
                 </div>
               </section>
 
-              <AnimatePresence initial={false}>
-                {playStyle !== null && (
-                  <motion.section
-                    key="config"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.2 }}
-                    aria-label={c.roundConfig}
-                    className={cn(
-                      'mt-6 grid gap-4',
-                      isClassic && 'lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]'
-                    )}
-                  >
-                    {isClassic && (
-                      <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                          <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                            {c.topics}
-                          </h2>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
-                            {classicCategories.length}/{CLASSIC_CATEGORIES.length} {c.selected}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                          {CLASSIC_CATEGORIES.map((category) => {
-                            const Icon = CATEGORY_ICONS[category.id];
-                            const selected = classicCategories.includes(category.id);
-
-                            return (
-                              <motion.button
-                                key={category.id}
-                                type="button"
-                                aria-pressed={selected}
-                                whileHover={{ y: -2 }}
-                                whileTap={{ scale: 0.99 }}
-                                onClick={() => toggleClassicCategory(category.id)}
-                                className={cn(
-                                  'rounded-xl border-2 p-3 text-left transition-colors',
-                                  selected
-                                    ? 'border-[var(--accent)] bg-[var(--surface-2)]'
-                                    : 'border-[var(--line-soft)] bg-[var(--surface-2)] hover:border-[var(--line)]'
-                                )}
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <Icon
-                                    className={cn(
-                                      'h-4 w-4',
-                                      selected
-                                        ? 'text-[var(--accent)]'
-                                        : 'text-[var(--muted)]'
-                                    )}
-                                    aria-hidden="true"
-                                  />
-                                  {selected && (
-                                    <Check
-                                      className="h-3.5 w-3.5 text-[var(--accent)]"
-                                      aria-hidden="true"
-                                    />
-                                  )}
-                                </div>
-                                <p className="mt-2 text-xs font-black leading-tight text-[var(--ink)]">
-                                  {categoryCopy(category.id, uiLanguage).label}
-                                </p>
-                              </motion.button>
-                            );
-                          })}
-                        </div>
-
-                        {classicCategories.length === 0 && (
-                          <p className="mt-3 rounded-xl border-2 border-[var(--danger)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]">
-                            {c.selectTopic}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex flex-col gap-4">
-                      {isCompetition ? (
-                        <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
-                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                              {c.competitionLevel}
-                            </h2>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
-                              {competitionLevelMeta.phasesLabel}
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            {competitionLevelOptions.map((item) => {
-                              const Icon = COMPETITION_ICONS[item.id];
-                              const selected = competitionConfig.level === item.id;
-
-                              return (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  aria-pressed={selected}
-                                  onClick={() =>
-                                    setCompetitionConfig((previous) => ({
-                                      ...previous,
-                                      level: item.id,
-                                    }))
-                                  }
-                                  className={cn(
-                                    'rounded-xl border-2 p-3 text-left transition-colors',
-                                    selected
-                                      ? 'border-[var(--accent)] bg-[var(--surface-2)]'
-                                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] hover:border-[var(--line)]'
-                                  )}
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <Icon
-                                      className={cn(
-                                        'h-4 w-4',
-                                        selected
-                                          ? 'text-[var(--accent)]'
-                                          : 'text-[var(--muted)]'
-                                      )}
-                                      aria-hidden="true"
-                                    />
-                                    <span className="text-[9px] font-black uppercase tracking-wider text-[var(--muted)]">
-                                      {item.phasesLabel}
-                                    </span>
-                                  </div>
-                                  <p className="mt-2 text-sm font-black text-[var(--ink)]">
-                                    {item.label}
-                                  </p>
-                                  <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
-                                    {item.tagline}
-                                  </p>
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          {competitionConfig.level === 'progressive' && (
-                            <div className="mt-3 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] p-3">
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)]">
-                                {c.roundsPerDifficulty}
-                              </p>
-                              <div className="mt-2 grid grid-cols-2 gap-2">
-                                {([2, 3] as ProgressiveRounds[]).map((rounds) => {
-                                  const selected =
-                                    competitionConfig.progressiveRounds === rounds;
-
-                                  return (
-                                    <button
-                                      key={rounds}
-                                      type="button"
-                                      aria-pressed={selected}
-                                      onClick={() =>
-                                        setCompetitionConfig((previous) => ({
-                                          ...previous,
-                                          progressiveRounds: rounds,
-                                        }))
-                                      }
-                                      className={cn(
-                                        'rounded-lg border-2 px-3 py-1.5 text-xs font-black uppercase tracking-wide transition',
-                                        selected
-                                          ? 'border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]'
-                                          : 'border-[var(--line-soft)] text-[var(--muted)] hover:border-[var(--line)]'
-                                      )}
-                                    >
-                                      {rounds} {c.rounds}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
-                            <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-1 text-[var(--accent)]">
-                              {competitionFirstPhase?.shortLabel}
-                            </span>
-                            <ChevronRight className="h-3 w-3" aria-hidden="true" />
-                            <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-1 text-[var(--accent)]">
-                              {competitionLastPhase?.shortLabel}
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
-                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                              {c.difficulty}
-                            </h2>
-                          </div>
-
-                          <div className="grid gap-2 sm:grid-cols-3">
-                            {DIFFICULTIES.map((item) => {
-                              const Icon = DIFFICULTY_ICONS[item.id];
-                              const selected = difficulty === item.id;
-                              const copy = difficultyCopy(item.id, uiLanguage);
-
-                              return (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  aria-pressed={selected}
-                                  onClick={() => setDifficulty(item.id)}
-                                  className={cn(
-                                    'rounded-xl border-2 p-3 text-left transition-colors',
-                                    selected
-                                      ? 'border-[var(--accent)] bg-[var(--surface-2)]'
-                                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] hover:border-[var(--line)]'
-                                  )}
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <Icon
-                                      className={cn(
-                                        'h-4 w-4',
-                                        selected
-                                          ? 'text-[var(--accent)]'
-                                          : 'text-[var(--muted)]'
-                                      )}
-                                      aria-hidden="true"
-                                    />
-                                    <span className="text-[9px] font-black uppercase tracking-wider text-[var(--muted)]">
-                                      {copy.audience}
-                                    </span>
-                                  </div>
-                                  <p className="mt-2 text-sm font-black text-[var(--ink)]">
-                                    {copy.label}
-                                  </p>
-                                  <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
-                                    {copy.tagline}
-                                  </p>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                            {c.questionLanguage}
-                          </h2>
-                          <LanguageToggle
-                            language={language}
-                            onChange={setLanguage}
-                            label={c.questionLanguage}
-                          />
-                        </div>
-                        <p className="mt-2 text-[11px] font-semibold leading-relaxed text-[var(--muted)]">
-                          {c.questionLanguageHelp}
-                        </p>
-                      </div>
-                    </div>
-                  </motion.section>
-                )}
-              </AnimatePresence>
-
               <div className="mt-8 flex flex-col gap-3 border-t-2 border-[var(--line-soft)] pt-6 sm:flex-row sm:items-center">
                 <a
                   href="/join"
@@ -1100,34 +847,10 @@ export default function GamePage() {
                       ? c.createLiveRoom
                       : playStyle === 'competition'
                         ? c.setupCompetition
-                        : isHalloween
-                          ? c.startSpooky
-                          : c.startGame}
+                        : c.configureD20}
                   <ChevronRight className="h-5 w-5" aria-hidden="true" />
                 </motion.button>
               </div>
-
-              <p className="mt-4 text-xs font-semibold leading-relaxed text-[var(--muted)]">
-                {playStyle === 'live'
-                  ? c.liveNext
-                  : playStyle === 'competition'
-                    ? `${competitionPhases.length} ${c.phasesWord} · ${
-                        competitionConfig.order === 'random'
-                          ? c.randomOrder
-                          : c.inOrder
-                      }${isClassic ? ` · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} ${c.topicsWord}` : ''}.`
-                    : playStyle === 'd20'
-                      ? `${difficultyMeta.label} · ${
-                          isClassic
-                            ? `${classicCategories.length}/${CLASSIC_CATEGORIES.length} ${c.topicsWord} · `
-                            : ''
-                        }${deckSize} ${c.questionsWord}.`
-                      : c.pickMode}
-              </p>
-
-              <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
-                {c.tip}
-              </p>
             </motion.main>
           )}
 
@@ -1235,6 +958,22 @@ export default function GamePage() {
                 </p>
               </div>
             </motion.main>
+          )}
+
+          {screen === 'd20-setup' && (
+            <D20Setup
+              key="d20-setup"
+              mode={mode}
+              uiLanguage={uiLanguage}
+              language={language}
+              difficulty={difficulty}
+              categories={classicCategories}
+              onDifficultyChange={setDifficulty}
+              onCategoriesChange={setClassicCategories}
+              onLanguageChange={setLanguage}
+              onStart={startGame}
+              onBack={backToMenu}
+            />
           )}
 
           {screen === 'playing' && (

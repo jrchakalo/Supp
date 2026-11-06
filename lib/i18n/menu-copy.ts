@@ -19,6 +19,9 @@ const EN = {
     'Only the questions and game feedback change. The interface follows the language selector at the top.',
   joinRoom: 'Join a live room',
   chooseModeToStart: 'Choose a mode to start',
+  configureD20: 'Configure D20',
+  d20SetupDescription:
+    'Choose the topics, difficulty and question language before the round starts.',
   createLiveRoom: 'Create live room',
   setupCompetition: 'Set up competition',
   startSpooky: 'Start the spooky round',
@@ -121,6 +124,9 @@ const PT: MenuCopy = {
     'Apenas as perguntas e o feedback do jogo mudam. A interface segue o seletor de idioma no topo.',
   joinRoom: 'Entrar em uma sala',
   chooseModeToStart: 'Escolha um modo para começar',
+  configureD20: 'Configurar D20',
+  d20SetupDescription:
+    'Escolha os temas, a dificuldade e o idioma das perguntas antes de começar a rodada.',
   createLiveRoom: 'Criar sala ao vivo',
   setupCompetition: 'Configurar competição',
   startSpooky: 'Começar a rodada assustadora',
