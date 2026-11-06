@@ -130,7 +130,7 @@ export default function QuestionModal({
             </span>
           )}
           <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--muted)]">
-            {isHalloween ? 'Halloween' : t('Classic', 'Clássico')}
+            {isHalloween ? 'Halloween' : t('Trivia', 'Trivia')}
           </span>
           {phaseLabel ? (
             <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--accent)]">

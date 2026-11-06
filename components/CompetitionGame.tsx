@@ -371,7 +371,7 @@ export default function CompetitionGame({
             <div className="min-w-0">
               <h1 className="flex items-center gap-1.5 truncate text-base font-black uppercase tracking-tight text-[var(--ink)] sm:text-2xl">
                 <LevelIcon className="h-4 w-4 shrink-0 text-[var(--accent)] sm:h-5 sm:w-5" aria-hidden="true" />
-                {mode === 'classic' ? 'Classic Competition' : 'Halloween Competition'}
+                {mode === 'classic' ? 'Competition' : 'Halloween Competition'}
               </h1>
               <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] sm:text-xs">
                 {levelMeta.label} ·{' '}

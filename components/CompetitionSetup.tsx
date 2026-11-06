@@ -195,7 +195,7 @@ export default function CompetitionSetup({
         </button>
         <span className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          {isClassic ? 'Classic competition' : 'Halloween competition'}
+          {isClassic ? 'Competition' : 'Halloween competition'}
         </span>
         <LanguageToggle language={language} onChange={onLanguageChange} />
       </header>
