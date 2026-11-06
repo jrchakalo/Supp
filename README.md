@@ -13,10 +13,11 @@
 
 **Supp** é uma plataforma de dinâmicas para sala de aula. O D20 foi o ponto de partida, mas o projeto cresceu: hoje ele reúne três formas de jogar, baralhos temáticos, competição eliminatória, salas multiplayer com QR code, interface bilíngue e eventos sazonais.
 
-- O **modo padrão** é o ponto de entrada: escolha D20, Competição ou Ao vivo, configure temas e dificuldade e comece.
-- Os **eventos especiais** ficam em uma área separada, acessível pelo botão no topo. Halloween já está disponível; Natal e Páscoa estão preparados para as próximas temporadas.
+- O **modo padrão** é o ponto de entrada: a tela inicial mostra apenas os modos (D20, Competição e Ao vivo), o acesso à sala e o botão de iniciar. Cada modo abre sua própria tela de configuração.
+- Os **eventos especiais** ficam em uma área separada, acessível pelo botão no topo. Halloween já está disponível; Natal e Páscoa estão preparados para as próximas temporadas. A área de eventos tem um atalho para voltar aos jogos padrão.
 - A plataforma é **PT/EN**: a interface e o idioma das perguntas podem ser escolhidos de forma independente.
-- O tema **claro/escuro** também é uma preferência da plataforma, com claro como padrão.
+- O tema **claro/escuro** é uma preferência dos jogos padrão, com claro como padrão. Os eventos especiais mantêm a personalização visual do próprio evento.
+- As salas ao vivo sincronizam o tema e o modo do host com os celulares dos alunos.
 
 ## Modos de jogo
 
@@ -24,6 +25,7 @@
 
 O professor rola um D20 de verdade e toca no número sorteado. O app revela uma pergunta de verdadeiro ou falso e mostra o feedback na hora.
 
+- Tela de configuração própria: temas, dificuldade e idioma das perguntas.
 - Grid de 1 a 20, com números que podem se repetir como em uma rolagem real.
 - Rodadas de 20 perguntas, com pontuação, sequência e melhor sequência.
 - Atalhos `T`/`F` (ou `V`/`F` em português), `Enter` para continuar e `Esc` para fechar.
@@ -32,6 +34,7 @@ O professor rola um D20 de verdade e toca no número sorteado. O app revela uma 
 
 Torneio eliminatório para a turma inteira.
 
+- Tela de configuração própria: alunos, temas, nível da competição e idioma das perguntas.
 - Cadastro de alunos por nome, incluindo colar a lista inteira separada por vírgulas ou quebras de linha.
 - Ordem **em ordem** ou **aleatória** a cada fase.
 - Uma pergunta por aluno por fase: quem acerta avança, quem erra sai.
@@ -43,8 +46,10 @@ Torneio eliminatório para a turma inteira.
 
 Sala multiplayer estilo quiz show, com o professor projetando a pergunta e os alunos respondendo no celular.
 
-- **/host**: cria a sala, mostra código de 5 caracteres e QR code, controla rodadas, tempo, avanço automático e placar.
-- **/join**: o aluno entra com código ou QR, escolhe um apelido e responde com quatro botões coloridos.
+- **/host**: cria a sala, mostra código de 5 caracteres e QR code centralizado, controla temas (no modo padrão), baralho, idioma das perguntas, rodadas, tempo, avanço automático e placar. O modo do evento já vem da tela anterior; não há seletor de modo dentro da sala.
+- **/join**: o aluno entra com código ou QR, escolhe um apelido e responde com quatro botões coloridos. O tema e o modo do host são sincronizados automaticamente, inclusive no Halloween.
+- **Visual dos celulares:** o host escolhe entre **Pergunta + respostas** (texto completo, melhor para salas grandes) ou **Somente figuras** (apenas símbolos e cores).
+- **Fechar sala:** encerra a partida e devolve os alunos à tela de entrada do `/join` na hora, sem recarregar a página.
 - Pontuação por velocidade: de 100 a 1.000 pontos conforme o tempo de resposta.
 - O host é a autoridade: escolhe as perguntas, calcula a pontuação e emite cada evento.
 - Fases `lobby → question → reveal → gameover`, com rejeição de respostas repetidas ou fora de fase.
@@ -67,11 +72,12 @@ Os cartões já estão reservados na área de eventos. A arquitetura de baralhos
 ## Idiomas e tema
 
 - **Interface:** seletor PT/EN no topo da plataforma. Padrão: português.
-- **Perguntas:** seletor PT/EN separado, na configuração da rodada. A plataforma pode estar em inglês com perguntas em português, e vice-versa.
-- **Tema:** claro/escuro, com claro como padrão.
+- **Perguntas:** seletor PT/EN separado, na tela de configuração de cada modo e no host do Live. A plataforma pode estar em inglês com perguntas em português, e vice-versa.
+- **Tema:** claro/escuro nos jogos padrão, com claro como padrão. Os eventos especiais usam sempre a personalização visual do evento e não exibem o toggle de tema.
 - As preferências ficam salvas em `localStorage` (`supp-ui-language`, `supp-language`, `supp-theme`).
 - Perguntas, alternativas, explicações, feedback de acerto/erro e textos de jogo acompanham o idioma das perguntas.
 - Menus, botões administrativos, tela do host e tela do aluno acompanham o idioma da interface.
+- A interface não usa emojis; os ícones são SVGs do Lucide.
 
 ## Temas e dificuldades
 
@@ -149,12 +155,13 @@ O baralho padrão tem **87 perguntas de verdadeiro ou falso** em cinco temas:
 
 ```
 app/
-  page.tsx                  Menu, configuração da rodada, D20, competição e eventos
+  page.tsx                  Menu, eventos, D20, competição e orquestração das telas
   host/page.tsx             Sala ao vivo — tela do professor
   join/page.tsx             Sala ao vivo — tela do aluno
   globals.css               Tokens de tema claro/escuro e cenário de Halloween
 components/
-  CompetitionSetup.tsx      Cadastro de alunos, temas e escada
+  D20Setup.tsx              Configuração do modo D20 (temas, dificuldade e idioma)
+  CompetitionSetup.tsx      Cadastro de alunos, temas, nível e idioma
   CompetitionGame.tsx       Partida eliminatória
   QuestionModal.tsx         Pergunta, resposta e feedback bilíngue
   LanguageToggle.tsx        Seletor PT/EN
