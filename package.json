@@ -2,7 +2,7 @@
   "name": "supp",
   "version": "0.1.0",
   "private": true,
-  "description": "Supp — classroom trivia, competition and live room game.",
+  "description": "Supp — classroom games, competition, live rooms and seasonal events.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
