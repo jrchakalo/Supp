@@ -1,4 +1,4 @@
-import { CLASSIC_QUESTIONS } from './classic-questions';
+import { CLASSIC_DECKS } from './classic-questions';
 import { HALLOWEEN_QUESTIONS } from './halloween-questions';
 import type { DifficultyId, DifficultyMeta, ModeId, Question } from './types';
 
@@ -6,22 +6,22 @@ export const DIFFICULTIES: DifficultyMeta[] = [
   {
     id: 'easy',
     label: 'Easy',
-    tagline: 'Little monsters',
+    tagline: 'Warm-up',
     description: 'Short, friendly questions for the youngest players.',
-    audience: 'Ages 6–9',
+    audience: 'Ages 7–9',
   },
   {
     id: 'medium',
     label: 'Medium',
-    tagline: 'Brave trick-or-treaters',
-    description: 'A mix of spooky facts, movies and games for older kids.',
+    tagline: 'Steady climb',
+    description: 'A mix of topics for confident players.',
     audience: 'Ages 9–12',
   },
   {
     id: 'hard',
     label: 'Hard',
-    tagline: 'Midnight legends',
-    description: 'Trickier lore and pop-culture details for teens.',
+    tagline: 'Deep dive',
+    description: 'Trickier details for teens and trivia experts.',
     audience: 'Ages 12+',
   },
 ];
@@ -41,7 +41,7 @@ export const MODES: { id: ModeId; label: string; description: string }[] = [
 ];
 
 export function getDeck(mode: ModeId, difficulty: DifficultyId): Question[] {
-  return mode === 'classic' ? CLASSIC_QUESTIONS : HALLOWEEN_QUESTIONS[difficulty];
+  return mode === 'classic' ? CLASSIC_DECKS[difficulty] : HALLOWEEN_QUESTIONS[difficulty];
 }
 
 /** Fisher–Yates shuffle. Returns a new array, leaving the deck untouched. */

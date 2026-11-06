@@ -6,15 +6,20 @@ import {
   ArrowLeft,
   Candy,
   Check,
+  Clapperboard,
+  Cpu,
   Flame,
+  Gamepad2,
   Ghost,
   Info,
   ListOrdered,
+  PawPrint,
   Play,
   Shuffle,
   Skull,
   Sparkles,
   Trash2,
+  Tv,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -25,8 +30,11 @@ import {
   getCompetitionLevelMeta,
   parseStudentNames,
 } from '@/lib/competition';
+import { CLASSIC_CATEGORIES } from '@/lib/classic-questions';
 import type {
+  ClassicCategoryId,
   CompetitionConfig,
+  ModeId,
   ProgressiveRounds,
   Student,
   StudentOrder,
@@ -40,23 +48,37 @@ const LEVEL_ICONS = {
   progressive: Flame,
 } as const;
 
+const CATEGORY_ICONS = {
+  games: Gamepad2,
+  anime: Tv,
+  'pop-culture': Clapperboard,
+  animals: PawPrint,
+  tech: Cpu,
+} as const;
+
 const MAX_NAME_LENGTH = 30;
 const MAX_STUDENTS = 50;
 
 type CompetitionSetupProps = {
+  mode: ModeId;
   students: Student[];
   config: CompetitionConfig;
+  categories: ClassicCategoryId[];
   onStudentsChange: (students: Student[]) => void;
   onConfigChange: (config: CompetitionConfig) => void;
+  onCategoriesChange: (categories: ClassicCategoryId[]) => void;
   onStart: () => void;
   onBack: () => void;
 };
 
 export default function CompetitionSetup({
+  mode,
   students,
   config,
+  categories,
   onStudentsChange,
   onConfigChange,
+  onCategoriesChange,
   onStart,
   onBack,
 }: CompetitionSetupProps) {
@@ -69,7 +91,16 @@ export default function CompetitionSetup({
   const phases = buildCompetitionPhases(config.level, config.progressiveRounds);
   const firstPhase = phases[0];
   const lastPhase = phases[phases.length - 1];
-  const canStart = students.length >= 2;
+  const isClassic = mode === 'classic';
+  const canStart = students.length >= 2 && (!isClassic || categories.length > 0);
+
+  const toggleCategory = (categoryId: ClassicCategoryId) => {
+    onCategoriesChange(
+      categories.includes(categoryId)
+        ? categories.filter((id) => id !== categoryId)
+        : [...categories, categoryId]
+    );
+  };
 
   const addStudents = () => {
     if (students.length >= MAX_STUDENTS) {
@@ -158,7 +189,7 @@ export default function CompetitionSetup({
         </button>
         <span className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          Halloween competition
+          {isClassic ? 'Classic competition' : 'Halloween competition'}
         </span>
       </header>
 
@@ -296,6 +327,69 @@ export default function CompetitionSetup({
         </section>
 
         <div className="flex flex-col gap-4">
+          {isClassic && (
+            <section
+              aria-labelledby="topics-title"
+              className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--panel-shadow)] sm:p-6"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <h2
+                  id="topics-title"
+                  className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]"
+                >
+                  Question topics
+                </h2>
+                <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
+                  {categories.length}/{CLASSIC_CATEGORIES.length}
+                </span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {CLASSIC_CATEGORIES.map((category) => {
+                  const Icon = CATEGORY_ICONS[category.id];
+                  const selected = categories.includes(category.id);
+
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => toggleCategory(category.id)}
+                      className={cn(
+                        'rounded-2xl border-2 p-3 text-left transition-colors',
+                        selected
+                          ? 'border-[var(--accent)] bg-[var(--surface-2)]'
+                          : 'border-[var(--line-soft)] bg-[var(--surface-2)] hover:border-[var(--line)]'
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <Icon
+                          className={cn(
+                            'h-5 w-5',
+                            selected ? 'text-[var(--accent)]' : 'text-[var(--muted)]'
+                          )}
+                          aria-hidden="true"
+                        />
+                        {selected && (
+                          <Check className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                        )}
+                      </div>
+                      <p className="mt-2 text-sm font-black text-[var(--ink)]">
+                        {category.label}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {categories.length === 0 && (
+                <p className="mt-2 rounded-xl border-2 border-[var(--danger)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]">
+                  Select at least one topic to start.
+                </p>
+              )}
+            </section>
+          )}
+
           <section
             aria-labelledby="level-title"
             className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--panel-shadow)] sm:p-6"
