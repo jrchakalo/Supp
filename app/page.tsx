@@ -66,7 +66,16 @@ import { readStorage, writeStorage } from '@/lib/storage';
 // "Danse Macabre - Busy Strings" by Kevin MacLeod (incompetech.com), CC BY 3.0.
 const HALLOWEEN_BGM_URL =
   'https://upload.wikimedia.org/wikipedia/commons/3/32/Danse_Macabre_-_Busy_Strings_%28ISRC_USUAN1100556%29.mp3';
-const CLASSIC_BGM_URL = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+
+/**
+ * Royalty-free SoundHelix examples used as the default-mode soundtrack.
+ * They play in a shuffled cycle: no track repeats until the whole list has
+ * played, and the first track of a new cycle never repeats the last one.
+ */
+const CLASSIC_BGM_URLS = Array.from(
+  { length: 10 },
+  (_, index) => `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-${index + 2}.mp3`
+);
 const VOLUME_STORAGE_KEY = 'volume';
 const COMPETITION_STORAGE_KEY = 'competition-setup';
 const LANGUAGE_STORAGE_KEY = 'language';
@@ -186,6 +195,9 @@ export default function GamePage() {
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const bgmRef = useRef<HTMLAudioElement | null>(null);
+  const classicQueueRef = useRef<string[]>([]);
+  const lastClassicTrackRef = useRef<string | null>(null);
+  const playClassicTrackRef = useRef<(() => void) | null>(null);
   // Synchronous guard: AnimatePresence freezes the exiting modal's props, so state
   // alone cannot prevent an answer during the close animation.
   const acceptingAnswersRef = useRef(false);
@@ -260,28 +272,89 @@ export default function GamePage() {
     [ensureAudioContext, isMuted, volume]
   );
 
-  const startBgm = useCallback(() => {
-    const track = isHalloween ? HALLOWEEN_BGM_URL : CLASSIC_BGM_URL;
-
-    if (bgmRef.current && bgmRef.current.dataset.track !== track) {
-      bgmRef.current.pause();
-      bgmRef.current = null;
+  const nextClassicTrack = useCallback(() => {
+    if (classicQueueRef.current.length === 0) {
+      const queue = shuffle(CLASSIC_BGM_URLS);
+      // Avoid playing the same track twice in a row across shuffle cycles.
+      if (
+        lastClassicTrackRef.current &&
+        queue.length > 1 &&
+        queue[0] === lastClassicTrackRef.current
+      ) {
+        [queue[0], queue[1]] = [queue[1], queue[0]];
+      }
+      classicQueueRef.current = queue;
     }
 
-    if (!bgmRef.current) {
-      const audio = new Audio(track);
-      audio.loop = true;
-      audio.preload = 'none';
-      audio.dataset.track = track;
-      bgmRef.current = audio;
+    const track = classicQueueRef.current.shift() ?? CLASSIC_BGM_URLS[0];
+    lastClassicTrackRef.current = track;
+    return track;
+  }, []);
+
+  const playClassicTrack = useCallback(() => {
+    const track = nextClassicTrack();
+    const previous = bgmRef.current;
+    if (previous) {
+      previous.onended = null;
+      previous.pause();
     }
 
-    bgmRef.current.volume = Math.min(1, volume * 0.35);
-    bgmRef.current.muted = isMuted || volume <= 0;
-    bgmRef.current.play().catch(() => {
+    const audio = new Audio(track);
+    audio.loop = false;
+    audio.preload = 'none';
+    audio.dataset.mode = 'classic';
+    audio.dataset.track = track;
+    audio.volume = Math.min(1, volume * 0.35);
+    audio.muted = isMuted || volume <= 0;
+    audio.onended = () => {
+      playClassicTrackRef.current?.();
+    };
+    bgmRef.current = audio;
+    audio.play().catch(() => {
       // Browsers can block autoplay; the game still works without music.
     });
-  }, [isHalloween, isMuted, volume]);
+  }, [isMuted, nextClassicTrack, volume]);
+  playClassicTrackRef.current = playClassicTrack;
+
+  const startBgm = useCallback(() => {
+    if (isHalloween) {
+      const track = HALLOWEEN_BGM_URL;
+
+      if (bgmRef.current && bgmRef.current.dataset.mode !== 'halloween') {
+        bgmRef.current.onended = null;
+        bgmRef.current.pause();
+        bgmRef.current = null;
+      }
+
+      if (!bgmRef.current) {
+        const audio = new Audio(track);
+        audio.loop = true;
+        audio.preload = 'none';
+        audio.dataset.mode = 'halloween';
+        audio.dataset.track = track;
+        bgmRef.current = audio;
+      }
+
+      bgmRef.current.volume = Math.min(1, volume * 0.35);
+      bgmRef.current.muted = isMuted || volume <= 0;
+      bgmRef.current.play().catch(() => {
+        // Browsers can block autoplay; the game still works without music.
+      });
+      return;
+    }
+
+    if (
+      bgmRef.current &&
+      bgmRef.current.dataset.mode === 'classic' &&
+      !bgmRef.current.paused
+    ) {
+      bgmRef.current.volume = Math.min(1, volume * 0.35);
+      bgmRef.current.muted = isMuted || volume <= 0;
+      return;
+    }
+
+    playClassicTrack();
+  }, [isHalloween, isMuted, playClassicTrack, volume]);
 
   useEffect(() => {
     const audio = bgmRef.current;
@@ -308,7 +381,10 @@ export default function GamePage() {
 
   useEffect(() => {
     return () => {
-      bgmRef.current?.pause();
+      if (bgmRef.current) {
+        bgmRef.current.onended = null;
+        bgmRef.current.pause();
+      }
       bgmRef.current = null;
       void audioCtxRef.current?.close();
       audioCtxRef.current = null;
