@@ -756,11 +756,6 @@ export default function HostPage() {
             {mode !== 'halloween' && (
               <ThemeToggle theme={theme} onChange={setTheme} />
             )}
-            <LanguageToggle
-              language={language}
-              onChange={setLanguage}
-              label={uiLanguage === 'pt' ? 'Idioma das perguntas' : 'Question language'}
-            />
             <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
               {mode === 'halloween' ? copy.halloweenLiveHost : copy.liveHost}
             </span>
@@ -955,6 +950,20 @@ export default function HostPage() {
                     {copy.playerViewShapes}
                   </button>
                 </div>
+              </div>
+
+              <div className="mt-4 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-black text-[var(--ink)]">{copy.questionLanguage}</p>
+                  <LanguageToggle
+                    language={language}
+                    onChange={setLanguage}
+                    label={copy.questionLanguage}
+                  />
+                </div>
+                <p className="mt-1 text-[11px] font-medium text-[var(--muted)]">
+                  {copy.questionLanguageHelp}
+                </p>
               </div>
 
               <button
