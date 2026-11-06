@@ -1,5 +1,6 @@
 import { CLASSIC_EN } from './classic-en';
 import { CLASSIC_LIVE_PT } from './classic-live-pt';
+import { CLASSIC_PT } from './classic-pt';
 import { HALLOWEEN_PT } from './halloween-pt';
 import { LIVE_PT } from './live-pt';
 import type { Language } from './types';
@@ -20,6 +21,13 @@ export function localizeQuestion(question: Question, language: Language): Questi
         text: translation.text,
         explanation: translation.explanation ?? question.explanation,
       };
+    }
+  }
+
+  if (language === 'pt' && question.id.startsWith('classic-')) {
+    const translation = CLASSIC_PT[question.id];
+    if (translation) {
+      return { ...question, text: translation.text };
     }
   }
 
