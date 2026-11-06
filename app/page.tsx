@@ -186,7 +186,7 @@ export default function GamePage() {
 
   const isHalloween = mode === 'halloween';
   const isClassic = mode === 'classic';
-  const effectivePlayStyle: PlayStyle = isHalloween ? playStyle : 'd20';
+  const effectivePlayStyle: PlayStyle = playStyle;
   const difficultyMeta = getDifficultyMeta(difficulty);
   const activeDeck = useMemo(
     () =>
@@ -359,13 +359,21 @@ export default function GamePage() {
 
   const startCompetition = useCallback(() => {
     if (competitionStudents.length < 2) return;
+    if (isClassic && classicCategories.length === 0) return;
 
     setCompetitionRun((run) => run + 1);
     setScreen('competition');
     void ensureAudioContext();
     startBgm();
     playTone(392, 'triangle', 0.1, 0.06);
-  }, [competitionStudents.length, ensureAudioContext, playTone, startBgm]);
+  }, [
+    classicCategories.length,
+    competitionStudents.length,
+    ensureAudioContext,
+    isClassic,
+    playTone,
+    startBgm,
+  ]);
 
   const playAgain = useCallback(() => {
     setCompetitionRun((run) => run + 1);
@@ -535,6 +543,12 @@ export default function GamePage() {
                           Trivia
                         </>
                       )
+                    ) : effectivePlayStyle === 'competition' ? (
+                      <>
+                        Classic
+                        <br />
+                        Competition
+                      </>
                     ) : (
                       <>
                         Can you
@@ -548,7 +562,9 @@ export default function GamePage() {
                       ? effectivePlayStyle === 'competition'
                         ? 'Register your students and run a Halloween knockout. Each phase asks one question per student: correct answers advance, wrong answers are out.'
                         : 'Trick or treat! Pick a difficulty, roll a real D20 and answer the spooky true-or-false questions.'
-                      : 'The original classroom icebreaker. Pick a mode and let the D20 decide the next question.'}
+                      : effectivePlayStyle === 'competition'
+                        ? 'Register your students and run a knockout with the topics you selected. Each phase asks one question per student.'
+                        : 'The original classroom icebreaker. Pick your topics, choose a difficulty and let the D20 decide.'}
                   </p>
                 </motion.header>
               </AnimatePresence>
@@ -609,23 +625,20 @@ export default function GamePage() {
                 </motion.section>
               </AnimatePresence>
 
-              <AnimatePresence initial={false}>
-                {isHalloween && (
-                  <motion.section
-                    key="play-style"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.2 }}
-                    aria-label="Play style"
-                    className="mt-6"
-                  >
+              <motion.section
+                key="play-style"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                aria-label="Play style"
+                className="mt-6"
+              >
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
                         Choose how to play
                       </h2>
                       <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
-                        Halloween only
+                        All modes
                       </span>
                     </div>
 
@@ -697,8 +710,6 @@ export default function GamePage() {
                       })}
                     </div>
                   </motion.section>
-                )}
-              </AnimatePresence>
 
               <AnimatePresence initial={false}>
                 {isClassic && (
@@ -769,32 +780,33 @@ export default function GamePage() {
                 )}
               </AnimatePresence>
 
-              <AnimatePresence initial={false}>
-                {isHalloween && (
-                  <motion.a
-                    key="live-room"
-                    href="/host"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.2 }}
-                    className="mt-4 flex items-center justify-between gap-3 rounded-2xl border-4 border-dashed border-[var(--accent)] bg-[var(--surface)] p-4 sm:p-5"
-                  >
-                    <span className="flex items-start gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
-                        <Wifi className="h-5 w-5" aria-hidden="true" />
-                      </span>
-                      <span>
-                        <span className="block text-lg font-black text-[var(--ink)]">Halloween Live</span>
-                        <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
-                          Live room: students join with a code or QR and answer on their own phones.
-                        </span>
-                      </span>
+              <motion.a
+                key="live-room"
+                href={
+                  isClassic
+                    ? `/host?mode=classic&categories=${classicCategories.join(',')}`
+                    : '/host?mode=halloween'
+                }
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mt-4 flex items-center justify-between gap-3 rounded-2xl border-4 border-dashed border-[var(--accent)] bg-[var(--surface)] p-4 sm:p-5"
+              >
+                <span className="flex items-start gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-[var(--accent)] bg-[var(--cta-bg)] text-[var(--cta-text)]">
+                    <Wifi className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span>
+                    <span className="block text-lg font-black text-[var(--ink)]">
+                      {isHalloween ? 'Halloween Live' : 'Classic Live'}
                     </span>
-                    <ChevronRight className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
-                  </motion.a>
-                )}
-              </AnimatePresence>
+                    <span className="mt-0.5 block text-xs font-medium leading-relaxed text-[var(--muted)]">
+                      Live room: students join with a code or QR and answer on their own phones.
+                    </span>
+                  </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+              </motion.a>
 
               {/* Students: direct shortcut to type the room code on a phone. */}
               <motion.a
@@ -883,7 +895,7 @@ export default function GamePage() {
                   </motion.section>
                 )}
 
-                {isHalloween && effectivePlayStyle === 'competition' && (
+                {effectivePlayStyle === 'competition' && (
                   <motion.section
                     key="competition-level"
                     initial={{ opacity: 0, y: 10 }}
@@ -1009,10 +1021,11 @@ export default function GamePage() {
                   <>
                     <motion.button
                       type="button"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
+                      whileHover={canStartRound ? { scale: 1.02 } : undefined}
+                      whileTap={canStartRound ? { scale: 0.97 } : undefined}
                       onClick={openCompetitionSetup}
-                      className="flex min-h-[64px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-7 text-lg font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] sm:w-auto sm:text-xl"
+                      disabled={!canStartRound}
+                      className="flex min-h-[64px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-7 text-lg font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 sm:w-auto sm:text-xl"
                     >
                       <Trophy className="h-5 w-5" aria-hidden="true" />
                       Set up competition
@@ -1023,7 +1036,11 @@ export default function GamePage() {
                       <p>Register your students and choose the level on the next screen.</p>
                       <p>
                         {competitionPhases.length} phases ·{' '}
-                        {competitionConfig.order === 'random' ? 'Random order' : 'In order'}.
+                        {competitionConfig.order === 'random' ? 'Random order' : 'In order'}
+                        {isClassic
+                          ? ` · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics`
+                          : ''}
+                        .
                       </p>
                     </div>
                   </>

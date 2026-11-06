@@ -1,6 +1,7 @@
 import { shuffle } from '../game';
-import type { DifficultyId, LiveOptionIndex, LiveQuestion } from '../types';
+import type { ClassicCategoryId, DifficultyId, LiveOptionIndex, LiveQuestion, ModeId } from '../types';
 import { LIVE_QUESTIONS } from '../live-questions';
+import { CLASSIC_LIVE_QUESTIONS } from '../classic-live-questions';
 import type { LiveScoreRow } from './protocol';
 
 /**
@@ -35,7 +36,22 @@ export function randomId(prefix: string): string {
   return `${prefix}-${unique}`;
 }
 
-export function getLiveDeck(difficulty: DifficultyId): LiveQuestion[] {
+export function getLiveDeck(
+  mode: ModeId,
+  difficulty: DifficultyId,
+  categories?: ClassicCategoryId[]
+): LiveQuestion[] {
+  if (mode === 'classic') {
+    const deck = CLASSIC_LIVE_QUESTIONS.filter(
+      (question) => question.difficulty === difficulty
+    );
+    const selected = new Set(categories ?? []);
+
+    return selected.size > 0
+      ? deck.filter((question) => question.category && selected.has(question.category))
+      : deck;
+  }
+
   return LIVE_QUESTIONS[difficulty] ?? LIVE_QUESTIONS.easy;
 }
 
@@ -43,17 +59,39 @@ export function getLiveDeck(difficulty: DifficultyId): LiveQuestion[] {
  * Builds a run of questions spread across the three tiers (1 → 2 → 3,
  * cycling) so a 8/12/16-question run always mixes all tiers.
  */
-export function buildQuestionRun(difficulty: DifficultyId, count: number): LiveQuestion[] {
-  const deck = getLiveDeck(difficulty);
-  const byTier = [1, 2, 3].map((tier) => shuffle(deck.filter((q) => q.tier === tier)));
+export function buildQuestionRun(
+  mode: ModeId,
+  difficulty: DifficultyId,
+  count: number,
+  categories?: ClassicCategoryId[]
+): LiveQuestion[] {
+  const deck = getLiveDeck(mode, difficulty, categories);
+  const tiers = () => [1, 2, 3].map((tier) => shuffle(deck.filter((q) => q.tier === tier)));
+  let byTier = tiers();
   const run: LiveQuestion[] = [];
   let tierPos = 0;
+  let emptyStreak = 0;
 
   while (run.length < count) {
     const bucket = byTier[tierPos % 3];
     const next = bucket.shift();
-    if (next) run.push(next);
-    if (!next) byTier[tierPos % 3] = shuffle(deck.filter((q) => q.tier === tierPos % 3 + 1));
+
+    if (next) {
+      run.push(next);
+      emptyStreak = 0;
+    } else {
+      emptyStreak += 1;
+
+      // A topic filter can empty a whole tier. Once all three are empty,
+      // reshuffle the filtered deck and keep cycling until the run is full.
+      if (emptyStreak >= 3) {
+        if (deck.length === 0) break;
+        byTier = tiers();
+        emptyStreak = 0;
+        if (byTier.every((tier) => tier.length === 0)) break;
+      }
+    }
+
     tierPos += 1;
   }
 

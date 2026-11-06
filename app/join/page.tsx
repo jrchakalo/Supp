@@ -13,6 +13,7 @@ import {
 import { getSupabaseClient } from '@/lib/live/supabase';
 import { readStorage, writeStorage } from '@/lib/storage';
 import { ANSWER_BUTTONS, formatPoints, randomId, sanitizeRoomCode } from '@/lib/live/room';
+import type { ModeId } from '@/lib/types';
 
 type Phase = 'entry' | 'connecting' | 'lobby' | 'question' | 'answered' | 'reveal' | 'over';
 
@@ -48,6 +49,7 @@ function secondsLeft(startedAt: number, timeoutMs: number): number {
 
 export default function JoinPage() {
   const [phase, setPhase] = useState<Phase>('entry');
+  const [mode, setMode] = useState<ModeId>('classic');
   const [codeInput, setCodeInput] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [error, setError] = useState('');
@@ -116,6 +118,7 @@ export default function JoinPage() {
   const handleMessage = useCallback((payload: HostToPlayerMessage) => {
     if (payload.kind === 'lobby') {
       // A new round starts: forget the previous game's sequence.
+      setMode(payload.config.mode);
       seqRef.current = -1;
       chosenSeqRef.current = -1;
       setQuestion(null);
@@ -246,8 +249,12 @@ export default function JoinPage() {
     startedAt && timeoutMs ? Math.max(secondsLeft(startedAt, timeoutMs) / (timeoutMs / 1000), 0) : 0;
 
   return (
-    <main className="game-shell theme-halloween relative flex min-h-dvh w-full flex-col items-center px-4 py-6">
-      <HalloweenBackdrop dimmed={phase !== 'entry'} />
+    <main
+      className={`game-shell ${
+        mode === 'halloween' ? 'theme-halloween' : 'theme-classic'
+      } relative flex min-h-dvh w-full flex-col items-center px-4 py-6`}
+    >
+      {mode === 'halloween' && <HalloweenBackdrop dimmed={phase !== 'entry'} />}
 
       <div
         className={`relative z-10 flex w-full flex-1 flex-col ${
@@ -264,7 +271,7 @@ export default function JoinPage() {
               className="m-auto w-full rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8"
             >
               <span className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                Halloween Live
+                {mode === 'halloween' ? 'Halloween Live' : 'Classic Live'}
               </span>
               <h1 className="mt-1 text-3xl font-black uppercase tracking-tight text-[var(--ink)]">Join a room</h1>
 

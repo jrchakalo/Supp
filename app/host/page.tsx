@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Check,
   Ghost,
+  GraduationCap,
   Play,
   RotateCcw,
   Timer,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import HalloweenBackdrop from '@/components/HalloweenBackdrop';
+import { CLASSIC_ALL_CATEGORIES, CLASSIC_CATEGORIES } from '@/lib/classic-questions';
 import { DIFFICULTIES } from '@/lib/game';
 import {
   channelNameFor,
@@ -37,7 +39,7 @@ import {
   scoreForAnswer,
   sortLeaderboard,
 } from '@/lib/live/room';
-import type { DifficultyId } from '@/lib/types';
+import type { ClassicCategoryId, DifficultyId, ModeId } from '@/lib/types';
 
 type Phase = 'setup' | 'lobby' | 'question' | 'reveal' | 'over';
 
@@ -76,12 +78,27 @@ function readSavedSession(): SavedSession | null {
       const { code } = parsed;
       const { difficulty, questionCount, secondsPerQuestion } = parsed.config;
       if (code && difficulty) {
+        // Sessions saved before the Supp rebrand had no mode: they were Halloween rooms.
+        const mode: ModeId =
+          parsed.config.mode === 'classic'
+            ? 'classic'
+            : parsed.config.mode === 'halloween'
+              ? 'halloween'
+              : 'halloween';
+        const categories = Array.isArray(parsed.config.categories)
+          ? parsed.config.categories.filter((id): id is ClassicCategoryId =>
+              CLASSIC_CATEGORIES.some((category) => category.id === id)
+            )
+          : undefined;
+
         return {
           code,
           config: {
+            mode,
             difficulty,
             questionCount: questionCount ?? 12,
             secondsPerQuestion: secondsPerQuestion ?? 20,
+            categories: categories && categories.length > 0 ? categories : undefined,
           },
         };
       }
@@ -113,11 +130,32 @@ const ROUND_SECONDS: { value: 15 | 20 | 30; label: string }[] = [
 ];
 
 export default function HostPage() {
+  const [mode, setMode] = useState<ModeId>('classic');
+  const [categories, setCategories] = useState<ClassicCategoryId[]>(
+    CLASSIC_ALL_CATEGORIES
+  );
   const [mounted, setMounted] = useState(false);
   const [realtimeReady, setRealtimeReady] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+
+    const params = new URLSearchParams(window.location.search);
+    const requestedMode = params.get('mode');
+    if (requestedMode === 'classic' || requestedMode === 'halloween') {
+      setMode(requestedMode);
+    }
+
+    const requestedCategories = params.get('categories');
+    if (requestedCategories) {
+      const parsed = requestedCategories
+        .split(',')
+        .filter((id): id is ClassicCategoryId =>
+          CLASSIC_CATEGORIES.some((category) => category.id === id)
+        );
+      if (parsed.length > 0) setCategories(parsed);
+    }
+
     setRealtimeReady(
       Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
     );
@@ -173,6 +211,27 @@ export default function HostPage() {
   const [podiumStep, setPodiumStep] = useState(0);
   phaseRef.current = phase;
   playerCountRef.current = players.length;
+
+  const liveConfig = useMemo<LiveGameConfig>(
+    () => ({
+      mode,
+      difficulty,
+      questionCount,
+      secondsPerQuestion,
+      categories: mode === 'classic' ? categories : undefined,
+    }),
+    [categories, difficulty, mode, questionCount, secondsPerQuestion]
+  );
+
+  const toggleCategory = (categoryId: ClassicCategoryId) => {
+    setCategories((previous) =>
+      previous.includes(categoryId)
+        ? previous.filter((id) => id !== categoryId)
+        : [...previous, categoryId]
+    );
+  };
+
+  const canOpenRoom = mode !== 'classic' || categories.length > 0;
 
   const broadcast = useCallback((payload: HostToPlayerMessage) => {
     lastHostMessageRef.current = payload;
@@ -261,7 +320,7 @@ export default function HostPage() {
               ? {
                   kind: 'lobby',
                   code: roomCode,
-                  config: { difficulty, questionCount, secondsPerQuestion },
+                  config: liveConfig,
                 }
               : lastHostMessageRef.current,
         });
@@ -276,12 +335,12 @@ export default function HostPage() {
           setJoinUrl(url);
           saveSavedSession({
             code: roomCode,
-            config: { difficulty, questionCount, secondsPerQuestion },
+            config: liveConfig,
           });
           await channel.track({ name: 'HOST' });
         }
       });
-  }, [broadcast, difficulty, questionCount, secondsPerQuestion]);
+  }, [broadcast, liveConfig]);
 
   useEffect(() => {
     return () => {
@@ -343,7 +402,8 @@ export default function HostPage() {
         seq: seqIndex,
         correctIndex: current.correctIndex,
         counts,
-        explanation: getLiveDeck(difficulty).find((q) => q.id === current.id)?.explanation ?? '',
+        explanation:
+          runRef.current.find((q) => q.id === current.id)?.explanation ?? '',
         leaderboard,
       });
       setReplies([]);
@@ -356,7 +416,8 @@ export default function HostPage() {
         text: current.text,
         options: current.options,
         correctIndex: current.correctIndex,
-        explanation: getLiveDeck(difficulty).find((q) => q.id === current.id)?.explanation ?? '',
+        explanation:
+          runRef.current.find((q) => q.id === current.id)?.explanation ?? '',
         counts,
         leaderboard,
       } satisfies HostToPlayerMessage);
@@ -364,7 +425,7 @@ export default function HostPage() {
       // The 7 s auto-advance timer itself lives in the reveal effect, so the
       // countdown and the jump share one single source of truth.
     },
-    [broadcast, difficulty, players, secondsPerQuestion]
+    [broadcast, players, secondsPerQuestion]
   );
   endQuestionRef.current = endQuestion;
 
@@ -409,14 +470,16 @@ export default function HostPage() {
   );
 
   const startGame = useCallback(() => {
-    const nextRun = buildQuestionRun(difficulty, questionCount);
+    const nextRun = buildQuestionRun(mode, difficulty, questionCount, categories);
+    if (nextRun.length === 0) return;
+
     runRef.current = nextRun;
     setRun(nextRun);
     scoresRef.current = {};
     setScores({});
     revealedIdsRef.current = new Set();
     askQuestion(0);
-  }, [askQuestion, difficulty, questionCount]);
+  }, [askQuestion, categories, difficulty, mode, questionCount]);
 
   /* The question is read on the projector: enter fullscreen as the teacher hits play. */
   const enterFullscreen = useCallback(() => {
@@ -519,9 +582,9 @@ export default function HostPage() {
     broadcast({
       kind: 'lobby',
       code,
-      config: { difficulty, questionCount, secondsPerQuestion },
+      config: liveConfig,
     } satisfies HostToPlayerMessage);
-  }, [phase, players, broadcast, code, difficulty, questionCount, secondsPerQuestion]);
+  }, [phase, players, broadcast, code, liveConfig]);
 
   /* Final standings, plus the staggered podium reveal (3rd → 2nd → 1st). */
   const finalRows = useMemo(
@@ -554,8 +617,12 @@ export default function HostPage() {
 
   if (!mounted) {
     return (
-      <main className="game-shell theme-halloween relative flex min-h-dvh items-center justify-center">
-        <HalloweenBackdrop dimmed />
+      <main
+        className={`game-shell ${
+          mode === 'halloween' ? 'theme-halloween' : 'theme-classic'
+        } relative flex min-h-dvh items-center justify-center`}
+      >
+        {mode === 'halloween' && <HalloweenBackdrop dimmed />}
         <span className="relative z-10 h-10 w-10 animate-pulse rounded-full bg-[var(--surface-2)]" />
       </main>
     );
@@ -563,8 +630,12 @@ export default function HostPage() {
 
   if (!realtimeReady) {
     return (
-      <main className="theme-halloween game-shell relative flex min-h-dvh items-center justify-center px-4">
-        <HalloweenBackdrop dimmed />
+      <main
+        className={`${
+          mode === 'halloween' ? 'theme-halloween' : 'theme-classic'
+        } game-shell relative flex min-h-dvh items-center justify-center px-4`}
+      >
+        {mode === 'halloween' && <HalloweenBackdrop dimmed />}
         <div className="relative z-10 max-w-md rounded-2xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center">
           <Wifi className="mx-auto h-8 w-8 text-[var(--muted)]" aria-hidden="true" />
           <h1 className="mt-3 text-xl font-black text-[var(--ink)]">Realtime not configured</h1>
@@ -586,9 +657,11 @@ export default function HostPage() {
 
   return (
     <main
-      className="game-shell theme-halloween relative flex min-h-dvh w-full flex-col items-center px-4 py-6 sm:px-8"
+      className={`game-shell ${
+        mode === 'halloween' ? 'theme-halloween' : 'theme-classic'
+      } relative flex min-h-dvh w-full flex-col items-center px-4 py-6 sm:px-8`}
     >
-      <HalloweenBackdrop dimmed={phase !== 'lobby'} />
+      {mode === 'halloween' && <HalloweenBackdrop dimmed={phase !== 'lobby'} />}
 
       <div className="relative z-10 w-full max-w-4xl">
         <div className="flex items-center justify-between gap-3">
@@ -600,7 +673,7 @@ export default function HostPage() {
             Menu
           </a>
           <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-            Halloween Live · Host
+            {mode === 'halloween' ? 'Halloween Live' : 'Classic Live'} · Host
           </span>
         </div>
 
@@ -620,6 +693,100 @@ export default function HostPage() {
                 Students join with the room code or the QR code, then answer on their own phones while the question
                 stays on this screen.
               </p>
+
+              <div className="mt-6">
+                <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Game mode
+                </h2>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {[
+                    {
+                      id: 'classic' as ModeId,
+                      label: 'Classic',
+                      description: 'Year-round mixed topics',
+                      Icon: GraduationCap,
+                    },
+                    {
+                      id: 'halloween' as ModeId,
+                      label: 'Halloween',
+                      description: 'Spooky special event',
+                      Icon: Ghost,
+                    },
+                  ].map((item) => {
+                    const selected = mode === item.id;
+
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => setMode(item.id)}
+                        className={
+                          selected
+                            ? 'flex items-center gap-3 rounded-xl border-4 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-left'
+                            : 'flex items-center gap-3 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-left hover:border-[var(--line)]'
+                        }
+                      >
+                        <item.Icon
+                          className={
+                            selected
+                              ? 'h-5 w-5 shrink-0 text-[var(--accent)]'
+                              : 'h-5 w-5 shrink-0 text-[var(--muted)]'
+                          }
+                          aria-hidden="true"
+                        />
+                        <span>
+                          <span className="block text-sm font-black text-[var(--ink)]">
+                            {item.label}
+                          </span>
+                          <span className="block text-[10px] font-semibold text-[var(--muted)]">
+                            {item.description}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {mode === 'classic' && (
+                <div className="mt-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                      Question topics
+                    </h2>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
+                      {categories.length}/{CLASSIC_CATEGORIES.length}
+                    </span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                    {CLASSIC_CATEGORIES.map((category) => {
+                      const selected = categories.includes(category.id);
+
+                      return (
+                        <button
+                          key={category.id}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => toggleCategory(category.id)}
+                          className={
+                            selected
+                              ? 'rounded-xl border-4 border-[var(--accent)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--ink)]'
+                              : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--ink)] hover:border-[var(--line)]'
+                          }
+                        >
+                          {category.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {categories.length === 0 && (
+                    <p className="mt-2 rounded-xl border-2 border-[var(--danger)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]">
+                      Select at least one topic to open a room.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="mt-6 grid gap-5 sm:grid-cols-3">
                 <div>
@@ -646,7 +813,7 @@ export default function HostPage() {
                     })}
                   </div>
                   <p className="mt-2 text-[11px] font-medium text-[var(--muted)]">
-                    {getLiveDeck(difficulty).length} multiple-choice questions ready.
+                    {getLiveDeck(mode, difficulty, categories).length} multiple-choice questions ready.
                   </p>
                 </div>
 
@@ -725,7 +892,7 @@ export default function HostPage() {
 
               <button
                 type="button"
-                disabled={status === 'connecting'}
+                disabled={status === 'connecting' || !canOpenRoom}
                 onClick={() => void openRoom()}
                 className="mt-7 w-full rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--tile-shadow)] disabled:opacity-60 sm:w-auto sm:min-w-64"
               >
@@ -737,6 +904,10 @@ export default function HostPage() {
                   type="button"
                   disabled={status === 'connecting'}
                   onClick={() => {
+                    setMode(savedSession.config.mode);
+                    if (savedSession.config.categories?.length) {
+                      setCategories(savedSession.config.categories);
+                    }
                     setDifficulty(savedSession.config.difficulty);
                     setQuestionCount(savedSession.config.questionCount);
                     setSecondsPerQuestion(savedSession.config.secondsPerQuestion);
@@ -762,7 +933,11 @@ export default function HostPage() {
               <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
                 <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
                   <h1 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">Room code</h1>
-                  <p className="hw-title mt-1 text-6xl font-black tracking-[0.14em] text-[var(--accent)] sm:text-7xl">
+                  <p
+                    className={`mt-1 text-6xl font-black tracking-[0.14em] text-[var(--accent)] sm:text-7xl ${
+                      mode === 'halloween' ? 'hw-title' : ''
+                    }`}
+                  >
                     {code}
                   </p>
                   <p className="mt-3 max-w-sm text-sm font-semibold text-[var(--muted)]">
