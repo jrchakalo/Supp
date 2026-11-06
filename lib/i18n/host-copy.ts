@@ -20,6 +20,9 @@ const EN = {
     'Choose what students see on their phones while answering. Full text helps large rooms; shapes only keeps the quiz-show look.',
   playerViewFull: 'Question + answers',
   playerViewShapes: 'Shapes only',
+  questionLanguage: 'Question language',
+  questionLanguageHelp:
+    'Only the questions and game feedback change. The interface follows the language selector on the main menu.',
   on: 'On',
   off: 'Off',
   openRoom: 'Open room',
@@ -82,6 +85,9 @@ const PT: HostCopy = {
     'Escolha o que os alunos veem no celular enquanto respondem. O texto completo ajuda em salas grandes; somente figuras mantém o visual de quiz show.',
   playerViewFull: 'Pergunta + respostas',
   playerViewShapes: 'Somente figuras',
+  questionLanguage: 'Idioma das perguntas',
+  questionLanguageHelp:
+    'Apenas as perguntas e o feedback do jogo mudam. A interface segue o seletor de idioma no menu principal.',
   on: 'Ligado',
   off: 'Desligado',
   openRoom: 'Abrir sala',
