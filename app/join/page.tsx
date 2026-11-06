@@ -13,6 +13,7 @@ import {
 import { getSupabaseClient } from '@/lib/live/supabase';
 import { readStorage, writeStorage } from '@/lib/storage';
 import { ANSWER_BUTTONS, formatPoints, randomId, sanitizeRoomCode } from '@/lib/live/room';
+import type { Language } from '@/lib/i18n';
 import type { ModeId } from '@/lib/types';
 
 type Phase = 'entry' | 'connecting' | 'lobby' | 'question' | 'answered' | 'reveal' | 'over';
@@ -50,6 +51,7 @@ function secondsLeft(startedAt: number, timeoutMs: number): number {
 export default function JoinPage() {
   const [phase, setPhase] = useState<Phase>('entry');
   const [mode, setMode] = useState<ModeId>('classic');
+  const [language, setLanguage] = useState<Language>('pt');
   const [codeInput, setCodeInput] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [error, setError] = useState('');
@@ -119,6 +121,7 @@ export default function JoinPage() {
     if (payload.kind === 'lobby') {
       // A new round starts: forget the previous game's sequence.
       setMode(payload.config.mode);
+      setLanguage(payload.config.language === 'en' ? 'en' : 'pt');
       seqRef.current = -1;
       chosenSeqRef.current = -1;
       setQuestion(null);
@@ -247,6 +250,7 @@ export default function JoinPage() {
 
   const ratio =
     startedAt && timeoutMs ? Math.max(secondsLeft(startedAt, timeoutMs) / (timeoutMs / 1000), 0) : 0;
+  const t = (en: string, pt: string) => (language === 'pt' ? pt : en);
 
   return (
     <main
@@ -273,10 +277,12 @@ export default function JoinPage() {
               <span className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">
                 {mode === 'halloween' ? 'Halloween Live' : 'Classic Live'}
               </span>
-              <h1 className="mt-1 text-3xl font-black uppercase tracking-tight text-[var(--ink)]">Join a room</h1>
+              <h1 className="mt-1 text-3xl font-black uppercase tracking-tight text-[var(--ink)]">
+                {t('Join a room', 'Entrar na sala')}
+              </h1>
 
               <label className="mt-6 block text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                Room code
+                {t('Room code', 'Código da sala')}
               </label>
               <input
                 value={codeInput}
@@ -289,7 +295,7 @@ export default function JoinPage() {
               />
 
               <label className="mt-4 block text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                Nickname
+                {t('Nickname', 'Apelido')}
               </label>
               <input
                 value={nameInput}
@@ -308,7 +314,7 @@ export default function JoinPage() {
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)]"
               >
                 <Gamepad2 className="h-5 w-5" aria-hidden="true" />
-                Enter the room
+                {t('Enter the room', 'Entrar na sala')}
               </button>
             </motion.section>
           )}
@@ -322,7 +328,9 @@ export default function JoinPage() {
               className="m-auto flex flex-col items-center gap-3 text-[var(--muted)]"
             >
               <Wifi className="h-8 w-8 animate-pulse text-[var(--accent)]" aria-hidden="true" />
-              <p className="text-sm font-black uppercase tracking-wide">Connecting…</p>
+              <p className="text-sm font-black uppercase tracking-wide">
+                {t('Connecting…', 'Conectando…')}
+              </p>
             </motion.section>
           )}
 
@@ -336,11 +344,13 @@ export default function JoinPage() {
             >
               <Hourglass className="mx-auto h-10 w-10 text-[var(--accent)]" aria-hidden="true" />
               <h1 className="mt-3 text-3xl font-black uppercase text-[var(--ink)]">
-                You're in, {playerRef.current?.name}!
+                {t("You're in", 'Você entrou')}, {playerRef.current?.name}!
               </h1>
               <p className="mt-2 text-sm font-semibold text-[var(--muted)]">
-                Watch the teacher's screen. When the question appears, tap your answer here — faster answers score
-                more points.
+                {t(
+                  "Watch the teacher's screen. When the question appears, tap your answer here — faster answers score more points.",
+                  'Olhe para a tela do professor. Quando a pergunta aparecer, toque na sua resposta aqui — respostas mais rápidas valem mais pontos.'
+                )}
               </p>
             </motion.section>
           )}
@@ -397,7 +407,7 @@ export default function JoinPage() {
 
               {phase === 'answered' ? (
                 <p className="mb-1 mt-3 text-center text-xs font-black uppercase tracking-wide text-emerald-400">
-                  Locked in! Waiting for the reveal…
+                  {t('Locked in! Waiting for the reveal…', 'Resposta enviada! Aguardando a revelação…')}
                 </p>
               ) : null}
             </motion.section>
@@ -436,8 +446,12 @@ export default function JoinPage() {
                           {style.shape}
                         </span>
                         <span className="flex-1 text-left text-sm font-black">{option}</span>
-                        {chosen && correct ? <span className="text-xs font-black">You nailed it!</span> : null}
-                        {chosen && !correct ? <span className="text-xs font-black">Your pick</span> : null}
+                        {chosen && correct ? (
+                          <span className="text-xs font-black">{t('You nailed it!', 'Você acertou!')}</span>
+                        ) : null}
+                        {chosen && !correct ? (
+                          <span className="text-xs font-black">{t('Your pick', 'Sua escolha')}</span>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -453,10 +467,12 @@ export default function JoinPage() {
                       {row.gained > 0 ? (
                         <p className="text-lg font-black text-emerald-500">{formatPoints(row.gained)}</p>
                       ) : (
-                        <p className="text-lg font-black text-[var(--muted)]">Better luck next one!</p>
+                        <p className="text-lg font-black text-[var(--muted)]">
+                          {t('Better luck next one!', 'Boa sorte na próxima!')}
+                        </p>
                       )}
                       <p className="text-xs font-black uppercase tracking-wide text-[var(--muted)]">
-                        Total: {row.total.toLocaleString('pt-BR')}
+                        {t('Total', 'Total')}: {row.total.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US')}
                       </p>
                     </div>
                   );
@@ -473,16 +489,23 @@ export default function JoinPage() {
               exit={{ opacity: 0, y: -8 }}
               className="m-auto w-full rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center sm:p-8"
             >
-              <p className="text-lg font-black text-[var(--accent)]">🦇 That's a wrap!</p>
+              <p className="text-lg font-black text-[var(--accent)]">
+                {t("That's a wrap!", 'É um encerramento!')}
+              </p>
               {(() => {
                 const leaderboard = gameover?.leaderboard ?? [];
                 const index = leaderboard.findIndex((r) => r.playerId === playerRef.current?.id);
                 if (index === -1) {
                   return (
                     <>
-                      <h1 className="mt-2 text-3xl font-black uppercase text-[var(--ink)]">Game over</h1>
+                      <h1 className="mt-2 text-3xl font-black uppercase text-[var(--ink)]">
+                        {t('Game over', 'Fim de jogo')}
+                      </h1>
                       <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                        Check the podium on the teacher's screen!
+                        {t(
+                          "Check the podium on the teacher's screen!",
+                          'Confira o pódio na tela do professor!'
+                        )}
                       </p>
                     </>
                   );
@@ -491,10 +514,14 @@ export default function JoinPage() {
                 return (
                   <>
                     <h1 className="mt-2 text-3xl font-black uppercase text-[var(--ink)]">
-                      {row.total.toLocaleString('pt-BR')} points
+                      {row.total.toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US')}{' '}
+                      {t('points', 'pontos')}
                     </h1>
                     <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                      Place {index + 1} of {leaderboard.length} — check the podium on the teacher's screen!
+                      {t(
+                        `Place ${index + 1} of ${leaderboard.length} — check the podium on the teacher's screen!`,
+                        `${index + 1}º lugar de ${leaderboard.length} — confira o pódio na tela do professor!`
+                      )}
                     </p>
                   </>
                 );
@@ -506,10 +533,13 @@ export default function JoinPage() {
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)]"
               >
                 <RotateCcw className="h-5 w-5" aria-hidden="true" />
-                Back to the join screen
+                {t('Back to the join screen', 'Voltar para a tela de entrada')}
               </button>
               <p className="mt-3 text-xs font-semibold text-[var(--muted)]">
-                Going back automatically in {returnCountdown} s
+                {t(
+                  `Going back automatically in ${returnCountdown} s`,
+                  `Voltando automaticamente em ${returnCountdown} s`
+                )}
               </p>
             </motion.section>
           )}

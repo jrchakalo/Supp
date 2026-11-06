@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getDifficultyMeta } from '@/lib/game';
+import { localizeQuestion, type Language } from '@/lib/i18n';
 import type { AnswerStatus, DifficultyId, ModeId, Question } from '@/lib/types';
 
 type QuestionModalProps = {
@@ -14,6 +15,7 @@ type QuestionModalProps = {
   phaseLabel?: string;
   mode: ModeId;
   difficulty: DifficultyId;
+  language: Language;
   status: AnswerStatus;
   continueLabel?: string;
   onAnswer: (guess: boolean) => void;
@@ -27,14 +29,17 @@ export default function QuestionModal({
   phaseLabel,
   mode,
   difficulty,
+  language,
   status,
-  continueLabel = 'Continue',
+  continueLabel,
   onAnswer,
   onClose,
 }: QuestionModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const isHalloween = mode === 'halloween';
   const difficultyMeta = getDifficultyMeta(difficulty);
+  const localized = localizeQuestion(question, language);
+  const t = (en: string, pt: string) => (language === 'pt' ? pt : en);
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -57,7 +62,7 @@ export default function QuestionModal({
       }
 
       const key = event.key.toLowerCase();
-      if (key === 't') {
+      if (key === 't' || key === 'v') {
         event.preventDefault();
         onAnswer(true);
       }
@@ -121,11 +126,11 @@ export default function QuestionModal({
           )}
           {diceNumber !== undefined && (
             <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--muted)]">
-              Roll #{diceNumber}
+              {t('Roll', 'Rolagem')} #{diceNumber}
             </span>
           )}
           <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--muted)]">
-            {isHalloween ? 'Halloween' : 'Classroom'}
+            {isHalloween ? 'Halloween' : t('Classic', 'Clássico')}
           </span>
           {phaseLabel ? (
             <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--accent)]">
@@ -134,7 +139,9 @@ export default function QuestionModal({
           ) : (
             isHalloween && (
               <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--accent)]">
-                {difficultyMeta.label}
+                {language === 'pt'
+                  ? { easy: 'Fácil', medium: 'Médio', hard: 'Difícil' }[difficulty]
+                  : difficultyMeta.label}
               </span>
             )
           )}
@@ -142,13 +149,15 @@ export default function QuestionModal({
 
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
-            {isHalloween ? 'Is this treat or trick?' : 'True or false?'}
+            {isHalloween
+              ? t('Is this treat or trick?', 'É doce ou travessura?')
+              : t('True or false?', 'Verdadeiro ou falso?')}
           </p>
           <h2
             id="question-text"
             className="text-balance text-xl font-extrabold leading-snug sm:text-3xl sm:leading-tight"
           >
-            {question.text}
+            {localized.text}
           </h2>
         </div>
 
@@ -162,7 +171,7 @@ export default function QuestionModal({
               className="group relative flex min-h-[64px] items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--accent-2)] px-4 text-lg font-black uppercase tracking-wide text-[#052e1f] shadow-[0_6px_0_rgba(0,0,0,0.18)] transition focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] active:translate-y-1 active:shadow-none sm:text-xl"
             >
               <Check className="h-5 w-5" aria-hidden="true" />
-              True
+              {t('True', 'Verdadeiro')}
               <kbd className="absolute right-3 top-2 rounded border border-[#052e1f]/25 px-1.5 text-[10px] font-bold opacity-60">
                 T
               </kbd>
@@ -176,7 +185,7 @@ export default function QuestionModal({
               className="group relative flex min-h-[64px] items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--danger)] px-4 text-lg font-black uppercase tracking-wide text-white shadow-[0_6px_0_rgba(0,0,0,0.18)] transition focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] active:translate-y-1 active:shadow-none sm:text-xl"
             >
               <X className="h-5 w-5" aria-hidden="true" />
-              False
+              {t('False', 'Falso')}
               <kbd className="absolute right-3 top-2 rounded border border-white/30 px-1.5 text-[10px] font-bold opacity-60">
                 F
               </kbd>
@@ -221,32 +230,35 @@ export default function QuestionModal({
                       isCorrect ? 'text-[var(--accent-2)]' : 'text-[var(--danger)]'
                     )}
                   >
-                    {isCorrect ? 'Correct!' : 'Not quite...'}
+                    {isCorrect ? t('Correct!', 'Acertou!') : t('Not quite...', 'Quase...')}
                   </h3>
                   <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
                     {isCorrect
                       ? isHalloween
-                        ? 'Sweet! That was a real Halloween treat.'
-                        : 'Nice work! You got it right.'
-                      : 'The correct answer is below.'}
+                        ? t(
+                            'Sweet! That was a real Halloween treat.',
+                            'Doce! Essa foi uma verdadeira travessura de Halloween.'
+                          )
+                        : t('Nice work! You got it right.', 'Boa! Você acertou.')
+                      : t('The correct answer is below.', 'A resposta correta está abaixo.')}
                   </p>
                 </div>
               </div>
 
               <p className="mt-3 rounded-xl bg-[var(--surface-2)] px-3 py-2 text-base font-bold sm:text-lg">
-                The answer is{' '}
+                {t('The answer is', 'A resposta é')}{' '}
                 <span className={question.answer ? 'text-[var(--accent-2)]' : 'text-[var(--danger)]'}>
-                  {question.answer ? 'TRUE' : 'FALSE'}
+                  {question.answer ? t('TRUE', 'VERDADEIRO') : t('FALSE', 'FALSO')}
                 </span>
                 .
               </p>
 
-              {question.explanation && (
+              {localized.explanation && (
                 <p className="mt-2 rounded-xl border-2 border-[var(--line-soft)] px-3 py-2 text-sm font-medium leading-relaxed text-[var(--muted)] sm:text-base">
                   <span className="font-black uppercase tracking-wider text-[var(--accent)]">
-                    Did you know?{' '}
+                    {t('Did you know?', 'Você sabia?')}{' '}
                   </span>
-                  {question.explanation}
+                  {localized.explanation}
                 </p>
               )}
             </div>
@@ -258,13 +270,16 @@ export default function QuestionModal({
               onClick={onClose}
               className="min-h-[56px] rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-lg font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[0_6px_0_rgba(0,0,0,0.2)] transition focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] active:translate-y-1 active:shadow-none"
             >
-              {continueLabel}
+              {continueLabel ?? t('Continue', 'Continuar')}
             </motion.button>
           </motion.div>
         )}
 
         <p className="text-center text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-          Press T or F to answer · Esc to close
+          {t(
+            'Press T or F to answer · Esc to close',
+            'Pressione T ou F para responder · Esc para fechar'
+          )}
         </p>
       </motion.div>
     </motion.div>
