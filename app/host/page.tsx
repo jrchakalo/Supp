@@ -200,6 +200,10 @@ export default function HostPage() {
   const [savedSession, setSavedSession] = useState<SavedSession | null>(null);
 
   useEffect(() => {
+    writeStorage('language', language);
+  }, [language]);
+
+  useEffect(() => {
     setSavedSession(readSavedSession());
   }, []);
 
