@@ -1,9 +1,11 @@
 import { getDeck, shuffle } from './game';
 import type {
+  ClassicCategoryId,
   CompetitionLevelId,
   CompetitionLevelMeta,
   CompetitionPhase,
   DifficultyId,
+  ModeId,
   ProgressiveRounds,
   Question,
   QuestionTier,
@@ -246,22 +248,46 @@ function unusedQuestions(questions: Question[], usedIds: ReadonlySet<string>): Q
  *
  * The passed `usedIds` set is updated with every question that is assigned.
  */
+export type PhaseDeckOptions = {
+  mode: ModeId;
+  /** Classic topics. Ignored by the Halloween deck. */
+  categories?: ClassicCategoryId[];
+};
+
+function deckForPhase(
+  difficulty: DifficultyId,
+  options: PhaseDeckOptions
+): Question[] {
+  if (options.mode !== 'classic') {
+    return getDeck('halloween', difficulty);
+  }
+
+  const deck = getDeck('classic', difficulty);
+  const selected = new Set(options.categories ?? []);
+  if (selected.size === 0) return deck;
+
+  return deck.filter(
+    (question) => question.category && selected.has(question.category)
+  );
+}
+
 export function drawPhaseQuestions(
   phase: CompetitionPhase,
   students: Student[],
-  usedIds: Set<string>
+  usedIds: Set<string>,
+  options: PhaseDeckOptions = { mode: 'halloween' }
 ): PhaseQuestion[] {
   if (students.length === 0) return [];
 
-  const primary = getDeck('halloween', phase.difficulty).filter(
+  const primary = deckForPhase(phase.difficulty, options).filter(
     (question) => (question.tier ?? 2) === phase.tier
   );
-  const sameDifficulty = getDeck('halloween', phase.difficulty).filter(
+  const sameDifficulty = deckForPhase(phase.difficulty, options).filter(
     (question) => (question.tier ?? 2) !== phase.tier
   );
   const otherDifficulties = DIFFICULTY_ORDER.filter(
     (difficulty) => difficulty !== phase.difficulty
-  ).flatMap((difficulty) => getDeck('halloween', difficulty));
+  ).flatMap((difficulty) => deckForPhase(difficulty, options));
 
   const freshPool = uniqueQuestions([
     ...unusedQuestions(primary, usedIds),

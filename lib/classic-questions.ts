@@ -1,4 +1,9 @@
-import type { Question } from './types';
+import type {
+  ClassicCategoryId,
+  DifficultyId,
+  Question,
+  QuestionTier,
+} from './types';
 
 /**
  * Baralho original do modo Classroom Classic.
@@ -461,3 +466,126 @@ export const CLASSIC_QUESTIONS: Question[] = [
     answer: false,
   },
 ];
+
+export const CLASSIC_CATEGORIES: {
+  id: ClassicCategoryId;
+  label: string;
+  description: string;
+}[] = [
+  {
+    id: 'games',
+    label: 'Games',
+    description: 'Minecraft, Roblox, Brawl Stars and other favorites.',
+  },
+  {
+    id: 'anime',
+    label: 'Anime',
+    description: 'Dragon Ball, Naruto, One Piece and more.',
+  },
+  {
+    id: 'pop-culture',
+    label: 'Pop culture',
+    description: 'Movies, series and superheroes.',
+  },
+  {
+    id: 'animals',
+    label: 'Endangered animals',
+    description: 'Wildlife, habitats and conservation.',
+  },
+  {
+    id: 'tech',
+    label: 'Technology',
+    description: 'Hardware, internet, Word, Excel and PowerPoint.',
+  },
+];
+
+export const CLASSIC_ALL_CATEGORIES: ClassicCategoryId[] = CLASSIC_CATEGORIES.map(
+  (category) => category.id
+);
+
+function classicNumber(id: string): number {
+  const parsed = Number.parseInt(id.replace('classic-', ''), 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function categoryForClassicQuestion(id: string): ClassicCategoryId {
+  const number = classicNumber(id);
+
+  if (number <= 20) return 'games';
+  if (number <= 39) return 'anime';
+  if (number <= 49) return 'pop-culture';
+  if (number <= 64) return 'animals';
+  return 'tech';
+}
+
+/**
+ * Difficulty split chosen to balance the deck while keeping each topic at a
+ * sensible age level:
+ * - Easy: first games, simple anime and most of the technology deck.
+ * - Medium: Roblox/Minecraft deep cuts, conservation and Office software.
+ * - Hard: competitive games, advanced anime, pop-culture lore and harder facts.
+ */
+function difficultyForClassicQuestion(id: string): DifficultyId {
+  const number = classicNumber(id);
+
+  if (number <= 5) return 'easy';
+  if (number <= 15) return 'medium';
+  if (number <= 20) return 'hard';
+  if (number <= 27) return 'easy';
+  if (number <= 49) return 'hard';
+  if (number <= 59) return 'medium';
+  if (number <= 64) return 'hard';
+  if (number <= 73) return 'easy';
+  if (number <= 83) return 'medium';
+  return 'easy';
+}
+
+function buildClassicDecks(): Record<DifficultyId, Question[]> {
+  const decks: Record<DifficultyId, Question[]> = {
+    easy: [],
+    medium: [],
+    hard: [],
+  };
+
+  for (const question of CLASSIC_QUESTIONS) {
+    const difficulty = difficultyForClassicQuestion(question.id);
+    decks[difficulty].push({
+      ...question,
+      difficulty,
+      category: categoryForClassicQuestion(question.id),
+    });
+  }
+
+  for (const difficulty of ['easy', 'medium', 'hard'] as DifficultyId[]) {
+    const deck = decks[difficulty].sort(
+      (a, b) => classicNumber(a.id) - classicNumber(b.id)
+    );
+    const tierSize = Math.ceil(deck.length / 3);
+
+    deck.forEach((question, index) => {
+      question.tier = Math.min(3, Math.floor(index / tierSize) + 1) as QuestionTier;
+    });
+  }
+
+  return decks;
+}
+
+/** The classic deck split into Easy, Medium and Hard, with tiers for competition. */
+export const CLASSIC_DECKS = buildClassicDecks();
+
+/**
+ * Returns the classic deck for a difficulty, optionally filtered by topics.
+ * An empty selection falls back to every topic so a round never starts empty.
+ */
+export function getClassicDeck(
+  difficulty: DifficultyId,
+  categories: ClassicCategoryId[] = CLASSIC_ALL_CATEGORIES
+): Question[] {
+  const selected = new Set(
+    categories.length > 0 ? categories : CLASSIC_ALL_CATEGORIES
+  );
+
+  return CLASSIC_DECKS[difficulty].filter(
+    (question) => question.category && selected.has(question.category)
+  );
+}

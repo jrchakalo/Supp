@@ -30,8 +30,10 @@ import {
 } from '@/lib/competition';
 import type {
   AnswerStatus,
+  ClassicCategoryId,
   CompetitionConfig,
   CompetitionPhase,
+  ModeId,
   PhaseResult,
   Question,
   Student,
@@ -46,8 +48,10 @@ const LEVEL_ICONS = {
 } as const;
 
 type CompetitionGameProps = {
+  mode: ModeId;
   students: Student[];
   config: CompetitionConfig;
+  categories: ClassicCategoryId[];
   volume: number;
   muted: boolean;
   onVolumeChange: (value: number) => void;
@@ -80,8 +84,10 @@ function statusMeta(status: LineupStatus) {
 }
 
 export default function CompetitionGame({
+  mode,
   students,
   config,
+  categories,
   volume,
   muted,
   onVolumeChange,
@@ -129,7 +135,10 @@ export default function CompetitionGame({
   const startPhase = useCallback(
     (phase: CompetitionPhase, roster: Student[]) => {
       const order = orderStudents(roster, config.order);
-      const drawn = drawPhaseQuestions(phase, order, usedQuestionIdsRef.current);
+      const drawn = drawPhaseQuestions(phase, order, usedQuestionIdsRef.current, {
+        mode,
+        categories,
+      });
 
       setPhaseOrder(order);
       setPhaseQuestions(
@@ -142,7 +151,7 @@ export default function CompetitionGame({
       acceptingAnswersRef.current = false;
       advancingRef.current = false;
     },
-    [config.order]
+    [categories, config.order, mode]
   );
 
   useEffect(() => {
@@ -353,7 +362,7 @@ export default function CompetitionGame({
             <div className="min-w-0">
               <h1 className="flex items-center gap-1.5 truncate text-base font-black uppercase tracking-tight text-[var(--ink)] sm:text-2xl">
                 <LevelIcon className="h-4 w-4 shrink-0 text-[var(--accent)] sm:h-5 sm:w-5" aria-hidden="true" />
-                Halloween Competition
+                {mode === 'classic' ? 'Classic Competition' : 'Halloween Competition'}
               </h1>
               <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--muted)] sm:text-xs">
                 {levelMeta.label} ·{' '}
@@ -736,7 +745,7 @@ export default function CompetitionGame({
             question={currentQuestion}
             studentName={currentStudent.name}
             phaseLabel={currentPhase.label}
-            mode="halloween"
+            mode={mode}
             difficulty={currentPhase.difficulty}
             status={answerStatus}
             continueLabel={continueLabel}

@@ -9,19 +9,24 @@ import {
   Candy,
   Check,
   ChevronRight,
+  Clapperboard,
+  Cpu,
   Dices,
   Egg,
   Flame,
+  Gamepad2,
   Ghost,
   GraduationCap,
   Moon,
   PartyPopper,
+  PawPrint,
   RotateCcw,
   Skull,
   Smartphone,
   Snowflake,
   Sparkles,
   Trophy,
+  Tv,
   Wifi,
 } from 'lucide-react';
 import CompetitionGame from '@/components/CompetitionGame';
@@ -33,13 +38,18 @@ import { buildCompetitionPhases, COMPETITION_LEVELS, getCompetitionLevelMeta } f
 import {
   DICE_NUMBERS,
   DIFFICULTIES,
-  MODES,
   getDeck,
   getDifficultyMeta,
   shuffle,
 } from '@/lib/game';
+import {
+  CLASSIC_ALL_CATEGORIES,
+  CLASSIC_CATEGORIES,
+  getClassicDeck,
+} from '@/lib/classic-questions';
 import type {
   AnswerStatus,
+  ClassicCategoryId,
   CompetitionConfig,
   CompetitionLevelId,
   DifficultyId,
@@ -88,9 +98,12 @@ const COMPETITION_ICONS = {
   progressive: Flame,
 } as const;
 
-const MODE_ICONS = {
-  halloween: Ghost,
-  classic: GraduationCap,
+const CATEGORY_ICONS = {
+  games: Gamepad2,
+  anime: Tv,
+  'pop-culture': Clapperboard,
+  animals: PawPrint,
+  tech: Cpu,
 } as const;
 
 type PlayStyle = 'd20' | 'competition';
@@ -126,6 +139,9 @@ export default function GamePage() {
   const [screen, setScreen] = useState<Screen>('menu');
   const [mode, setMode] = useState<ModeId>('classic');
   const [difficulty, setDifficulty] = useState<DifficultyId>('medium');
+  const [classicCategories, setClassicCategories] = useState<ClassicCategoryId[]>(
+    CLASSIC_ALL_CATEGORIES
+  );
   const [playStyle, setPlayStyle] = useState<PlayStyle>('d20');
   // Only the competition settings persist; every new session starts with an empty roster.
   const [competitionConfig, setCompetitionConfig] = useState<CompetitionConfig>(
@@ -134,7 +150,9 @@ export default function GamePage() {
   const [competitionStudents, setCompetitionStudents] = useState<Student[]>([]);
   const [competitionRun, setCompetitionRun] = useState(0);
 
-  const [queue, setQueue] = useState<Question[]>(() => shuffle(getDeck('classic', 'medium')));
+  const [queue, setQueue] = useState<Question[]>(() =>
+    shuffle(getClassicDeck('medium', CLASSIC_ALL_CATEGORIES))
+  );
   const [roundCount, setRoundCount] = useState(0);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [streak, setStreak] = useState(0);
@@ -167,9 +185,18 @@ export default function GamePage() {
   const acceptingAnswersRef = useRef(false);
 
   const isHalloween = mode === 'halloween';
+  const isClassic = mode === 'classic';
   const effectivePlayStyle: PlayStyle = isHalloween ? playStyle : 'd20';
   const difficultyMeta = getDifficultyMeta(difficulty);
-  const deckSize = useMemo(() => getDeck(mode, difficulty).length, [mode, difficulty]);
+  const activeDeck = useMemo(
+    () =>
+      isClassic
+        ? getClassicDeck(difficulty, classicCategories)
+        : getDeck('halloween', difficulty),
+    [classicCategories, difficulty, isClassic]
+  );
+  const deckSize = activeDeck.length;
+  const canStartRound = !isClassic || classicCategories.length > 0;
   const roundComplete = roundCount >= ROUND_LENGTH;
   const competitionLevelMeta = getCompetitionLevelMeta(competitionConfig.level);
   const competitionPhases = useMemo(
@@ -279,7 +306,9 @@ export default function GamePage() {
   }, []);
 
   const startGame = useCallback(() => {
-    setQueue(shuffle(getDeck(mode, difficulty)));
+    if (activeDeck.length === 0) return;
+
+    setQueue(shuffle(activeDeck));
     setRoundCount(0);
     setScore({ correct: 0, total: 0 });
     setStreak(0);
@@ -293,10 +322,12 @@ export default function GamePage() {
 
     void ensureAudioContext();
     startBgm();
-  }, [difficulty, ensureAudioContext, mode, startBgm]);
+  }, [activeDeck, ensureAudioContext, startBgm]);
 
   const startNewRound = useCallback(() => {
-    setQueue(shuffle(getDeck(mode, difficulty)));
+    if (activeDeck.length === 0) return;
+
+    setQueue(shuffle(activeDeck));
     setRoundCount(0);
     setScore({ correct: 0, total: 0 });
     setStreak(0);
@@ -307,7 +338,7 @@ export default function GamePage() {
     acceptingAnswersRef.current = false;
     setIsModalOpen(false);
     playTone(isHalloween ? 330 : 440, 'triangle', 0.1, 0.05);
-  }, [difficulty, isHalloween, mode, playTone]);
+  }, [activeDeck, isHalloween, playTone]);
 
   const backToMenu = useCallback(() => {
     acceptingAnswersRef.current = false;
@@ -349,7 +380,7 @@ export default function GamePage() {
 
   const drawQuestion = useCallback((): Question => {
     if (queue.length === 0) {
-      const reshuffled = shuffle(getDeck(mode, difficulty));
+      const reshuffled = shuffle(activeDeck);
       setQueue(reshuffled.slice(1));
       return reshuffled[0];
     }
@@ -357,7 +388,7 @@ export default function GamePage() {
     const [next, ...rest] = queue;
     setQueue(rest);
     return next;
-  }, [difficulty, mode, queue]);
+  }, [activeDeck, queue]);
 
   const handleNumberClick = useCallback(
     (number: number) => {
@@ -430,7 +461,14 @@ export default function GamePage() {
     if (next > 0) setIsMuted(false);
   };
 
-  const ModeIcon = MODE_ICONS[mode];
+  const toggleClassicCategory = (categoryId: ClassicCategoryId) => {
+    setClassicCategories((previous) =>
+      previous.includes(categoryId)
+        ? previous.filter((id) => id !== categoryId)
+        : [...previous, categoryId]
+    );
+  };
+
   const selectedDifficulty = getDifficultyMeta(difficulty);
 
   return (
@@ -663,6 +701,75 @@ export default function GamePage() {
               </AnimatePresence>
 
               <AnimatePresence initial={false}>
+                {isClassic && (
+                  <motion.section
+                    key="classic-topics"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.2 }}
+                    aria-label="Question topics"
+                    className="mt-6"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                        Question topics
+                      </h2>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[var(--accent)]">
+                        {classicCategories.length}/{CLASSIC_CATEGORIES.length} selected
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
+                      {CLASSIC_CATEGORIES.map((category) => {
+                        const Icon = CATEGORY_ICONS[category.id];
+                        const selected = classicCategories.includes(category.id);
+
+                        return (
+                          <motion.button
+                            key={category.id}
+                            type="button"
+                            aria-pressed={selected}
+                            whileHover={{ y: -2 }}
+                            whileTap={{ scale: 0.99 }}
+                            onClick={() => toggleClassicCategory(category.id)}
+                            className={cn(
+                              'rounded-2xl border-2 p-3 text-left transition-colors',
+                              selected
+                                ? 'border-[var(--accent)] bg-[var(--surface-2)] shadow-[var(--panel-shadow)]'
+                                : 'border-[var(--line-soft)] bg-[var(--surface)] hover:border-[var(--line)]'
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <Icon
+                                className={cn(
+                                  'h-5 w-5',
+                                  selected ? 'text-[var(--accent)]' : 'text-[var(--muted)]'
+                                )}
+                                aria-hidden="true"
+                              />
+                              {selected && (
+                                <Check className="h-3.5 w-3.5 text-[var(--accent)]" aria-hidden="true" />
+                              )}
+                            </div>
+                            <p className="mt-2 text-sm font-black leading-tight text-[var(--ink)]">
+                              {category.label}
+                            </p>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+
+                    {classicCategories.length === 0 && (
+                      <p className="mt-2 rounded-xl border-2 border-[var(--danger)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]">
+                        Select at least one topic to start a round.
+                      </p>
+                    )}
+                  </motion.section>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence initial={false}>
                 {isHalloween && (
                   <motion.a
                     key="live-room"
@@ -714,7 +821,7 @@ export default function GamePage() {
               </motion.a>
 
               <AnimatePresence initial={false} mode="wait">
-                {isHalloween && effectivePlayStyle === 'd20' && (
+                {effectivePlayStyle === 'd20' && (
                   <motion.section
                     key="difficulty"
                     initial={{ opacity: 0, y: 10 }}
@@ -924,10 +1031,11 @@ export default function GamePage() {
                   <>
                     <motion.button
                       type="button"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
+                      whileHover={canStartRound ? { scale: 1.02 } : undefined}
+                      whileTap={canStartRound ? { scale: 0.97 } : undefined}
                       onClick={startGame}
-                      className="flex min-h-[64px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-7 text-lg font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] sm:w-auto sm:text-xl"
+                      disabled={!canStartRound}
+                      className="flex min-h-[64px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-7 text-lg font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:brightness-100 sm:w-auto sm:text-xl"
                     >
                       <Sparkles className="h-5 w-5" aria-hidden="true" />
                       {isHalloween ? 'Start the spooky round' : 'Start game'}
@@ -939,7 +1047,7 @@ export default function GamePage() {
                       <p>
                         {isHalloween
                           ? `${selectedDifficulty.label} deck: ${selectedDifficulty.tagline} · ${deckSize} questions.`
-                          : 'Mixed topics: games, tech, anime and more.'}
+                          : `${selectedDifficulty.label} deck · ${classicCategories.length}/${CLASSIC_CATEGORIES.length} topics · ${deckSize} questions.`}
                       </p>
                     </div>
                   </>
@@ -1233,10 +1341,13 @@ export default function GamePage() {
           {screen === 'competition-setup' && (
             <CompetitionSetup
               key="competition-setup"
+              mode={mode}
               students={competitionStudents}
               config={competitionConfig}
+              categories={classicCategories}
               onStudentsChange={setCompetitionStudents}
               onConfigChange={setCompetitionConfig}
+              onCategoriesChange={setClassicCategories}
               onStart={startCompetition}
               onBack={backToMenu}
             />
@@ -1245,8 +1356,10 @@ export default function GamePage() {
           {screen === 'competition' && (
             <CompetitionGame
               key={`competition-${competitionRun}`}
+              mode={mode}
               students={competitionStudents}
               config={competitionConfig}
+              categories={classicCategories}
               volume={volume}
               muted={isMuted}
               onVolumeChange={handleVolumeChange}

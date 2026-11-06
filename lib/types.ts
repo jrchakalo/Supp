@@ -2,6 +2,9 @@ export type ModeId = 'classic' | 'halloween';
 
 export type DifficultyId = 'easy' | 'medium' | 'hard';
 
+/** Topics available in the classic deck. */
+export type ClassicCategoryId = 'games' | 'anime' | 'pop-culture' | 'animals' | 'tech';
+
 /** 1 = gentlest questions in a deck, 3 = hardest questions in that deck. */
 export type QuestionTier = 1 | 2 | 3;
 
@@ -11,6 +14,10 @@ export type Question = {
   answer: boolean;
   /** Optional placement inside the difficulty deck. Used by competition mode. */
   tier?: QuestionTier;
+  /** Deck difficulty. Populated for the classic deck. */
+  difficulty?: DifficultyId;
+  /** Classic topic. Populated for the classic deck. */
+  category?: ClassicCategoryId;
   /** Short, kid-friendly fact shown after the player answers. */
   explanation?: string;
 };
@@ -26,6 +33,10 @@ export type LiveQuestion = {
   id: string;
   /** 1 = gentlest questions in the difficulty, 3 = the hardest ones. */
   tier: QuestionTier;
+  /** Deck difficulty. Present on the classic live deck; Halloween infers it from the deck. */
+  difficulty?: DifficultyId;
+  /** Classic topic. Present on the classic live deck. */
+  category?: ClassicCategoryId;
   text: string;
   options: [string, string, string, string];
   correctIndex: LiveOptionIndex;
