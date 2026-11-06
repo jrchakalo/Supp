@@ -88,6 +88,7 @@ O baralho padrão tem **87 perguntas de verdadeiro ou falso** em cinco temas:
 - **Fácil (25 perguntas)**, **Médio (30)** e **Difícil (32)**.
 - Cada pergunta tem tema, dificuldade e tier, usados pela competição.
 - O Live do modo padrão usa um baralho próprio de **60 perguntas de múltipla escolha** (20 por dificuldade, 4 por tema).
+- Todas as perguntas de **Tecnologia** têm versão em português e inglês.
 - A seleção de temas é múltipla e vale para D20, Competição e Live.
 
 ## Música
