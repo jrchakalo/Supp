@@ -6,7 +6,7 @@ import type {
 } from './types';
 
 /**
- * Baralho original do modo Classroom Classic.
+ * Baralho original do modo clássico.
  * As perguntas ficam em português (com alguns itens de tecnologia em inglês)
  * e continuam comentadas por tema para facilitar a manutenção.
  */
