@@ -34,6 +34,7 @@ import CompetitionSetup from '@/components/CompetitionSetup';
 import HalloweenBackdrop from '@/components/HalloweenBackdrop';
 import LanguageToggle from '@/components/LanguageToggle';
 import QuestionModal from '@/components/QuestionModal';
+import ThemeToggle from '@/components/ThemeToggle';
 import VolumeControl from '@/components/VolumeControl';
 import { buildCompetitionPhases, COMPETITION_LEVELS, getCompetitionLevelMeta } from '@/lib/competition';
 import {
@@ -58,6 +59,7 @@ import type {
   ProgressiveRounds,
   Question,
   Student,
+  Theme,
 } from '@/lib/types';
 import type { Language } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -79,6 +81,7 @@ const CLASSIC_BGM_URLS = Array.from(
 const VOLUME_STORAGE_KEY = 'volume';
 const COMPETITION_STORAGE_KEY = 'competition-setup';
 const LANGUAGE_STORAGE_KEY = 'language';
+const THEME_STORAGE_KEY = 'theme';
 const DEFAULT_VOLUME = 0.7;
 const ROUND_LENGTH = 20;
 const HALLOWEEN_CONFETTI = ['#ff7a18', '#a855f7', '#7dfabf', '#ffd166', '#ff4d6d'];
@@ -156,6 +159,9 @@ export default function GamePage() {
   );
   const [language, setLanguage] = useState<Language>(() =>
     readStorage(LANGUAGE_STORAGE_KEY) === 'en' ? 'en' : 'pt'
+  );
+  const [theme, setTheme] = useState<Theme>(() =>
+    readStorage(THEME_STORAGE_KEY) === 'dark' ? 'dark' : 'light'
   );
   const [playStyle, setPlayStyle] = useState<PlayStyle>('d20');
   // Only the competition settings persist; every new session starts with an empty roster.
@@ -373,6 +379,10 @@ export default function GamePage() {
   }, [language]);
 
   useEffect(() => {
+    writeStorage(THEME_STORAGE_KEY, theme);
+  }, [theme]);
+
+  useEffect(() => {
     writeStorage(
       COMPETITION_STORAGE_KEY,
       JSON.stringify({ config: competitionConfig })
@@ -564,17 +574,26 @@ export default function GamePage() {
   };
 
   const selectedDifficulty = getDifficultyMeta(difficulty);
+  const themeClass = isHalloween
+    ? theme === 'dark'
+      ? 'theme-halloween'
+      : 'theme-halloween-light'
+    : theme === 'dark'
+      ? 'theme-dark'
+      : 'theme-light';
 
   return (
     <MotionConfig reducedMotion="user">
       <div
         className={cn(
           'game-shell relative flex min-h-dvh w-full flex-col font-sans',
-          isHalloween ? 'theme-halloween' : 'theme-classic',
+          themeClass,
           screen === 'playing' ? 'h-dvh overflow-hidden' : 'overflow-x-hidden'
         )}
       >
-        {isHalloween && <HalloweenBackdrop dimmed={screen !== 'menu'} />}
+        {isHalloween && theme === 'dark' && (
+          <HalloweenBackdrop dimmed={screen !== 'menu'} />
+        )}
 
         <AnimatePresence mode="wait">
           {screen === 'menu' && (
@@ -591,6 +610,7 @@ export default function GamePage() {
                   Supp
                 </span>
                 <div className="flex items-center gap-2">
+                  <ThemeToggle theme={theme} onChange={setTheme} />
                   <LanguageToggle language={language} onChange={setLanguage} />
                   <span className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
                     {isHalloween ? (

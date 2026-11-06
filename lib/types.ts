@@ -1,5 +1,7 @@
 export type ModeId = 'classic' | 'halloween';
 
+export type Theme = 'light' | 'dark';
+
 export type DifficultyId = 'easy' | 'medium' | 'hard';
 
 /** Topics available in the classic deck. */
