@@ -171,17 +171,10 @@ export default function GamePage() {
   const [classicCategories, setClassicCategories] = useState<ClassicCategoryId[]>(
     CLASSIC_ALL_CATEGORIES
   );
-  const [language, setLanguage] = useState<Language>(() =>
-    readStorage(LANGUAGE_STORAGE_KEY) === 'en' ? 'en' : 'pt'
-  );
-  const [uiLanguage, setUiLanguage] = useState<Language>(() => {
-    const stored =
-      readStorage(UI_LANGUAGE_STORAGE_KEY) ?? readStorage(LANGUAGE_STORAGE_KEY);
-    return stored === 'en' ? 'en' : 'pt';
-  });
-  const [theme, setTheme] = useState<Theme>(() =>
-    readStorage(THEME_STORAGE_KEY) === 'dark' ? 'dark' : 'light'
-  );
+  const [language, setLanguage] = useState<Language>('pt');
+  const [uiLanguage, setUiLanguage] = useState<Language>('pt');
+  const [theme, setTheme] = useState<Theme>('light');
+  const [hydrated, setHydrated] = useState(false);
   const [playStyle, setPlayStyle] = useState<PlayStyle | null>(null);
   // Only the competition settings persist; every new session starts with an empty roster.
   const [competitionConfig, setCompetitionConfig] = useState<CompetitionConfig>(
@@ -424,20 +417,37 @@ export default function GamePage() {
   }, [isMuted, volume]);
 
   useEffect(() => {
+    const storedLanguage = readStorage(LANGUAGE_STORAGE_KEY);
+    if (storedLanguage === 'en') setLanguage('en');
+
+    const storedUiLanguage =
+      readStorage(UI_LANGUAGE_STORAGE_KEY) ?? storedLanguage;
+    if (storedUiLanguage === 'en') setUiLanguage('en');
+
+    if (readStorage(THEME_STORAGE_KEY) === 'dark') setTheme('dark');
+
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
     writeStorage(VOLUME_STORAGE_KEY, String(volume));
-  }, [volume]);
+  }, [hydrated, volume]);
 
   useEffect(() => {
+    if (!hydrated) return;
     writeStorage(LANGUAGE_STORAGE_KEY, language);
-  }, [language]);
+  }, [hydrated, language]);
 
   useEffect(() => {
+    if (!hydrated) return;
     writeStorage(UI_LANGUAGE_STORAGE_KEY, uiLanguage);
-  }, [uiLanguage]);
+  }, [hydrated, uiLanguage]);
 
   useEffect(() => {
+    if (!hydrated) return;
     writeStorage(THEME_STORAGE_KEY, theme);
-  }, [theme]);
+  }, [hydrated, theme]);
 
   useEffect(() => {
     const href = isHalloween ? '/supp-icon-halloween.png' : '/supp-icon.png';
@@ -454,11 +464,12 @@ export default function GamePage() {
   }, [isHalloween]);
 
   useEffect(() => {
+    if (!hydrated) return;
     writeStorage(
       COMPETITION_STORAGE_KEY,
       JSON.stringify({ config: competitionConfig })
     );
-  }, [competitionConfig]);
+  }, [competitionConfig, hydrated]);
 
   useEffect(() => {
     return () => {

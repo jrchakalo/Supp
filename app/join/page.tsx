@@ -52,12 +52,8 @@ export default function JoinPage() {
   const [phase, setPhase] = useState<Phase>('entry');
   const [mode, setMode] = useState<ModeId>('classic');
   const [language, setLanguage] = useState<Language>('pt');
-  const [uiLanguage] = useState<Language>(() =>
-    readStorage('ui-language') === 'en' ? 'en' : 'pt'
-  );
-  const [theme, setTheme] = useState<Theme>(() =>
-    readStorage('theme') === 'dark' ? 'dark' : 'light'
-  );
+  const [uiLanguage, setUiLanguage] = useState<Language>('pt');
+  const [theme, setTheme] = useState<Theme>('light');
   const [codeInput, setCodeInput] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [error, setError] = useState('');
@@ -85,6 +81,22 @@ export default function JoinPage() {
     const params = new URLSearchParams(window.location.search);
     const fromQr = sanitizeRoomCode(params.get('code') ?? '');
     if (fromQr) setCodeInput(fromQr);
+
+    const storedUiLanguage =
+      readStorage('ui-language') ?? readStorage('language');
+    if (storedUiLanguage === 'en') setUiLanguage('en');
+
+    const requestedMode = params.get('mode');
+    if (requestedMode === 'classic' || requestedMode === 'halloween') {
+      setMode(requestedMode);
+    }
+
+    const requestedTheme = params.get('theme');
+    if (requestedTheme === 'dark' || requestedTheme === 'light') {
+      setTheme(requestedTheme);
+    } else if (readStorage('theme') === 'dark') {
+      setTheme('dark');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -274,6 +286,8 @@ export default function JoinPage() {
 
   return (
     <main
+      data-theme={theme}
+      data-mode={mode}
       className={`game-shell ${themeClass} relative flex min-h-dvh w-full flex-col items-center px-4 py-6`}
     >
       {mode === 'halloween' && (
@@ -385,10 +399,10 @@ export default function JoinPage() {
               exit={{ opacity: 0, y: -8 }}
               className="flex flex-1 flex-col py-4"
             >
-              <div className="rounded-2xl bg-white/90 p-3">
-                <div className="h-2.5 overflow-hidden rounded-full bg-slate-200">
+              <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] p-3">
+                <div className="h-2.5 overflow-hidden rounded-full bg-[var(--surface)]">
                   <div
-                    className="h-full rounded-full bg-[#7b2ff7] transition-[width] duration-200"
+                    className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-200"
                     style={{ width: `${ratio * 100}%` }}
                   />
                 </div>
@@ -396,8 +410,8 @@ export default function JoinPage() {
 
               {showQuestionOnPlayer ? (
                 <div className="mx-auto mt-3 flex w-full min-h-0 flex-1 flex-col gap-2.5">
-                  <div className="rounded-2xl bg-white/90 p-3 text-center">
-                    <p className="max-h-24 overflow-y-auto text-sm font-black leading-snug text-slate-900">
+                  <div className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] p-3 text-center">
+                    <p className="max-h-24 overflow-y-auto text-sm font-black leading-snug text-[var(--ink)]">
                       {question.text}
                     </p>
                   </div>
@@ -464,7 +478,7 @@ export default function JoinPage() {
               )}
 
               {phase === 'answered' ? (
-                <p className="mb-1 mt-3 text-center text-xs font-black uppercase tracking-wide text-emerald-400">
+                <p className="mb-1 mt-3 text-center text-xs font-black uppercase tracking-wide text-[var(--accent-2)]">
                   {t('Locked in! Waiting for the reveal…', 'Resposta enviada! Aguardando a revelação…')}
                 </p>
               ) : null}
@@ -496,7 +510,7 @@ export default function JoinPage() {
                       <div
                         key={index}
                         className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-white ${
-                          correct ? 'ring-4 ring-emerald-400' : ''
+                          correct ? 'ring-4 ring-[var(--accent-2)]' : ''
                         }`}
                         style={{ backgroundColor: style.bg }}
                       >
@@ -523,7 +537,7 @@ export default function JoinPage() {
                   return (
                     <div className="mt-5 rounded-2xl bg-[var(--surface-2)] px-4 py-3">
                       {row.gained > 0 ? (
-                        <p className="text-lg font-black text-emerald-500">{formatPoints(row.gained)}</p>
+                        <p className="text-lg font-black text-[var(--accent-2)]">{formatPoints(row.gained)}</p>
                       ) : (
                         <p className="text-lg font-black text-[var(--muted)]">
                           {t('Better luck next one!', 'Boa sorte na próxima!')}

@@ -142,12 +142,8 @@ const ROUND_SECONDS: { value: 15 | 20 | 30 }[] = [
 export default function HostPage() {
   const [mode, setMode] = useState<ModeId>('classic');
   const [language, setLanguage] = useState<Language>('pt');
-  const [theme, setTheme] = useState<Theme>(() =>
-    readStorage('theme') === 'dark' ? 'dark' : 'light'
-  );
-  const [uiLanguage] = useState<Language>(() =>
-    readStorage('ui-language') === 'en' ? 'en' : 'pt'
-  );
+  const [theme, setTheme] = useState<Theme>('light');
+  const [uiLanguage, setUiLanguage] = useState<Language>('pt');
   const [categories, setCategories] = useState<ClassicCategoryId[]>(
     CLASSIC_ALL_CATEGORIES
   );
@@ -156,6 +152,9 @@ export default function HostPage() {
 
   useEffect(() => {
     setMounted(true);
+
+    if (readStorage('theme') === 'dark') setTheme('dark');
+    if (readStorage('ui-language') === 'en') setUiLanguage('en');
 
     const params = new URLSearchParams(window.location.search);
     const requestedMode = params.get('mode');
@@ -385,7 +384,7 @@ export default function HostPage() {
           setCode(roomCode);
           setStatus('live');
           setPhase('lobby');
-          const url = `${window.location.origin}/join?code=${roomCode}`;
+          const url = `${window.location.origin}/join?code=${roomCode}&mode=${liveConfig.mode}&theme=${liveConfig.theme}`;
           setJoinUrl(url);
           saveSavedSession({
             code: roomCode,
