@@ -152,6 +152,50 @@ O baralho padrão tem **87 perguntas de verdadeiro ou falso** em cinco temas:
 2. Execute o servidor de desenvolvimento: `npm run dev`
 3. Abra [http://localhost:3000](http://localhost:3000).
 
+## Deploy na Vercel e domínio
+
+O projeto está publicado na Vercel com o nome **supp**. O domínio desejado é **https://www.supp.lol** (GoDaddy).
+
+### 1. Vincular o domínio na Vercel
+
+1. Abra o projeto **supp** na Vercel.
+2. Vá em **Settings → Domains**.
+3. Adicione **`www.supp.lol`** e **`supp.lol`**.
+4. Se a Vercel avisar que o domínio já está em uso por outro projeto/conta, remova-o de lá primeiro.
+5. Defina **`www.supp.lol`** como domínio principal e configure o redirecionamento de `supp.lol` para `www.supp.lol`.
+6. A Vercel mostra os registros DNS exatos. Use os valores mostrados no painel; eles podem variar por projeto.
+
+### 2. Configurar o DNS no GoDaddy
+
+No GoDaddy, em **DNS → Gerenciar zonas**:
+
+| Tipo | Nome | Valor |
+| --- | --- | --- |
+| CNAME | `www` | alvo mostrado pela Vercel (ex.: `cname.vercel-dns.com` ou um alvo `*.vercel-dns-*.com`) |
+| A | `@` | `76.76.21.21` (ou o IP mostrado pela Vercel) |
+
+- Remova registros de estacionamento, forwarding ou CNAME conflitantes no `www` e no `@`.
+- Se preferir, troque os nameservers do GoDaddy para os da Vercel (`ns1.vercel-dns.com` e `ns2.vercel-dns.com`) e deixe a Vercel gerenciar tudo. Não misture os dois modelos.
+- O SSL é emitido automaticamente pela Vercel depois que o DNS propagar.
+
+### 3. Variáveis de ambiente na Vercel
+
+Em **Settings → Environment Variables**, adicione para **Production**, **Preview** e **Development**:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Depois faça um novo deploy. Sem essas variáveis, o modo **Ao vivo** não conecta.
+
+### 4. Conferir
+
+- `https://www.supp.lol` deve retornar **200** e carregar o app.
+- `https://supp.lol` deve redirecionar para `www.supp.lol`.
+- O favicon e a logo de Halloween devem aparecer normalmente.
+- O `sitemap.xml` e o `robots.txt` usam `https://www.supp.lol` como base.
+
+> Observação: `supp.vercel.app` atualmente serve outro site. Use a URL de produção gerada pelo projeto **supp** no painel da Vercel; não use `supp.vercel.app` como referência.
+
 ## Scripts
 
 - `npm run dev` — servidor de desenvolvimento.
