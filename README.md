@@ -20,6 +20,13 @@
 - O tema **claro/escuro** é uma preferência dos jogos padrão, com claro como padrão. Os eventos especiais mantêm a personalização visual do próprio evento.
 - As salas ao vivo sincronizam o tema e o modo do host com os celulares dos alunos.
 
+## Marca
+
+- **Logo principal:** `public/supp-logo.png` (horizontal, usada no README e no topo da página inicial).
+- **Ícone/favicon:** `public/supp-icon.png`, `app/icon.png` e `app/apple-icon.png`.
+- **Variante de Halloween:** `public/supp-logo-halloween.png` e `public/supp-icon-halloween.png`, aplicadas automaticamente no modo de evento.
+- **Comportamento:** o logo muda para a versão temática quando o modo Halloween está ativo, inclusive no favicon da aba.
+
 ## Modos de jogo
 
 ### D20 Roll
