@@ -14,7 +14,7 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   'media-src \'self\' https://upload.wikimedia.org https://www.soundhelix.com',
   `connect-src 'self' https://*.supabase.co wss://*.supabase.co${

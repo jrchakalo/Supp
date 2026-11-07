@@ -345,7 +345,10 @@ export default function TvPage() {
   const [connection, setConnection] = useState<AulaConnectionStatus>('idle');
   const [realtimeMissing, setRealtimeMissing] = useState(false);
   const [slide, setSlide] = useState<Slide | null>(null);
+  const [slideImage, setSlideImage] = useState<string | undefined>(undefined);
   const [slideKey, setSlideKey] = useState(0);
+  /** Welcome stays on until the teacher starts (or explicitly leaves welcome). */
+  const [welcome, setWelcome] = useState(true);
 
   const [quizRoom, setQuizRoom] = useState<string | null>(null);
   const [quizConnection, setQuizConnection] = useState<LiveConnection>('idle');
@@ -364,9 +367,17 @@ export default function TvPage() {
     quizRoomRef.current = quizRoom;
   }, [quizRoom]);
 
-  const applySlide = useCallback((next: Slide) => {
+  const applySlide = useCallback((next: Slide, imageUrl?: string) => {
     setSlide(next);
+    setSlideImage(imageUrl);
     setSlideKey((value) => value + 1);
+    setWelcome(false);
+  }, []);
+
+  const showWelcome = useCallback(() => {
+    setWelcome(true);
+    setSlide(null);
+    setSlideImage(undefined);
   }, []);
 
   const forgetLive = useCallback(() => {
@@ -379,15 +390,26 @@ export default function TvPage() {
 
   const handleAulaMessage = useCallback(
     (message: AulaMessage) => {
+      if (message.type === 'welcome') {
+        quizRoomRef.current = null;
+        setQuizRoom(null);
+        forgetLive();
+        showWelcome();
+        return;
+      }
+
       if (message.type === 'slide') {
         quizRoomRef.current = null;
         setQuizRoom(null);
-        applySlide(message.slide);
+        applySlide(message.slide, message.imageUrl);
         return;
       }
 
       if (message.type === 'quiz') {
         forgetLive();
+        setWelcome(false);
+        setSlide(null);
+        setSlideImage(undefined);
         quizRoomRef.current = message.code;
         setQuizRoom(message.code);
         return;
@@ -400,7 +422,7 @@ export default function TvPage() {
       }
 
       if (message.type === 'state') {
-        applySlide(message.slide);
+        applySlide(message.slide, message.imageUrl);
         if (message.quiz) {
           if (quizRoomRef.current !== message.quiz) forgetLive();
           quizRoomRef.current = message.quiz;
@@ -411,7 +433,7 @@ export default function TvPage() {
         }
       }
     },
-    [applySlide, forgetLive]
+    [applySlide, forgetLive, showWelcome]
   );
 
   const handleLiveMessage = useCallback((message: HostToPlayerMessage) => {
@@ -563,7 +585,7 @@ export default function TvPage() {
 
     setCodeError('');
     setCodeInput(next);
-    setSlide(null);
+    showWelcome();
     quizRoomRef.current = null;
     setQuizRoom(null);
     forgetLive();
@@ -576,7 +598,7 @@ export default function TvPage() {
       url.searchParams.set('c', next);
       window.history.replaceState(null, '', `${url.pathname}${url.search}`);
     }
-  }, [code, codeInput, forgetLive]);
+  }, [code, codeInput, forgetLive, showWelcome]);
 
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) {
@@ -687,14 +709,32 @@ export default function TvPage() {
             timeRatio={timeRatio}
             connection={quizConnection}
           />
+        ) : welcome ? (
+          <div
+            key="welcome"
+            className="aula-enter flex h-full flex-col items-center justify-center gap-[clamp(1rem,2.4vw,2rem)] px-6 text-center"
+          >
+            <p className="text-[clamp(0.9rem,1.4vw,1.3rem)] font-black uppercase tracking-[0.32em] text-[var(--accent)]">
+              Supp · Aula
+            </p>
+            <h1 className="text-[clamp(3.2rem,9vw,8rem)] font-black leading-none text-[var(--ink)]">
+              Bem vindos!
+            </h1>
+            <p className="text-[clamp(1.1rem,2.4vw,2.6rem)] font-bold leading-tight text-balance text-[var(--ink)]">
+              Que bom ter você aqui. Hoje a aula é no Supp.
+            </p>
+            <p className="text-[clamp(0.95rem,1.7vw,1.8rem)] font-semibold leading-tight text-balance text-[var(--muted)]">
+              Preparem-se para testar o Supp junto com o professor!
+            </p>
+          </div>
         ) : slide ? (
           <div className="flex h-full w-full items-center justify-center p-3 sm:p-5">
             <div
               key={slideKey}
-              className="aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-[var(--surface)] shadow-2xl"
+              className="aula-enter aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-[var(--surface)] shadow-2xl"
               style={{ maxWidth: 'min(100%, calc(177.78dvh - 9.4rem))' }}
             >
-              <SlideView slide={slide} variant="tv" />
+              <SlideView slide={slide} variant="tv" imageUrl={slideImage} />
             </div>
           </div>
         ) : (

@@ -37,6 +37,13 @@ export type AulaSlideMessage = {
   index: number;
   /** The slide itself, so `/tv` never needs the lesson data to render it. */
   slide: Slide;
+  /** Optional scene image for the current beat (e.g. the crime scene). */
+  imageUrl?: string;
+};
+
+/** Pre-class screen: the TV shows the welcome message until the first slide. */
+export type AulaWelcomeMessage = {
+  type: 'welcome';
 };
 
 export type AulaQuizMessage = {
@@ -60,6 +67,8 @@ export type AulaStateMessage = {
   index: number;
   /** The current slide, so a late-joining `/tv` can catch up on its own. */
   slide: Slide;
+  /** Scene image for the current beat, when the teacher picked one. */
+  imageUrl?: string;
   /** Live room code when a phone quiz is running, null otherwise. */
   quiz: string | null;
 };
@@ -69,7 +78,8 @@ export type AulaMessage =
   | AulaQuizMessage
   | AulaQuizEndMessage
   | AulaHelloMessage
-  | AulaStateMessage;
+  | AulaStateMessage
+  | AulaWelcomeMessage;
 
 export type AulaConnectionStatus =
   | 'idle'

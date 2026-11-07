@@ -9,6 +9,7 @@ import {
   Copy,
   ExternalLink,
   Gamepad2,
+  Image as ImageIcon,
   KeyRound,
   LogOut,
   MonitorPlay,
@@ -37,6 +38,8 @@ import {
 
 type TeacherMode = 'lesson' | 'quiz';
 type QuizSeconds = 15 | 20 | 30;
+/** Pre-class screen (welcome/QR) versus the live script. */
+type AulaPhase = 'welcome' | 'live';
 
 const QUIZ_SECONDS: QuizSeconds[] = [15, 20, 30];
 
@@ -122,6 +125,10 @@ export default function AulaPage() {
   const [beatIndex, setBeatIndex] = useState(0);
   const [mode, setMode] = useState<TeacherMode>('lesson');
   const [quizIndex, setQuizIndex] = useState(0);
+  const [phase, setPhase] = useState<AulaPhase>('welcome');
+  /** Scene image per beat index — kept while navigating the script. */
+  const [imageUrls, setImageUrls] = useState<Record<number, string>>({});
+  const [imageInput, setImageInput] = useState('');
 
   const [connection, setConnection] = useState<AulaConnectionStatus>('idle');
   const [copied, setCopied] = useState<'code' | 'url' | null>(null);
@@ -139,6 +146,8 @@ export default function AulaPage() {
   const beatIndexRef = useRef(0);
   const quizIndexRef = useRef(0);
   const modeRef = useRef<TeacherMode>('lesson');
+  const phaseRef = useRef<AulaPhase>('welcome');
+  const imageUrlsRef = useRef<Record<number, string>>({});
   const liveQuizRef = useRef<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
 
@@ -147,8 +156,10 @@ export default function AulaPage() {
     beatIndexRef.current = beatIndex;
     quizIndexRef.current = quizIndex;
     modeRef.current = mode;
+    phaseRef.current = phase;
+    imageUrlsRef.current = imageUrls;
     liveQuizRef.current = liveQuizCode;
-  }, [activeLesson, beatIndex, quizIndex, liveQuizCode, mode]);
+  }, [activeLesson, beatIndex, quizIndex, imageUrls, liveQuizCode, mode, phase]);
 
   /* ------------------------------------------------------------------ */
   /* Boot: gate + today's date                                           */
@@ -204,6 +215,8 @@ export default function AulaPage() {
         code?: unknown;
         index?: unknown;
         quiz?: unknown;
+        phase?: unknown;
+        images?: unknown;
       };
       if (typeof parsed.lessonId !== 'string' || typeof parsed.code !== 'string') return;
 
@@ -218,10 +231,29 @@ export default function AulaPage() {
           : 0;
       const savedQuiz =
         typeof parsed.quiz === 'string' ? sanitizeRoomCode(parsed.quiz) : null;
+      /* Sessions saved before the welcome screen existed default to live. */
+      const savedPhase: AulaPhase = parsed.phase === 'welcome' ? 'welcome' : 'live';
+      const savedImages: Record<number, string> = {};
+      if (parsed.images && typeof parsed.images === 'object') {
+        for (const [key, value] of Object.entries(parsed.images)) {
+          const position = Number(key);
+          if (
+            Number.isInteger(position) &&
+            position >= 0 &&
+            typeof value === 'string' &&
+            value.trim() !== ''
+          ) {
+            savedImages[position] = value;
+          }
+        }
+      }
 
       setActiveLesson(lesson);
       setSessionCode(code);
       setBeatIndex(savedIndex);
+      setPhase(savedPhase);
+      setImageUrls(savedImages);
+      setImageInput(savedImages[savedIndex] ?? '');
       setTvUrl(`${window.location.origin}/tv?c=${code}`);
       if (savedQuiz) {
         setLiveQuizCode(savedQuiz);
@@ -234,6 +266,8 @@ export default function AulaPage() {
       beatIndexRef.current = savedIndex;
       quizIndexRef.current = 0;
       modeRef.current = 'lesson';
+      phaseRef.current = savedPhase;
+      imageUrlsRef.current = savedImages;
       liveQuizRef.current = savedQuiz;
     } catch {
       // Corrupted storage must never block the teacher.
@@ -259,57 +293,63 @@ export default function AulaPage() {
         code: sessionCode,
         index: beatIndex,
         quiz: liveQuizCode,
+        phase,
+        images: imageUrls,
       })
     );
-  }, [activeLesson, sessionCode, beatIndex, liveQuizCode]);
+  }, [activeLesson, sessionCode, beatIndex, liveQuizCode, phase, imageUrls]);
 
   useEffect(() => {
     if (!activeLesson || !sessionCode) return;
 
     let active = true;
 
+    /**
+     * Sends the current position to the TV. During welcome only the welcome
+     * message goes out; live sends `state` (+ `slide`) so a late TV catches up.
+     */
+    const syncTv = () => {
+      const lesson = activeLessonRef.current;
+      if (!lesson) return;
+
+      if (phaseRef.current === 'welcome') {
+        channelRef.current?.send({ type: 'welcome' });
+        return;
+      }
+
+      const inQuiz = modeRef.current === 'quiz';
+      const lessonId = inQuiz ? QUIZ_LESSON_ID : lesson.id;
+      const index = inQuiz ? quizIndexRef.current : beatIndexRef.current;
+      const liveQuiz = liveQuizRef.current;
+      const slide = resolveSlide(lesson, lessonId, index) ?? WAITING_SLIDE;
+      const imageUrl = inQuiz ? undefined : imageUrlsRef.current[index];
+
+      channelRef.current?.send({
+        type: 'state',
+        lessonId,
+        index,
+        slide,
+        imageUrl,
+        quiz: liveQuiz,
+      });
+      // During a phone quiz the projector must stay on the Live room; a
+      // lesson slide here would pull it out of the quiz screen.
+      if (!liveQuiz) {
+        channelRef.current?.send({ type: 'slide', lessonId, index, slide, imageUrl });
+      }
+    };
+
     const handle = createAulaChannel(sessionCode, {
       onMessage: (message: AulaMessage) => {
         if (!active || message.type !== 'hello') return;
-        const lesson = activeLessonRef.current;
-        if (!lesson) return;
-
-        const inQuiz = modeRef.current === 'quiz';
-        const lessonId = inQuiz ? QUIZ_LESSON_ID : lesson.id;
-        const index = inQuiz ? quizIndexRef.current : beatIndexRef.current;
-        const liveQuiz = liveQuizRef.current;
-        const slide = resolveSlide(lesson, lessonId, index) ?? WAITING_SLIDE;
-
-        channelRef.current?.send({
-          type: 'state',
-          lessonId,
-          index,
-          slide,
-          quiz: liveQuiz,
-        });
-        // During a phone quiz the projector must stay on the Live room; a
-        // lesson slide here would pull it out of the quiz screen.
-        if (!liveQuiz) {
-          channelRef.current?.send({ type: 'slide', lessonId, index, slide });
-        }
+        syncTv();
       },
       onStatus: (status) => {
         if (active) setConnection(status);
       },
       onSubscribed: () => {
         if (!active) return;
-        const lesson = activeLessonRef.current;
-        if (!lesson) return;
-        const inQuiz = modeRef.current === 'quiz';
-        const lessonId = inQuiz ? QUIZ_LESSON_ID : lesson.id;
-        const index = inQuiz ? quizIndexRef.current : beatIndexRef.current;
-        const liveQuiz = liveQuizRef.current;
-        const slide = resolveSlide(lesson, lessonId, index) ?? WAITING_SLIDE;
-
-        channelRef.current?.send({ type: 'state', lessonId, index, slide, quiz: liveQuiz });
-        if (!liveQuiz) {
-          channelRef.current?.send({ type: 'slide', lessonId, index, slide });
-        }
+        syncTv();
       },
     });
 
@@ -337,6 +377,7 @@ export default function AulaPage() {
   );
 
   const beat = beats[beatIndex];
+  const lessonSlide = beat?.slide;
   const segment = activeLesson?.segments.find((item) => item.id === beat?.segmentId);
   const quizSlide = quizSlides[quizIndex];
   const currentSlide = mode === 'quiz' ? quizSlide : beat?.slide;
@@ -363,6 +404,7 @@ export default function AulaPage() {
       const slide = allBeats[next]?.slide;
       if (!slide) return;
 
+      const imageUrl = imageUrlsRef.current[next];
       modeRef.current = 'lesson';
       liveQuizRef.current = null;
       beatIndexRef.current = next;
@@ -370,8 +412,9 @@ export default function AulaPage() {
       setLiveQuizCode(null);
       setHostUrl('');
       setBeatIndex(next);
+      setImageInput(imageUrlsRef.current[next] ?? '');
       broadcast({ type: 'quizEnd' });
-      broadcast({ type: 'slide', lessonId: lesson.id, index: next, slide });
+      broadcast({ type: 'slide', lessonId: lesson.id, index: next, slide, imageUrl });
     },
     [broadcast]
   );
@@ -430,7 +473,13 @@ export default function AulaPage() {
     setHostUrl('');
     setMode('lesson');
     if (slide) {
-      broadcast({ type: 'slide', lessonId: lesson.id, index: beatIndexRef.current, slide });
+      broadcast({
+        type: 'slide',
+        lessonId: lesson.id,
+        index: beatIndexRef.current,
+        slide,
+        imageUrl: imageUrlsRef.current[beatIndexRef.current],
+      });
     }
   }, [broadcast]);
 
@@ -468,17 +517,33 @@ export default function AulaPage() {
     beatIndexRef.current = 0;
     quizIndexRef.current = 0;
     modeRef.current = 'lesson';
+    phaseRef.current = 'welcome';
+    imageUrlsRef.current = {};
     liveQuizRef.current = null;
     setActiveLesson(lesson);
     setSessionCode(code);
     setBeatIndex(0);
     setQuizIndex(0);
     setMode('lesson');
+    setPhase('welcome');
+    setImageUrls({});
+    setImageInput('');
     setLiveQuizCode(null);
     setHostUrl('');
     setConnection('connecting');
     setTvUrl(`${window.location.origin}/tv?c=${code}`);
   }, []);
+
+  /** Leaves the welcome screen and broadcasts beat 0. */
+  const startLive = useCallback(() => {
+    const lesson = activeLessonRef.current;
+    if (!lesson) return;
+    if (flattenBeats(lesson).length === 0) return;
+
+    phaseRef.current = 'live';
+    setPhase('live');
+    goToBeat(0);
+  }, [goToBeat]);
 
   const endSession = useCallback(() => {
     removeStorage(AULA_SESSION_STORAGE);
@@ -486,6 +551,8 @@ export default function AulaPage() {
     beatIndexRef.current = 0;
     quizIndexRef.current = 0;
     modeRef.current = 'lesson';
+    phaseRef.current = 'welcome';
+    imageUrlsRef.current = {};
     liveQuizRef.current = null;
     setActiveLesson(null);
     setSessionCode('');
@@ -493,6 +560,9 @@ export default function AulaPage() {
     setBeatIndex(0);
     setQuizIndex(0);
     setMode('lesson');
+    setPhase('welcome');
+    setImageUrls({});
+    setImageInput('');
     setLiveQuizCode(null);
     setHostUrl('');
     setQuizModalOpen(false);
@@ -529,6 +599,38 @@ export default function AulaPage() {
     if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current);
     copyTimerRef.current = window.setTimeout(() => setCopied(null), 1800);
   }, []);
+
+  /**
+   * Stores the scene image for the current beat and re-broadcasts the slide.
+   * An empty URL clears the image. This never uploads anything — the TV just
+   * renders the link.
+   */
+  const applySceneImage = useCallback(
+    (rawUrl: string) => {
+      const lesson = activeLessonRef.current;
+      if (!lesson) return;
+      const index = beatIndexRef.current;
+      const slide = flattenBeats(lesson)[index]?.slide;
+      if (!slide) return;
+
+      const url = rawUrl.trim();
+      const next = { ...imageUrlsRef.current };
+      if (url) next[index] = url;
+      else delete next[index];
+
+      imageUrlsRef.current = next;
+      setImageUrls(next);
+      setImageInput(url);
+      broadcast({
+        type: 'slide',
+        lessonId: lesson.id,
+        index,
+        slide,
+        imageUrl: url || undefined,
+      });
+    },
+    [broadcast]
+  );
 
   /* ------------------------------------------------------------------ */
   /* Quiz                                                                */
@@ -760,6 +862,137 @@ export default function AulaPage() {
   }
 
   /* ------------------------------------------------------------------ */
+  /* Render: welcome (pre-class)                                         */
+  /* ------------------------------------------------------------------ */
+
+  if (phase === 'welcome') {
+    return (
+      <main className="theme-dark game-shell min-h-dvh px-4 py-6 text-[var(--ink)] sm:px-8">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--accent)]">
+                Supp · Aula de hoje
+              </p>
+              <h1 className="mt-1 text-lg font-black leading-tight sm:text-xl">
+                {activeLesson.title}
+              </h1>
+              <p className="text-xs font-bold text-[var(--muted)]">
+                {activeLesson.turma} · {formatLessonDate(activeLesson.date)}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <ConnectionPill status={connection} />
+              <button
+                type="button"
+                onClick={endSession}
+                aria-label="Encerrar a aula e voltar para a lista"
+                className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Encerrar aula
+              </button>
+              <button
+                type="button"
+                onClick={logout}
+                aria-label="Sair da área do professor"
+                className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--danger)] hover:text-[var(--danger)]"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                Sair
+              </button>
+            </div>
+          </header>
+
+          <section className="rounded-3xl border-2 border-[var(--line)] bg-[var(--surface)] p-6 shadow-[var(--card-shadow)] sm:p-10">
+            <div className="text-center">
+              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[var(--accent)]">
+                A aula vai começar
+              </p>
+              <h2 className="mt-2 text-[clamp(2.6rem,7vw,5rem)] font-black leading-none">
+                Bem vindos!
+              </h2>
+              <p className="mt-4 text-lg font-bold text-[var(--ink)] sm:text-2xl">
+                Que bom ter você aqui. Hoje a aula é no Supp.
+              </p>
+              <p className="mt-2 text-sm font-semibold text-[var(--muted)] sm:text-base">
+                Preparem-se para testar o Supp junto com o professor!
+              </p>
+            </div>
+
+            <div className="mt-8 grid gap-5 rounded-3xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] p-5 md:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--muted)]">
+                  Código da sessão
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <p className="text-[clamp(2.6rem,7vw,4.4rem)] font-black leading-none tracking-[0.12em] text-[var(--accent)]">
+                    {sessionCode}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void copyValue(sessionCode, 'code')}
+                    aria-label="Copiar código da sessão"
+                    className="flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black text-[var(--muted)] transition hover:text-[var(--ink)]"
+                  >
+                    {copied === 'code' ? (
+                      <Check className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+                    ) : (
+                      <Copy className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {copied === 'code' ? 'Copiado' : 'Copiar'}
+                  </button>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <code className="min-w-0 max-w-full truncate rounded-xl border border-[var(--line-soft)] bg-[var(--surface)] px-3 py-2 text-xs font-bold text-[var(--muted)]">
+                    {tvUrl}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => void copyValue(tvUrl, 'url')}
+                    aria-label="Copiar URL do telão"
+                    className="flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black text-[var(--muted)] transition hover:text-[var(--ink)]"
+                  >
+                    {copied === 'url' ? (
+                      <Check className="h-4 w-4 text-emerald-400" aria-hidden="true" />
+                    ) : (
+                      <Copy className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {copied === 'url' ? 'Copiado' : 'Copiar link'}
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] font-semibold text-[var(--muted)]">
+                  Deixe o telão aberto (TV, projetor ou segunda janela). Ele já está na tela de
+                  boas-vindas.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center">
+                <div className="rounded-2xl bg-white p-3 shadow-lg">
+                  <QRCodeSVG value={tvUrl} size={144} fgColor="#0b1020" bgColor="#ffffff" />
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={startLive}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-4 text-base font-black uppercase tracking-wide text-[var(--cta-text)]"
+            >
+              <MonitorPlay className="h-5 w-5" aria-hidden="true" />
+              Iniciar aula
+            </button>
+            <p className="mt-3 text-center text-[11px] font-semibold text-[var(--muted)]">
+              Ao iniciar, o telão troca a tela de boas-vindas pelo primeiro slide.
+            </p>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  /* ------------------------------------------------------------------ */
   /* Render: live session                                                */
   /* ------------------------------------------------------------------ */
 
@@ -810,61 +1043,6 @@ export default function AulaPage() {
             sincronizar. Defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.
           </p>
         ) : null}
-
-        {/* Session link card */}
-        <section className="mt-4 grid gap-4 rounded-3xl border-2 border-[var(--line)] bg-[var(--surface)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:p-5">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--muted)]">
-              Código da sessão
-            </p>
-            <div className="mt-1 flex flex-wrap items-center gap-3">
-              <p className="text-[clamp(2.6rem,7vw,4.4rem)] font-black leading-none tracking-[0.12em] text-[var(--accent)]">
-                {sessionCode}
-              </p>
-              <button
-                type="button"
-                onClick={() => void copyValue(sessionCode, 'code')}
-                aria-label="Copiar código da sessão"
-                className="flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--muted)] transition hover:text-[var(--ink)]"
-              >
-                {copied === 'code' ? (
-                  <Check className="h-4 w-4 text-emerald-400" aria-hidden="true" />
-                ) : (
-                  <Copy className="h-4 w-4" aria-hidden="true" />
-                )}
-                {copied === 'code' ? 'Copiado' : 'Copiar'}
-              </button>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <code className="min-w-0 max-w-full truncate rounded-xl border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-bold text-[var(--muted)]">
-                {tvUrl}
-              </code>
-              <button
-                type="button"
-                onClick={() => void copyValue(tvUrl, 'url')}
-                aria-label="Copiar URL do telão"
-                className="flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--muted)] transition hover:text-[var(--ink)]"
-              >
-                {copied === 'url' ? (
-                  <Check className="h-4 w-4 text-emerald-400" aria-hidden="true" />
-                ) : (
-                  <Copy className="h-4 w-4" aria-hidden="true" />
-                )}
-                {copied === 'url' ? 'Copiado' : 'Copiar link'}
-              </button>
-            </div>
-            <p className="mt-2 text-[11px] font-semibold text-[var(--muted)]">
-              Abra o telão em outra tela (TV, projetor ou segunda janela) e escaneie o QR code.
-            </p>
-          </div>
-
-          <div className="flex items-center justify-center gap-4">
-            <div className="rounded-2xl bg-white p-3 shadow-lg">
-              <QRCodeSVG value={tvUrl} size={144} fgColor="#0b1020" bgColor="#ffffff" />
-            </div>
-          </div>
-        </section>
 
         {/* Quiz banners */}
         {mode === 'quiz' ? (
@@ -1027,6 +1205,84 @@ export default function AulaPage() {
                         ))}
                       </ul>
                     </section>
+
+                    {lessonSlide &&
+                    (lessonSlide.teacherNote ||
+                      ('note' in lessonSlide && Boolean(lessonSlide.note))) ? (
+                      <section className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)]/70 p-3">
+                        <h3 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
+                          <span aria-hidden="true" className="h-2 w-2 rounded-sm bg-[var(--accent)]" />
+                          Colinha
+                        </h3>
+                        <div className="mt-2 space-y-2">
+                          {'note' in lessonSlide && lessonSlide.note ? (
+                            <p className="rounded-xl border-l-4 border-[var(--accent)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold leading-snug text-[var(--ink)]">
+                              <span className="mr-2 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--accent)]">
+                                Anotação
+                              </span>
+                              {lessonSlide.note}
+                            </p>
+                          ) : null}
+                          {lessonSlide.teacherNote ? (
+                            <p className="rounded-xl border-l-4 border-[var(--accent-2)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold leading-snug text-[var(--ink)]">
+                              <span className="mr-2 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--accent-2)]">
+                                Só para você
+                              </span>
+                              {lessonSlide.teacherNote}
+                            </p>
+                          ) : null}
+                        </div>
+                      </section>
+                    ) : null}
+
+                    {segment.id === 'cena' ? (
+                      <section className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)]/70 p-3">
+                        <h3 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
+                          <ImageIcon className="h-4 w-4" aria-hidden="true" />
+                          Imagem da cena
+                        </h3>
+                        <p className="mt-1 text-[11px] font-semibold text-[var(--muted)]">
+                          Cole o link de uma imagem (ex.: do Google Imagens). O telão só renderiza o
+                          link — nada é enviado ao servidor.
+                        </p>
+                        <form
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            applySceneImage(imageInput);
+                          }}
+                          className="mt-2 flex flex-col gap-2 sm:flex-row"
+                        >
+                          <input
+                            type="url"
+                            value={imageInput}
+                            onChange={(event) => setImageInput(event.target.value)}
+                            placeholder="https://…"
+                            aria-label="URL da imagem da cena"
+                            className="min-w-0 flex-1 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="submit"
+                              className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
+                            >
+                              Mostrar na TV
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applySceneImage('')}
+                              className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
+                            >
+                              Limpar
+                            </button>
+                          </div>
+                        </form>
+                        <p className="mt-2 text-[11px] font-semibold text-[var(--muted)]">
+                          {imageUrls[beatIndex]
+                            ? 'Imagem ativa neste beat. Ela acompanha o slide ao navegar.'
+                            : 'Nenhuma imagem neste beat.'}
+                        </p>
+                      </section>
+                    ) : null}
                   </>
                 ) : null}
 
@@ -1073,7 +1329,13 @@ export default function AulaPage() {
               {/* Slide preview */}
               <div className="min-w-0">
                 <div className="aspect-video w-full overflow-hidden rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)]">
-                  {currentSlide ? <SlideView slide={currentSlide} variant="preview" /> : null}
+                  {currentSlide ? (
+                    <SlideView
+                      slide={currentSlide}
+                      variant="preview"
+                      imageUrl={mode === 'lesson' ? imageUrls[beatIndex] : undefined}
+                    />
+                  ) : null}
                 </div>
                 <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--muted)]">
                   <MonitorPlay className="h-3.5 w-3.5" aria-hidden="true" />

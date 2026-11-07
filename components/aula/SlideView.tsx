@@ -1,7 +1,9 @@
+'use client';
+
 import clsx from 'clsx';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
-import type { Slide } from '@/lib/passaporte-lessons';
+import type { CaseOption, Slide } from '@/lib/passaporte-lessons';
 import { ANSWER_BUTTONS } from '@/lib/live/room';
 
 type Variant = 'preview' | 'tv';
@@ -10,6 +12,8 @@ type SlideViewProps = {
   slide: Slide;
   variant?: Variant;
   className?: string;
+  /** Scene image (e.g. the crime scene) sent along with the slide. */
+  imageUrl?: string;
 };
 
 /** Tiny Lua tokenizer: enough color to separate keywords, strings and numbers. */
@@ -51,7 +55,63 @@ function highlightLua(code: string): ReactNode[] {
   return nodes;
 }
 
-function SlideBody({ slide, tv }: { slide: Slide; tv: boolean }) {
+function caseOptionText(option: CaseOption): string {
+  return typeof option === 'string' ? option : option.text;
+}
+
+/** Prefers `correct`, falling back to a legacy `option.correct` flag. */
+function caseCorrectIndex(slide: { options: CaseOption[]; correct?: number }): number {
+  if (typeof slide.correct === 'number') return slide.correct;
+  return slide.options.findIndex(
+    (option) => typeof option !== 'string' && option.correct === true
+  );
+}
+
+/**
+ * Scene image, rendered below the slide title. A broken link shows a discreet
+ * placeholder instead of a broken-image icon on the projector.
+ */
+function SceneImage({ src, tv }: { src: string; tv: boolean }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <div
+        className={clsx(
+          'flex h-full w-full items-center justify-center rounded-2xl border border-dashed border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--muted)]',
+          tv ? 'text-[clamp(0.9rem,1.4vw,1.4rem)]' : 'text-[10px]'
+        )}
+      >
+        Imagem indisponível
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt="Imagem da cena"
+      onError={() => setFailed(true)}
+      className="h-full w-full rounded-2xl object-contain shadow-2xl"
+    />
+  );
+}
+
+function SceneImageFrame({ src, tv }: { src: string; tv: boolean }) {
+  return (
+    <div
+      className={clsx(
+        'flex min-h-0 flex-1 items-center justify-center overflow-hidden',
+        tv ? 'mt-[clamp(0.6rem,1.4vw,1.4rem)]' : 'mt-2'
+      )}
+    >
+      <SceneImage key={src} src={src} tv={tv} />
+    </div>
+  );
+}
+
+function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUrl?: string }) {
   const eyebrowCls = tv
     ? 'text-[clamp(0.85rem,1.2vw,1.3rem)] font-black uppercase tracking-[0.3em] text-[var(--accent)]'
     : 'text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]';
@@ -105,9 +165,11 @@ function SlideBody({ slide, tv }: { slide: Slide; tv: boolean }) {
             <h2 className={titleCls}>{slide.title}</h2>
             {slide.subtitle ? <p className={subtitleCls}>{slide.subtitle}</p> : null}
           </header>
+          {imageUrl ? <SceneImageFrame src={imageUrl} tv={tv} /> : null}
           <ul
             className={clsx(
-              'flex min-h-0 flex-1 flex-col justify-center',
+              'flex flex-col',
+              imageUrl ? 'min-h-0 shrink-0 overflow-hidden' : 'min-h-0 flex-1 justify-center',
               tv ? 'mt-4 gap-[clamp(0.7rem,1.6vw,1.8rem)]' : 'mt-3 gap-2'
             )}
           >
@@ -121,7 +183,7 @@ function SlideBody({ slide, tv }: { slide: Slide; tv: boolean }) {
               </li>
             ))}
           </ul>
-          {slide.note ? (
+          {!tv && slide.note ? (
             <p
               className={clsx(
                 'shrink-0 rounded-xl border-l-4 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2',
@@ -134,7 +196,11 @@ function SlideBody({ slide, tv }: { slide: Slide; tv: boolean }) {
         </div>
       );
 
-    case 'case':
+    case 'case': {
+      const correctIndex = caseCorrectIndex(slide);
+      /* Preview always shows the answer so the teacher knows it before revealing. */
+      const showAnswer = !tv || slide.revealed === true;
+
       return (
         <div className="flex h-full min-h-0 flex-col">
           <header className="flex shrink-0 flex-col gap-1">
@@ -156,14 +222,14 @@ function SlideBody({ slide, tv }: { slide: Slide; tv: boolean }) {
             )}
           >
             {slide.options.map((option, index) => {
-              const showCorrect = !tv && option.correct;
+              const isCorrect = showAnswer && index === correctIndex;
               return (
                 <li
-                  key={option.text}
+                  key={`${caseOptionText(option)}-${index}`}
                   className={clsx(
                     'flex items-center gap-3 rounded-xl border-2 bg-[var(--surface-2)] px-3 py-2',
-                    showCorrect
-                      ? 'border-[var(--accent-2)] ring-2 ring-[var(--accent-2)]/40'
+                    isCorrect
+                      ? 'border-emerald-400 ring-2 ring-emerald-400/40'
                       : 'border-[var(--line-soft)]'
                   )}
                 >
@@ -175,20 +241,21 @@ function SlideBody({ slide, tv }: { slide: Slide; tv: boolean }) {
                   >
                     {String.fromCharCode(65 + index)}
                   </span>
-                  <span className={clsx('min-w-0 flex-1', bodyCls)}>{option.text}</span>
-                  {showCorrect ? (
-                    <span className="shrink-0 rounded-full bg-[var(--accent-2)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#071018]">
-                      raiz
+                  <span className={clsx('min-w-0 flex-1', bodyCls)}>{caseOptionText(option)}</span>
+                  {isCorrect ? (
+                    <span className="shrink-0 rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#071018]">
+                      (raiz)
                     </span>
                   ) : null}
                 </li>
               );
             })}
           </ul>
-          {!tv && slide.note ? (
+          {showAnswer && slide.note ? (
             <p
               className={clsx(
-                'shrink-0 rounded-xl border-l-4 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2',
+                'shrink-0 rounded-xl border-l-4 border-emerald-400 bg-[var(--surface-2)] px-3 py-2',
+                tv ? 'mt-[clamp(0.6rem,1.2vw,1.2rem)]' : 'mt-2',
                 smallCls
               )}
             >
@@ -197,6 +264,7 @@ function SlideBody({ slide, tv }: { slide: Slide; tv: boolean }) {
           ) : null}
         </div>
       );
+    }
 
     case 'code': {
       const lineCount = slide.code.split('\n').length;
@@ -495,7 +563,7 @@ function SlideBody({ slide, tv }: { slide: Slide; tv: boolean }) {
   }
 }
 
-export default function SlideView({ slide, variant = 'preview', className }: SlideViewProps) {
+export default function SlideView({ slide, variant = 'preview', className, imageUrl }: SlideViewProps) {
   const tv = variant === 'tv';
 
   return (
@@ -506,7 +574,7 @@ export default function SlideView({ slide, variant = 'preview', className }: Sli
         className
       )}
     >
-      <SlideBody slide={slide} tv={tv} />
+      <SlideBody slide={slide} tv={tv} imageUrl={imageUrl} />
     </section>
   );
 }
