@@ -174,6 +174,12 @@ function readAutoFromUrl(): boolean | null {
   return null;
 }
 
+/** Reads `?start=1`: opens the room automatically (used by /aula → /host). */
+function readStartFromUrl(): boolean {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('start') === '1';
+}
+
 const ROUND_LENGTHS: { value: 8 | 12 | 16 }[] = [
   { value: 8 },
   { value: 12 },
@@ -204,6 +210,7 @@ export default function HostPage() {
 
   useEffect(() => {
     setMounted(true);
+    autoStartWantedRef.current = readStartFromUrl();
 
     if (readStorage('theme') === 'dark') setTheme('dark');
     if (readStorage('ui-language') === 'en') setUiLanguage('en');
@@ -303,6 +310,9 @@ export default function HostPage() {
   const advanceRef = useRef<number | null>(null);
   const lastAdvanceAtRef = useRef(0);
   const revealedIdsRef = useRef<Set<string>>(new Set());
+  /* `?start=1`: the room must open once, automatically, without a click. */
+  const autoStartWantedRef = useRef(false);
+  const autoStartedRef = useRef(false);
   const [podiumStep, setPodiumStep] = useState(0);
   phaseRef.current = phase;
   playerCountRef.current = players.length;
@@ -457,6 +467,22 @@ export default function HostPage() {
         }
       });
   }, [broadcast, forcedRoomCode, liveConfig]);
+
+  /* `?start=1`: open the room automatically, exactly once. Without the
+     parameter nothing changes — the teacher still clicks "Abrir sala". */
+  useEffect(() => {
+    if (!mounted || !realtimeReady) return;
+    if (!autoStartWantedRef.current || autoStartedRef.current) return;
+    if (phase !== 'setup' || status !== 'idle' || !canOpenRoom) return;
+    const timer = window.setTimeout(() => {
+      /* Guard inside the callback: an effect re-run may have cancelled this
+         timer, so the flag is only set once the room really opens. */
+      if (autoStartedRef.current) return;
+      autoStartedRef.current = true;
+      void openRoom();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [mounted, realtimeReady, phase, status, canOpenRoom, openRoom]);
 
   useEffect(() => {
     return () => {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import confetti from 'canvas-confetti';
 import {
   Maximize,
   Minimize,
@@ -23,15 +24,71 @@ import {
   type RevealMessage,
 } from '@/lib/live/protocol';
 import { getSupabaseClient } from '@/lib/live/supabase';
+import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
 import {
+  AULA_WELCOME_FALLBACK,
   createAulaChannel,
   type AulaChannel,
   type AulaConnectionStatus,
   type AulaMessage,
+  type AulaWelcomeContent,
 } from '@/lib/aula/sync';
 
 type LivePhase = 'lobby' | 'question' | 'reveal' | 'gameover';
 type LiveConnection = 'idle' | 'connecting' | 'connected' | 'error';
+
+/** localStorage snapshot of the last quiz state, for F5 recovery on the TV. */
+const TV_QUIZ_STORAGE = 'tv-quiz';
+const TV_QUIZ_TTL_MS = 10 * 60 * 1000;
+
+type SavedQuizState = {
+  code: string;
+  mode: 'question' | 'reveal' | 'gameover';
+  payload: HostToPlayerMessage;
+  savedAt: number;
+};
+
+function readSavedQuizState(code: string): SavedQuizState | null {
+  if (!code) return null;
+  const raw = readStorage(TV_QUIZ_STORAGE);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<SavedQuizState>;
+    if (
+      typeof parsed.code !== 'string' ||
+      parsed.code !== code ||
+      typeof parsed.savedAt !== 'number' ||
+      !parsed.payload ||
+      typeof parsed.payload !== 'object' ||
+      (parsed.mode !== 'question' && parsed.mode !== 'reveal' && parsed.mode !== 'gameover')
+    ) {
+      return null;
+    }
+    if (Date.now() - parsed.savedAt > TV_QUIZ_TTL_MS) {
+      removeStorage(TV_QUIZ_STORAGE);
+      return null;
+    }
+    const payload = parsed.payload as HostToPlayerMessage;
+    if (payload.kind !== parsed.mode) return null;
+    return {
+      code: parsed.code,
+      mode: parsed.mode,
+      payload,
+      savedAt: parsed.savedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveQuizState(state: SavedQuizState) {
+  writeStorage(TV_QUIZ_STORAGE, JSON.stringify(state));
+}
+
+function clearSavedQuizState() {
+  removeStorage(TV_QUIZ_STORAGE);
+}
 
 function ConnectionPill({
   status,
@@ -59,18 +116,35 @@ function ConnectionPill({
   );
 }
 
-function Podium({ rows }: { rows: LiveScoreRow[] }) {
+function Podium({ rows, step }: { rows: LiveScoreRow[]; step: number }) {
   const slots = [
     { row: rows[1], place: 2, height: 'h-[clamp(5rem,16vh,10rem)]' },
     { row: rows[0], place: 1, height: 'h-[clamp(7rem,23vh,15rem)]' },
     { row: rows[2], place: 3, height: 'h-[clamp(4rem,12vh,8rem)]' },
   ];
 
+  /* Reveal suspense: 3rd place, then 2nd, then 1st. Missing places are
+     skipped so a room with one or two players still reveals nicely. */
+  const availablePlaces = [1, 2, 3].filter((place) => Boolean(rows[place - 1]));
+  const descending = [...availablePlaces].sort((a, b) => b - a);
+  const revealStepFor = (place: number) => descending.indexOf(place) + 1;
+  const revealedFor = (place: number) => step >= revealStepFor(place);
+
   return (
     <div className="flex w-full items-end justify-center gap-3">
-      {slots.map((slot) =>
-        slot.row ? (
-          <div key={slot.place} className="flex w-full max-w-[15rem] flex-col items-center gap-2">
+      {slots.map((slot) => {
+        if (!slot.row) return null;
+        const revealed = revealedFor(slot.place);
+        return (
+          <div
+            key={slot.place}
+            className={`flex w-full max-w-[15rem] flex-col items-center gap-2 transition-all duration-700 ease-out ${
+              revealed
+                ? 'translate-y-0 scale-100 opacity-100'
+                : 'translate-y-6 scale-90 opacity-0'
+            }`}
+            aria-hidden={!revealed}
+          >
             <span className="text-[clamp(1.5rem,3vw,2.6rem)] font-black text-[var(--accent)]">
               {slot.place}º
             </span>
@@ -85,8 +159,8 @@ function Podium({ rows }: { rows: LiveScoreRow[] }) {
               </p>
             </div>
           </div>
-        ) : null
-      )}
+        );
+      })}
     </div>
   );
 }
@@ -117,6 +191,37 @@ function LiveSpectator({
   const ranked = [...(reveal?.leaderboard ?? gameover?.leaderboard ?? [])].sort(
     (a, b) => b.total - a.total || a.name.localeCompare(b.name)
   );
+
+  /* Podium reveal state is keyed by the gameover snapshot, so a new game does
+     not inherit the previous podium without a synchronous state reset. */
+  const [podium, setPodium] = useState<{ key: string; step: number }>({ key: '', step: 0 });
+  const podiumPlaces = Math.min(ranked.length, 3);
+  const podiumKey =
+    gameover?.leaderboard.map((row) => `${row.playerId}:${row.total}`).join(',') ?? '';
+  const podiumStep = phase === 'gameover' && podium.key === podiumKey ? podium.step : 0;
+
+  useEffect(() => {
+    if (phase !== 'gameover') return;
+    const timers = [
+      window.setTimeout(() => setPodium({ key: podiumKey, step: 1 }), 700),
+      window.setTimeout(() => setPodium({ key: podiumKey, step: 2 }), 1600),
+      window.setTimeout(() => setPodium({ key: podiumKey, step: 3 }), 2500),
+    ];
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [phase, podiumKey]);
+
+  /* Fire confetti the moment the winner (1st place) is revealed. The same
+     spectator view is used by the in-class quiz and by the Live room. */
+  useEffect(() => {
+    if (phase !== 'gameover' || podiumPlaces === 0 || podiumStep < podiumPlaces) return;
+    const common = {
+      colors: ['#f59e0b', '#22d3ee', '#a78bfa', '#34d399', '#f472b6'],
+      disableForReducedMotion: true,
+    };
+    confetti({ ...common, particleCount: 120, spread: 80, origin: { y: 0.62 } });
+    confetti({ ...common, particleCount: 60, angle: 55, spread: 55, origin: { x: 0, y: 0.7 } });
+    confetti({ ...common, particleCount: 60, angle: 125, spread: 55, origin: { x: 1, y: 0.7 } });
+  }, [phase, podiumStep, podiumPlaces]);
 
   if (phase === 'question' && question) {
     return (
@@ -276,7 +381,7 @@ function LiveSpectator({
           </h1>
         </div>
 
-        <Podium rows={ranked} />
+        <Podium rows={ranked} step={podiumStep} />
 
         <div className="flex min-h-0 w-full max-w-3xl flex-1 flex-col rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-2)]/50 p-3">
           <p className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--muted)]">
@@ -349,6 +454,10 @@ export default function TvPage() {
   const [slideKey, setSlideKey] = useState(0);
   /** Welcome stays on until the teacher starts (or explicitly leaves welcome). */
   const [welcome, setWelcome] = useState(true);
+  /** Lesson-provided welcome copy (falls back to the generic messages). */
+  const [welcomeContent, setWelcomeContent] = useState<AulaWelcomeContent | null>(null);
+  /** Longer fade + zoom when leaving the welcome screen for the first slide. */
+  const [longEnter, setLongEnter] = useState(false);
 
   const [quizRoom, setQuizRoom] = useState<string | null>(null);
   const [quizConnection, setQuizConnection] = useState<LiveConnection>('idle');
@@ -362,12 +471,22 @@ export default function TvPage() {
 
   const aulaChannelRef = useRef<AulaChannel | null>(null);
   const quizRoomRef = useRef<string | null>(null);
+  const welcomeRef = useRef(true);
+  /** Keeps the long animation across the back-to-back `state` + `slide` pair. */
+  const longEnterUntilRef = useRef(0);
+  /* Generated inside the channel effect (not during render) to stay pure. */
+  const tvPresenceIdRef = useRef('');
 
   useEffect(() => {
     quizRoomRef.current = quizRoom;
   }, [quizRoom]);
 
   const applySlide = useCallback((next: Slide, imageUrl?: string) => {
+    if (welcomeRef.current) {
+      welcomeRef.current = false;
+      longEnterUntilRef.current = Date.now() + 1400;
+    }
+    setLongEnter(Date.now() < longEnterUntilRef.current);
     setSlide(next);
     setSlideImage(imageUrl);
     setSlideKey((value) => value + 1);
@@ -375,6 +494,9 @@ export default function TvPage() {
   }, []);
 
   const showWelcome = useCallback(() => {
+    welcomeRef.current = true;
+    longEnterUntilRef.current = 0;
+    setLongEnter(false);
     setWelcome(true);
     setSlide(null);
     setSlideImage(undefined);
@@ -390,7 +512,13 @@ export default function TvPage() {
 
   const handleAulaMessage = useCallback(
     (message: AulaMessage) => {
+      /* A restored quiz snapshot (after an F5) wins over the teacher hello:
+         slides/welcome must not pull the projector out of a running quiz. */
+      const quizActive = quizRoomRef.current !== null;
+
       if (message.type === 'welcome') {
+        if (quizActive) return;
+        if (message.welcome) setWelcomeContent(message.welcome);
         quizRoomRef.current = null;
         setQuizRoom(null);
         forgetLive();
@@ -399,6 +527,7 @@ export default function TvPage() {
       }
 
       if (message.type === 'slide') {
+        if (quizActive) return;
         quizRoomRef.current = null;
         setQuizRoom(null);
         applySlide(message.slide, message.imageUrl);
@@ -406,7 +535,10 @@ export default function TvPage() {
       }
 
       if (message.type === 'quiz') {
+        clearSavedQuizState();
         forgetLive();
+        welcomeRef.current = false;
+        setLongEnter(false);
         setWelcome(false);
         setSlide(null);
         setSlideImage(undefined);
@@ -416,8 +548,11 @@ export default function TvPage() {
       }
 
       if (message.type === 'quizEnd') {
+        /* The teacher left the quiz: the saved snapshot is no longer valid. */
+        clearSavedQuizState();
         quizRoomRef.current = null;
         setQuizRoom(null);
+        forgetLive();
         return;
       }
 
@@ -428,6 +563,11 @@ export default function TvPage() {
           quizRoomRef.current = message.quiz;
           setQuizRoom(message.quiz);
         } else {
+          /* The aula channel says the quiz ended: clear the F5 snapshot. */
+          if (quizRoomRef.current) {
+            clearSavedQuizState();
+            forgetLive();
+          }
           quizRoomRef.current = null;
           setQuizRoom(null);
         }
@@ -439,6 +579,7 @@ export default function TvPage() {
   const handleLiveMessage = useCallback((message: HostToPlayerMessage) => {
     switch (message.kind) {
       case 'lobby':
+        clearSavedQuizState();
         setLivePhase('lobby');
         setLiveQuestion(null);
         setLiveReveal(null);
@@ -450,23 +591,79 @@ export default function TvPage() {
         setLiveGameover(null);
         setClock(Date.now());
         setLivePhase('question');
+        if (quizRoomRef.current) {
+          saveQuizState({
+            code: quizRoomRef.current,
+            mode: 'question',
+            payload: message,
+            savedAt: Date.now(),
+          });
+        }
         break;
       case 'reveal':
         setLiveReveal(message);
         setLivePhase('reveal');
+        if (quizRoomRef.current) {
+          saveQuizState({
+            code: quizRoomRef.current,
+            mode: 'reveal',
+            payload: message,
+            savedAt: Date.now(),
+          });
+        }
         break;
       case 'gameover':
+        clearSavedQuizState();
         setLiveGameover({ leaderboard: message.leaderboard });
         setLivePhase('gameover');
         break;
       case 'roomclosed':
+        clearSavedQuizState();
         quizRoomRef.current = null;
         setQuizRoom(null);
         break;
     }
   }, []);
 
-  /* Boot: read ?c=CODE, watch fullscreen. */
+  /**
+   * Restores the last quiz snapshot after a projector refresh. Only the same
+   * room and snapshots younger than 10 minutes are accepted; the countdown is
+   * recomputed from `startedAt + timeoutMs`, so it never restarts from zero.
+   */
+  const restoreQuizState = useCallback((sessionCode: string) => {
+    const saved = readSavedQuizState(sessionCode);
+    if (!saved) return;
+
+    quizRoomRef.current = saved.code;
+    setQuizRoom(saved.code);
+    welcomeRef.current = false;
+    setWelcome(false);
+
+    const payload = saved.payload;
+    if (payload.kind === 'question') {
+      setLiveQuestion(payload);
+      setLiveReveal(null);
+      setLiveGameover(null);
+      setClock(Date.now());
+      setLivePhase('question');
+      return;
+    }
+    if (payload.kind === 'reveal') {
+      setLiveReveal(payload);
+      setLiveQuestion(null);
+      setLiveGameover(null);
+      setLivePhase('reveal');
+      return;
+    }
+    if (payload.kind === 'gameover') {
+      setLiveGameover({ leaderboard: payload.leaderboard });
+      setLiveQuestion(null);
+      setLiveReveal(null);
+      setLivePhase('gameover');
+    }
+  }, []);
+
+  /* Boot: read ?c=CODE, watch fullscreen, restore a saved quiz. */
   useEffect(() => {
     setMounted(true);
     setOrigin(window.location.origin);
@@ -476,18 +673,22 @@ export default function TvPage() {
     if (initial) {
       setCode(initial);
       setCodeInput(initial);
+      restoreQuizState(initial);
     }
 
     const onFullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, []);
+  }, [restoreQuizState]);
 
   /* Aula channel: slides + quiz switches. */
   useEffect(() => {
     if (!code) return;
 
     let active = true;
+    if (!tvPresenceIdRef.current) {
+      tvPresenceIdRef.current = `tv-${Math.random().toString(36).slice(2, 10)}`;
+    }
 
     const handle = createAulaChannel(code, {
       onMessage: (message) => {
@@ -501,6 +702,8 @@ export default function TvPage() {
       onSubscribed: () => {
         if (!active) return;
         setRealtimeMissing(false);
+        /* Presence is how `/aula` knows the projector is actually open. */
+        aulaChannelRef.current?.track({ role: 'tv', id: tvPresenceIdRef.current });
         aulaChannelRef.current?.send({ type: 'hello' });
       },
     });
@@ -585,6 +788,7 @@ export default function TvPage() {
 
     setCodeError('');
     setCodeInput(next);
+    setWelcomeContent(null);
     showWelcome();
     quizRoomRef.current = null;
     setQuizRoom(null);
@@ -611,6 +815,9 @@ export default function TvPage() {
   }, []);
 
   const joinUrl = quizRoom && origin ? `${origin}/join?code=${quizRoom}` : '';
+  const welcomeTitle = welcomeContent?.title || AULA_WELCOME_FALLBACK.title;
+  const welcomeMessage = welcomeContent?.message || AULA_WELCOME_FALLBACK.message;
+  const welcomeMessage2 = welcomeContent?.message2 || AULA_WELCOME_FALLBACK.message2;
 
   if (!mounted) {
     return (
@@ -715,23 +922,25 @@ export default function TvPage() {
             className="aula-enter flex h-full flex-col items-center justify-center gap-[clamp(1rem,2.4vw,2rem)] px-6 text-center"
           >
             <p className="text-[clamp(0.9rem,1.4vw,1.3rem)] font-black uppercase tracking-[0.32em] text-[var(--accent)]">
-              Supp · Aula
+              A aula vai começar!
             </p>
             <h1 className="text-[clamp(3.2rem,9vw,8rem)] font-black leading-none text-[var(--ink)]">
-              Bem vindos!
+              {welcomeTitle}
             </h1>
             <p className="text-[clamp(1.1rem,2.4vw,2.6rem)] font-bold leading-tight text-balance text-[var(--ink)]">
-              Que bom ter você aqui. Hoje a aula é no Supp.
+              {welcomeMessage}
             </p>
             <p className="text-[clamp(0.95rem,1.7vw,1.8rem)] font-semibold leading-tight text-balance text-[var(--muted)]">
-              Preparem-se para testar o Supp junto com o professor!
+              {welcomeMessage2}
             </p>
           </div>
         ) : slide ? (
           <div className="flex h-full w-full items-center justify-center p-3 sm:p-5">
             <div
               key={slideKey}
-              className="aula-enter aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-[var(--surface)] shadow-2xl"
+              className={`${
+                longEnter ? 'aula-enter-long' : 'aula-enter'
+              } aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-[var(--surface)] shadow-2xl`}
               style={{ maxWidth: 'min(100%, calc(177.78dvh - 9.4rem))' }}
             >
               <SlideView slide={slide} variant="tv" imageUrl={slideImage} />

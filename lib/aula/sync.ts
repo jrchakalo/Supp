@@ -3,7 +3,8 @@ import type { Slide } from '../passaporte-lessons';
 
 /**
  * Realtime link between the teacher screen (`/aula`) and the projector
- * (`/tv`). It is a plain broadcast channel — no presence, no persistence.
+ * (`/tv`). It is a plain broadcast channel plus presence: the projector tracks
+ * `{ role: 'tv' }` so the teacher knows whether a screen is actually connected.
  *
  * The teacher is the single source of truth: it broadcasts the current slide
  * and the quiz state. A freshly-opened `/tv` says `hello`; the teacher replies
@@ -41,9 +42,25 @@ export type AulaSlideMessage = {
   imageUrl?: string;
 };
 
+/** Texts rendered on the welcome screen (teacher + projector). */
+export type AulaWelcomeContent = {
+  title: string;
+  message: string;
+  message2: string;
+};
+
+/** Generic welcome copy used when the lesson data has no `welcome` field. */
+export const AULA_WELCOME_FALLBACK: AulaWelcomeContent = {
+  title: 'Bem vindos!',
+  message: 'Que bom ter você aqui. A aula já vai começar.',
+  message2: 'Deixe o telão aberto e acompanhe com o professor.',
+};
+
 /** Pre-class screen: the TV shows the welcome message until the first slide. */
 export type AulaWelcomeMessage = {
   type: 'welcome';
+  /** Lesson welcome copy, so `/tv` does not need the lesson data. */
+  welcome?: AulaWelcomeContent;
 };
 
 export type AulaQuizMessage = {
@@ -89,6 +106,13 @@ export type AulaConnectionStatus =
   | 'closed'
   | 'offline';
 
+export type AulaPresenceMember = {
+  /** `tv` for the projector; other roles are ignored by the teacher screen. */
+  role: 'tv' | 'teacher' | string;
+  /** Per-tab identifier, so two projectors can coexist. */
+  id?: string;
+};
+
 export type AulaChannelHandlers = {
   /** Any message broadcast on the channel. */
   onMessage?: (message: AulaMessage) => void;
@@ -96,11 +120,15 @@ export type AulaChannelHandlers = {
   onStatus?: (status: AulaConnectionStatus) => void;
   /** Fired on every successful subscribe, including reconnects. */
   onSubscribed?: () => void;
+  /** Presence snapshot (join/leave/sync) for this channel. */
+  onPresence?: (members: AulaPresenceMember[]) => void;
 };
 
 export type AulaChannel = {
   code: string;
   send: (message: AulaMessage) => void;
+  /** Announces this client on the channel presence. */
+  track: (member: AulaPresenceMember) => void;
   remove: () => void;
 };
 
@@ -121,16 +149,41 @@ export function createAulaChannel(
 
   handlers.onStatus?.('connecting');
 
-  const channel = client.channel(aulaChannelName(code));
+  const channel = client.channel(aulaChannelName(code), {
+    config: {
+      presence: { key: `aula-${Math.random().toString(36).slice(2, 10)}` },
+    },
+  });
+
+  const emitPresence = () => {
+    if (!handlers.onPresence) return;
+    const state = channel.presenceState() as Record<
+      string,
+      Array<Record<string, unknown>>
+    >;
+    const members: AulaPresenceMember[] = [];
+    for (const metas of Object.values(state)) {
+      const meta = metas[0];
+      if (meta && typeof meta.role === 'string') {
+        members.push({
+          role: meta.role,
+          id: typeof meta.id === 'string' ? meta.id : undefined,
+        });
+      }
+    }
+    handlers.onPresence(members);
+  };
 
   channel
     .on('broadcast', { event: AULA_EVENT }, ({ payload }) => {
       handlers.onMessage?.(payload as AulaMessage);
     })
+    .on('presence', { event: 'sync' }, emitPresence)
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         handlers.onStatus?.('connected');
         handlers.onSubscribed?.();
+        emitPresence();
         return;
       }
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -150,6 +203,9 @@ export function createAulaChannel(
         event: AULA_EVENT,
         payload: message,
       });
+    },
+    track: (member: AulaPresenceMember) => {
+      void channel.track(member);
     },
     remove: () => {
       void client.removeChannel(channel);

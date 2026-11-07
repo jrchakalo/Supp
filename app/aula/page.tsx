@@ -29,6 +29,7 @@ import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
 import {
   AULA_GATE_STORAGE,
   AULA_SESSION_STORAGE,
+  AULA_WELCOME_FALLBACK,
   PASSAPORTE_GATE_CODE,
   createAulaChannel,
   type AulaChannel,
@@ -87,17 +88,23 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-function ConnectionPill({ status }: { status: AulaConnectionStatus }) {
+function ConnectionPill({
+  status,
+  tvOnline,
+}: {
+  status: AulaConnectionStatus;
+  tvOnline: boolean;
+}) {
   const meta =
-    status === 'connected'
-      ? { dot: 'bg-emerald-400', label: 'Telão conectado' }
-      : status === 'connecting'
-        ? { dot: 'bg-amber-400 animate-pulse', label: 'Conectando…' }
-        : status === 'error'
-          ? { dot: 'bg-red-400 animate-pulse', label: 'Reconectando…' }
-          : status === 'offline'
-            ? { dot: 'bg-amber-500', label: 'Realtime off' }
-            : { dot: 'bg-slate-500', label: 'Sem conexão' };
+    status === 'offline'
+      ? { dot: 'bg-amber-500', label: 'Realtime off' }
+      : status === 'error'
+        ? { dot: 'bg-red-400 animate-pulse', label: 'Reconectando…' }
+        : status === 'closed'
+          ? { dot: 'bg-slate-500', label: 'Aguardando telão' }
+          : tvOnline
+            ? { dot: 'bg-emerald-400', label: 'Telão conectado' }
+            : { dot: 'bg-slate-500', label: 'Aguardando telão' };
 
   return (
     <span className="flex items-center gap-2 rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--muted)]">
@@ -131,6 +138,8 @@ export default function AulaPage() {
   const [imageInput, setImageInput] = useState('');
 
   const [connection, setConnection] = useState<AulaConnectionStatus>('idle');
+  /** True only while a projector (`role: 'tv'`) is present on the channel. */
+  const [tvOnline, setTvOnline] = useState(false);
   const [copied, setCopied] = useState<'code' | 'url' | null>(null);
   const [liveQuizCode, setLiveQuizCode] = useState<string | null>(null);
   const [hostUrl, setHostUrl] = useState('');
@@ -258,7 +267,7 @@ export default function AulaPage() {
       if (savedQuiz) {
         setLiveQuizCode(savedQuiz);
         setHostUrl(
-          `${window.location.origin}/host?deck=${encodeURIComponent(lesson.deckId)}&room=${savedQuiz}&lang=pt`
+          `${window.location.origin}/host?deck=${encodeURIComponent(lesson.deckId)}&room=${savedQuiz}&lang=pt&start=1`
         );
       }
 
@@ -313,7 +322,7 @@ export default function AulaPage() {
       if (!lesson) return;
 
       if (phaseRef.current === 'welcome') {
-        channelRef.current?.send({ type: 'welcome' });
+        channelRef.current?.send({ type: 'welcome', welcome: lesson.welcome });
         return;
       }
 
@@ -345,16 +354,25 @@ export default function AulaPage() {
         syncTv();
       },
       onStatus: (status) => {
-        if (active) setConnection(status);
+        if (!active) return;
+        setConnection(status);
+        if (status === 'error' || status === 'closed' || status === 'offline') {
+          setTvOnline(false);
+        }
       },
       onSubscribed: () => {
         if (!active) return;
         syncTv();
       },
+      onPresence: (members) => {
+        if (!active) return;
+        setTvOnline(members.some((member) => member.role === 'tv'));
+      },
     });
 
     if (!handle) {
       setConnection('offline');
+      setTvOnline(false);
       return;
     }
 
@@ -531,6 +549,7 @@ export default function AulaPage() {
     setLiveQuizCode(null);
     setHostUrl('');
     setConnection('connecting');
+    setTvOnline(false);
     setTvUrl(`${window.location.origin}/tv?c=${code}`);
   }, []);
 
@@ -567,6 +586,7 @@ export default function AulaPage() {
     setHostUrl('');
     setQuizModalOpen(false);
     setConnection('idle');
+    setTvOnline(false);
   }, []);
 
   const logout = useCallback(() => {
@@ -650,6 +670,7 @@ export default function AulaPage() {
         seconds: String(seconds),
         auto: autoAdvance ? '1' : '0',
         lang: 'pt',
+        start: '1',
       });
       const url = `${window.location.origin}/host?${params.toString()}`;
       liveQuizRef.current = sessionCode;
@@ -865,6 +886,10 @@ export default function AulaPage() {
   /* Render: welcome (pre-class)                                         */
   /* ------------------------------------------------------------------ */
 
+  const welcomeTitle = activeLesson.welcome?.title || AULA_WELCOME_FALLBACK.title;
+  const welcomeMessage = activeLesson.welcome?.message || AULA_WELCOME_FALLBACK.message;
+  const welcomeMessage2 = activeLesson.welcome?.message2 || AULA_WELCOME_FALLBACK.message2;
+
   if (phase === 'welcome') {
     return (
       <main className="theme-dark game-shell min-h-dvh px-4 py-6 text-[var(--ink)] sm:px-8">
@@ -872,7 +897,7 @@ export default function AulaPage() {
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--accent)]">
-                Supp · Aula de hoje
+                A aula vai começar!
               </p>
               <h1 className="mt-1 text-lg font-black leading-tight sm:text-xl">
                 {activeLesson.title}
@@ -882,7 +907,7 @@ export default function AulaPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <ConnectionPill status={connection} />
+              <ConnectionPill status={connection} tvOnline={tvOnline} />
               <button
                 type="button"
                 onClick={endSession}
@@ -906,17 +931,14 @@ export default function AulaPage() {
 
           <section className="rounded-3xl border-2 border-[var(--line)] bg-[var(--surface)] p-6 shadow-[var(--card-shadow)] sm:p-10">
             <div className="text-center">
-              <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[var(--accent)]">
-                A aula vai começar
-              </p>
-              <h2 className="mt-2 text-[clamp(2.6rem,7vw,5rem)] font-black leading-none">
-                Bem vindos!
+              <h2 className="text-[clamp(2.6rem,7vw,5rem)] font-black leading-none">
+                {welcomeTitle}
               </h2>
               <p className="mt-4 text-lg font-bold text-[var(--ink)] sm:text-2xl">
-                Que bom ter você aqui. Hoje a aula é no Supp.
+                {welcomeMessage}
               </p>
               <p className="mt-2 text-sm font-semibold text-[var(--muted)] sm:text-base">
-                Preparem-se para testar o Supp junto com o professor!
+                {welcomeMessage2}
               </p>
             </div>
 
@@ -1019,7 +1041,7 @@ export default function AulaPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <ConnectionPill status={connection} />
+            <ConnectionPill status={connection} tvOnline={tvOnline} />
             <button
               type="button"
               onClick={logout}
@@ -1234,55 +1256,6 @@ export default function AulaPage() {
                         </div>
                       </section>
                     ) : null}
-
-                    {segment.id === 'cena' ? (
-                      <section className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)]/70 p-3">
-                        <h3 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
-                          <ImageIcon className="h-4 w-4" aria-hidden="true" />
-                          Imagem da cena
-                        </h3>
-                        <p className="mt-1 text-[11px] font-semibold text-[var(--muted)]">
-                          Cole o link de uma imagem (ex.: do Google Imagens). O telão só renderiza o
-                          link — nada é enviado ao servidor.
-                        </p>
-                        <form
-                          onSubmit={(event) => {
-                            event.preventDefault();
-                            applySceneImage(imageInput);
-                          }}
-                          className="mt-2 flex flex-col gap-2 sm:flex-row"
-                        >
-                          <input
-                            type="url"
-                            value={imageInput}
-                            onChange={(event) => setImageInput(event.target.value)}
-                            placeholder="https://…"
-                            aria-label="URL da imagem da cena"
-                            className="min-w-0 flex-1 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              type="submit"
-                              className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
-                            >
-                              Mostrar na TV
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => applySceneImage('')}
-                              className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
-                            >
-                              Limpar
-                            </button>
-                          </div>
-                        </form>
-                        <p className="mt-2 text-[11px] font-semibold text-[var(--muted)]">
-                          {imageUrls[beatIndex]
-                            ? 'Imagem ativa neste beat. Ela acompanha o slide ao navegar.'
-                            : 'Nenhuma imagem neste beat.'}
-                        </p>
-                      </section>
-                    ) : null}
                   </>
                 ) : null}
 
@@ -1326,14 +1299,64 @@ export default function AulaPage() {
                 ) : null}
               </div>
 
-              {/* Slide preview */}
-              <div className="min-w-0">
-                <div className="aspect-video w-full overflow-hidden rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)]">
+              {/* Scene image + slide preview */}
+              <div className="min-w-0 space-y-3">
+                {mode === 'lesson' && segment?.id === 'cena' ? (
+                  <section className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)]/70 p-3">
+                    <h3 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
+                      <ImageIcon className="h-4 w-4" aria-hidden="true" />
+                      Imagem da cena
+                    </h3>
+                    <p className="mt-1 text-[11px] font-semibold text-[var(--muted)]">
+                      Cole o link de uma imagem (ex.: do Google Imagens). O telão só renderiza o
+                      link — nada é enviado ao servidor.
+                    </p>
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        applySceneImage(imageInput);
+                      }}
+                      className="mt-2 flex flex-col gap-2 sm:flex-row"
+                    >
+                      <input
+                        type="url"
+                        value={imageInput}
+                        onChange={(event) => setImageInput(event.target.value)}
+                        placeholder="https://…"
+                        aria-label="URL da imagem da cena"
+                        className="min-w-0 flex-1 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
+                        >
+                          Mostrar na TV
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => applySceneImage('')}
+                          className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </form>
+                    <p className="mt-2 text-[11px] font-semibold text-[var(--muted)]">
+                      {imageUrls[beatIndex]
+                        ? 'Imagem ativa neste beat. Ela acompanha o slide ao navegar.'
+                        : 'Nenhuma imagem neste beat.'}
+                    </p>
+                  </section>
+                ) : null}
+
+                <div className="max-h-[clamp(18rem,72vh,46rem)] w-full overflow-y-auto rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)]">
                   {currentSlide ? (
                     <SlideView
                       slide={currentSlide}
                       variant="preview"
                       imageUrl={mode === 'lesson' ? imageUrls[beatIndex] : undefined}
+                      className="min-h-[clamp(14rem,40vh,28rem)]"
                     />
                   ) : null}
                 </div>

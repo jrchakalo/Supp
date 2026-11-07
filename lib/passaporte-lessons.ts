@@ -70,6 +70,13 @@ export type Segment = {
   slides: Slide[];
 };
 
+/** Texts shown on the welcome screen before the lesson starts. */
+export type LessonWelcome = {
+  title: string;
+  message: string;
+  message2: string;
+};
+
 export type Lesson = {
   id: string;
   deckId: string;
@@ -78,6 +85,8 @@ export type Lesson = {
   date: string;
   totalMin: number;
   segments: Segment[];
+  /** Optional welcome copy coming from the lesson data (Supabase). */
+  welcome?: LessonWelcome;
 };
 
 export type QuizDeck = { id: string; title: string; questions: LiveQuestion[] };

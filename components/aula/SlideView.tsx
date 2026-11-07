@@ -217,7 +217,8 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
           </p>
           <ul
             className={clsx(
-              'flex min-h-0 flex-1 flex-col justify-center',
+              'flex flex-col',
+              tv ? 'min-h-0 flex-1 justify-center' : 'justify-start',
               tv ? 'mt-4 gap-[clamp(0.5rem,1.2vw,1.2rem)]' : 'mt-2 gap-1.5'
             )}
           >
@@ -410,7 +411,6 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
     case 'quiz':
       return (
         <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-          <p className={eyebrowCls}>Quiz valendo · Supp</p>
           <h1
             className={clsx(
               'font-black leading-none text-balance text-[var(--ink)]',
@@ -574,7 +574,9 @@ export default function SlideView({ slide, variant = 'preview', className, image
         className
       )}
     >
-      <SlideBody slide={slide} tv={tv} imageUrl={imageUrl} />
+      <div className={clsx('flex w-full flex-1 flex-col', tv && 'min-h-0')}>
+        <SlideBody slide={slide} tv={tv} imageUrl={imageUrl} />
+      </div>
     </section>
   );
 }
