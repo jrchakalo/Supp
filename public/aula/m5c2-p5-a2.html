@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AULA 2 · P5 · Do Lixo ao Luxo — Telão</title>
+<style>
+  :root{
+    --bg:#0b1020; --card:#141b31; --ink:#e8ecf8; --muted:#9aa7c7;
+    --accent:#38bdf8; --accent2:#a3e635; --danger:#f87171; --ok:#34d399;
+    --code-bg:#0a0f1f; --code-ink:#d6e2ff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:radial-gradient(1200px 800px at 20% -10%,#1b2545 0%,var(--bg) 55%);
+    color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    display:flex;flex-direction:column;min-height:100vh}
+  header{display:flex;align-items:center;gap:16px;padding:18px 28px;border-bottom:1px solid #24304f}
+  header h1{font-size:20px;margin:0;letter-spacing:.3px}
+  header .tag{font-size:13px;color:var(--muted)}
+  main{flex:1;padding:26px 32px;overflow:auto}
+  .slide{display:none;max-width:1280px;margin:0 auto}
+  .slide.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h2{font-size:clamp(26px,3.4vw,44px);margin:0 0 6px;line-height:1.1}
+  h2 .k{color:var(--accent)}
+  .sub{color:var(--muted);font-size:clamp(15px,1.5vw,20px);margin-bottom:22px}
+  .card{background:var(--card);border:1px solid #24304f;border-radius:16px;padding:22px 24px;margin:14px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:1000px){.grid2{grid-template-columns:1fr}}
+  ul{margin:8px 0 0;padding-left:22px;font-size:clamp(16px,1.6vw,22px);line-height:1.55}
+  li{margin:6px 0}
+  .big{font-size:clamp(20px,2.2vw,30px);line-height:1.4}
+  .hl{color:var(--accent2);font-weight:700}
+  .danger{color:var(--danger);font-weight:700}
+  .ok{color:var(--ok);font-weight:700}
+  pre{margin:0;background:var(--code-bg);border:1px solid #223058;border-radius:14px;
+    padding:20px 22px;overflow:auto;color:var(--code-ink);
+    font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;
+    font-size:clamp(14px,1.45vw,20px);line-height:1.55}
+  .cmt{color:#7c8db5}
+  .kw{color:#c084fc}
+  .str{color:#a3e635}
+  .fn{color:#67e8f9}
+  table{width:100%;border-collapse:collapse;font-size:clamp(14px,1.35vw,19px)}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #24304f;vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:.92em}
+  .chip{display:inline-block;padding:4px 10px;border-radius:999px;background:#1d2947;color:var(--accent);
+    font-size:14px;font-weight:600;margin-right:8px}
+  footer{display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:14px 28px;border-top:1px solid #24304f;color:var(--muted);font-size:14px}
+  nav{display:flex;gap:8px}
+  button{background:#1d2947;color:var(--ink);border:1px solid #2c3c63;border-radius:10px;
+    padding:9px 14px;font-size:15px;cursor:pointer}
+  button:hover{background:#24345c}
+  .dots{display:flex;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#2a3a61}
+  .dot.on{background:var(--accent)}
+  .exemplo{background:linear-gradient(135deg,#13203b,#101a31);border-left:4px solid var(--accent);padding:16px 18px;border-radius:10px}
+  .alert{background:#2a1b1b;border:1px solid #5b2b2b;color:#ffd7d7;padding:14px 16px;border-radius:12px}
+  .pill{display:inline-block;background:#0f2033;border:1px solid #1e3a5c;color:#7dd3fc;border-radius:8px;padding:2px 8px;font-size:.85em}
+  .numero{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;
+    background:var(--accent);color:#06121f;font-weight:800;margin-right:10px;font-size:18px}
+  kbd{background:#1d2947;border:1px solid #2c3c63;border-bottom-width:2px;border-radius:6px;padding:1px 7px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>💻 AULA 2 · Coding 2 · P5 — Do Lixo ao Luxo</h1>
+  <span class="tag">Roblox Studio · Desafio 2 — o desperdício desaparece</span>
+</header>
+
+<main id="stage">
+  <!-- 1 -->
+  <section class="slide active">
+    <h2>Hoje o desperdício <span class="k">desaparece</span>.</h2>
+    <p class="sub">Aula 2 · Imaginar/Investigar · ODS 12 — Consumo e Produção Responsável</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>O que vamos fazer</h3>
+        <ul>
+          <li>🔍 Investigar a <b>causa raiz</b> do desperdício</li>
+          <li>⚡ Quiz no Supp (12 perguntas)</li>
+          <li>💻 Código: objeto some ao tocar</li>
+          <li>📺 Missão de Hoje 2 — em sala</li>
+          <li>🧩 Nível 2: o lixo foge de você</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Regra de ouro de hoje</h3>
+        <p class="big">Não é sobre <i>onde</i> o problema aparece. É sobre <b class="hl">por que</b> ele aparece.</p>
+        <p class="sub" style="margin:0">Pergunte "por quê?" três vezes e você chega na raiz.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <h2>🔍 <span class="k">Cena do crime</span></h2>
+    <p class="sub">O que está errado nesta cena? Liste tudo o que você vê.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>Sintomas (o que vemos)</h3>
+        <ul>
+          <li>Lixo no chão</li>
+          <li>Comida estragada jogada fora</li>
+          <li>Rio sujo</li>
+          <li>Ar poluído</li>
+          <li>Desperdício de água e energia</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Pergunta de detetive</h3>
+        <p class="big">Qual desses problemas é o <b class="hl">mais grave</b>? Por quê?</p>
+        <p class="sub" style="margin:14px 0 0">Votação rápida: levante a mão para o seu voto.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <h2>🕵️ Caso 1 — <span class="k">A banana feia</span></h2>
+    <p class="sub">Um mercado joga fora 30% das bananas porque estão "feias", mesmo boas para comer.</p>
+    <div class="card">
+      <p class="big">Onde está a <b class="hl">CAUSA RAIZ</b>?</p>
+      <ul>
+        <li><b>A)</b> O caminhão amassou as bananas</li>
+        <li><b>B)</b> O mercado só compra e vende o que é "bonito" ✅</li>
+        <li><b>C)</b> As pessoas não gostam de banana</li>
+      </ul>
+    </div>
+    <div class="exemplo">A raiz não é a banana feia — é a <b>regra de aparência</b> do mercado. Mudando a regra, o desperdício cai.</div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <h2>🕵️ Caso 2 — <span class="k">A geladeira esquecida</span></h2>
+    <p class="sub">Uma família compra comida para a semana e, na sexta, metade está estragada.</p>
+    <div class="card">
+      <p class="big">Onde está a <b class="hl">CAUSA RAIZ</b>?</p>
+      <ul>
+        <li><b>A)</b> A comida estraga rápido</li>
+        <li><b>B)</b> A geladeira é pequena</li>
+        <li><b>C)</b> Compram sem planejar o que vão comer ✅</li>
+      </ul>
+    </div>
+    <div class="exemplo">Raiz = falta de planejamento. A solução não é comprar mais geladeira — é planejar antes de comprar.</div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <h2>🕵️ Caso 3 — <span class="k">O tamanho único</span></h2>
+    <p class="sub">Um restaurante serve porção gigante; os clientes deixam metade no prato.</p>
+    <div class="card">
+      <p class="big">Onde está a <b class="hl">CAUSA RAIZ</b>?</p>
+      <ul>
+        <li><b>A)</b> Os clientes não têm educação</li>
+        <li><b>B)</b> O modelo de porção não considera o apetite real ✅</li>
+        <li><b>C)</b> A comida é ruim</li>
+      </ul>
+    </div>
+    <div class="exemplo">Raiz = decisão de negócio, não o cliente. Quem resolve a causa muda o modelo, não culpa a pessoa.</div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide">
+    <h2>⚡ Quiz no Supp</h2>
+    <p class="sub">12 perguntas · entre no site com o código da sala</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>Como funciona</h3>
+        <ul>
+          <li>Entre pelo celular com o código que está na tela</li>
+          <li>Responda rápido: pontos por velocidade</li>
+          <li>Leia a explicação a cada revelação</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Regras</h3>
+        <ul>
+          <li>Sem cola — mão em cima da mesa</li>
+          <li>Quem erra não é punido: explica para a turma</li>
+          <li>TOP 3 do ranking leva o aplauso</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide">
+    <h2>💻 Coding — <span class="k">passo a passo</span></h2>
+    <p class="sub">Todos fazem junto. Um passo por vez.</p>
+    <div class="card">
+      <ol class="big" style="line-height:1.7">
+        <li><span class="numero">1</span> Abra o <b>Roblox Studio</b> → <b>Meus Jogos</b> → projeto da turma</li>
+        <li><span class="numero">2</span> Toolbox → pesquise <span class="pill">banana</span> <span class="pill">pizza</span> <span class="pill">trash</span> → insira</li>
+        <li><span class="numero">3</span> Na <b>Explorer</b>: <b>+</b> ao lado da Parte → <b>Script</b> ⚠️ (não no Workspace!)</li>
+        <li><span class="numero">4</span> Apague o padrão e cole o código da próxima tela</li>
+        <li><span class="numero">5</span> <b>Play ▶</b> → corra até o objeto → ele some</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide">
+    <h2>💻 O código</h2>
+    <p class="sub">Leia com a turma ANTES de rodar: cada linha tem um trabalho.</p>
+    <pre><code><span class="kw">local</span> part = script.Parent
+
+<span class="kw">local function</span> <span class="fn">onTouch</span>(otherPart)
+    <span class="kw">local</span> character = otherPart.Parent
+    <span class="kw">if</span> character <span class="kw">and</span> character:<span class="fn">FindFirstChild</span>(<span class="str">"Humanoid"</span>) <span class="kw">then</span>
+        part:<span class="fn">Destroy</span>()
+    <span class="kw">end</span>
+<span class="kw">end</span>
+
+part.Touched:<span class="fn">Connect</span>(onTouch)</code></pre>
+    <table>
+      <tr><th style="width:42%">Linha</th><th>O que faz</th></tr>
+      <tr><td><code>local part = script.Parent</code></td><td>Guarda "o objeto onde estou dentro" na variável <b>part</b></td></tr>
+      <tr><td><code>local function onTouch(otherPart)</code></td><td>Cria a função que roda no toque; <b>otherPart</b> = quem tocou</td></tr>
+      <tr><td><code>local character = otherPart.Parent</code></td><td>Sobe um nível: de "a mão" para "o personagem"</td></tr>
+      <tr><td><code>if character and character:FindFirstChild("Humanoid")</code></td><td>Só continua se quem tocou for um personagem</td></tr>
+      <tr><td><code>part:Destroy()</code></td><td><b class="danger">Destrói o objeto</b> — o desperdício some</td></tr>
+      <tr><td><code>part.Touched:Connect(onTouch)</code></td><td>Liga o evento de toque à função (fica "ouvindo")</td></tr>
+    </table>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide">
+    <h2>🚨 Se não funcionar…</h2>
+    <p class="sub">90% dos problemas estão nesta tabela. Use antes de chamar o professor.</p>
+    <table>
+      <tr><th>Sintoma</th><th>Causa</th><th>Conserto</th></tr>
+      <tr><td>Nada acontece</td><td>Script fora da Parte</td><td>Apagar e inserir pelo <b>+ da Parte</b></td></tr>
+      <tr><td><code>attempt to index nil with 'FindFirstChild'</code></td><td>Quem tocou não é personagem / erro no <code>if</code></td><td>Conferir <code>if character and ...</code></td></tr>
+      <tr><td>Some ao iniciar, sem tocar</td><td>Script no objeto errado</td><td>Conferir <code>script.Parent</code></td></tr>
+      <tr><td>"Connect" sem efeito</td><td>Grafia errada</td><td><code>Connect</code> — C maiúsculo</td></tr>
+      <tr><td>Parte atravessa o chão</td><td>Não está Anchored</td><td>Propriedades → <b>Anchored = true</b></td></tr>
+    </table>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide">
+    <h2>📺 Missão de Hoje 2 — <span class="k">em sala</span></h2>
+    <p class="sub">Assista ao vídeo na plataforma e faça junto, agora.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>O que fazer</h3>
+        <ol class="big" style="line-height:1.7">
+          <li>Assistir ao vídeo "Alterando a Aparência"</li>
+          <li>Mudar a cor do chão ou da parede</li>
+          <li>Aplicar uma textura no cenário</li>
+          <li>Print do antes/depois no grupo</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3>Por quê</h3>
+        <p class="big">Alimento estraga e muda de cor. O cenário também muda. Você está usando o mesmo recurso — a favor do jogo.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide">
+    <h2>🧩 Nível 2 — o lixo <span class="k">foge</span></h2>
+    <p class="sub">Junte o movimento da Aula 1 com o destroy de hoje. Faça junto, linha por linha.</p>
+    <pre><code><span class="kw">local</span> part = script.Parent
+part.Anchored = <span class="kw">true</span>
+
+<span class="kw">local function</span> <span class="fn">onTouch</span>(otherPart)
+    <span class="kw">local</span> character = otherPart.Parent
+    <span class="kw">if</span> character <span class="kw">and</span> character:<span class="fn">FindFirstChild</span>(<span class="str">"Humanoid"</span>) <span class="kw">then</span>
+        part:<span class="fn">Destroy</span>()
+    <span class="kw">end</span>
+<span class="kw">end</span>
+
+part.Touched:<span class="fn">Connect</span>(onTouch)
+
+<span class="fn">task.spawn</span>(<span class="kw">function</span>()
+    <span class="kw">while</span> part.Parent <span class="kw">do</span>
+        <span class="kw">for</span> i = <span class="str">1</span>, <span class="str">40</span> <span class="kw">do</span>
+            part.Position = part.Position + <span class="fn">Vector3.new</span>(<span class="str">0</span>, <span class="str">0.1</span>, <span class="str">0</span>)
+            <span class="fn">task.wait</span>(<span class="str">0.05</span>)
+        <span class="kw">end</span>
+        <span class="kw">for</span> i = <span class="str">1</span>, <span class="str">40</span> <span class="kw">do</span>
+            part.Position = part.Position - <span class="fn">Vector3.new</span>(<span class="str">0</span>, <span class="str">0.1</span>, <span class="str">0</span>)
+            <span class="fn">task.wait</span>(<span class="str">0.05</span>)
+        <span class="kw">end</span>
+    <span class="kw">end</span>
+<span class="kw">end</span>)</code></pre>
+    <table>
+      <tr><th>Trecho</th><th>O que faz</th></tr>
+      <tr><td><code>part.Anchored = true</code></td><td>Trava a parte para o script controlar o movimento</td></tr>
+      <tr><td><code>task.spawn(function() … end)</code></td><td>Roda o movimento em paralelo, sem travar o jogo</td></tr>
+      <tr><td><code>while part.Parent do</code></td><td>Continua enquanto o objeto existir (para sozinho ao destruir)</td></tr>
+      <tr><td><code>+ Vector3.new(0, 0.1, 0)</code></td><td>Sobe 0,1 stud por passo (40 passos ≈ 4 studs em 2 s)</td></tr>
+      <tr><td><code>task.wait(0.05)</code></td><td>Espera 0,05 s entre os passos</td></tr>
+      <tr><td>segundo <code>for</code> com <code>-</code></td><td>Desce a mesma distância: sobe e desce em loop</td></tr>
+    </table>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide">
+    <h2>✅ Fechamento</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Responda em uma frase</h3>
+        <ul class="big">
+          <li>O que é <b>causa raiz</b>?</li>
+          <li>O que o script faz ao tocar?</li>
+          <li>Qual foi o erro mais comum hoje?</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Próxima aula</h3>
+        <p class="big">Sistema de <b class="hl">pontos</b> no jogo + <b class="hl">Círculo Dourado</b> (Por quê → Como → O quê).</p>
+        <p class="sub" style="margin:0">Quem chegar com o cenário alterado da Missão 2 começa com vantagem.</p>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Registro (2 min)</h3>
+      <p class="big">Mande no grupo: <b>print do jogo</b> + <b>1 frase</b> sobre a causa raiz que mais te surpreendeu.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="dots" id="dots"></div>
+  <nav>
+    <button onclick="go(-1)" aria-label="Anterior">←</button>
+    <button onclick="go(1)" aria-label="Próxima">→</button>
+    <button onclick="toggleFull()" aria-label="Tela cheia">⛶</button>
+  </nav>
+  <div><kbd>←</kbd> <kbd>→</kbd> para navegar · <kbd>F11</kbd> tela cheia</div>
+</footer>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  const dots = document.getElementById('dots');
+  let i = 0;
+  slides.forEach((_, idx) => {
+    const d = document.createElement('span');
+    d.className = 'dot' + (idx === 0 ? ' on' : '');
+    d.onclick = () => show(idx);
+    dots.appendChild(d);
+  });
+  function show(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    [...dots.children].forEach((d, idx) => d.classList.toggle('on', idx === i));
+    document.getElementById('stage').scrollTop = 0;
+  }
+  function go(delta){ show(i + delta); }
+  function toggleFull(){
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }
+  addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'f' || e.key === 'F') toggleFull();
+  });
+</script>
+</body>
+</html>

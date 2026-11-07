@@ -23,6 +23,7 @@ import { DIFFICULTIES } from '@/lib/game';
 import { localizeLiveQuestions, type Language } from '@/lib/i18n';
 import { HOST_COPY } from '@/lib/i18n/host-copy';
 import { categoryCopy, difficultyCopy } from '@/lib/i18n/game-copy';
+import { PASSAPORTE_DECKS, type PassaporteDeck } from '@/lib/passaporte-decks';
 import {
   channelNameFor,
   type HostToPlayerMessage,
@@ -127,6 +128,22 @@ function clearSavedSession() {
   removeStorage(HOST_SESSION_KEY);
 }
 
+/** Reads `?deck=<id>` on the client. Returns null during SSR or for unknown ids. */
+function readPassaporteDeckFromUrl(): PassaporteDeck | null {
+  if (typeof window === 'undefined') return null;
+  const requestedDeck = new URLSearchParams(window.location.search).get('deck');
+  if (!requestedDeck) return null;
+  if (!Object.prototype.hasOwnProperty.call(PASSAPORTE_DECKS, requestedDeck)) return null;
+  return PASSAPORTE_DECKS[requestedDeck];
+}
+
+/** The deck always runs the whole lesson; keep the rounds card in sync. */
+function initialQuestionCount(): 8 | 12 | 16 {
+  const count = readPassaporteDeckFromUrl()?.questions.length;
+  if (count === 8 || count === 12 || count === 16) return count;
+  return 12;
+}
+
 const ROUND_LENGTHS: { value: 8 | 12 | 16 }[] = [
   { value: 8 },
   { value: 12 },
@@ -149,6 +166,9 @@ export default function HostPage() {
   );
   const [mounted, setMounted] = useState(false);
   const [realtimeReady, setRealtimeReady] = useState(false);
+  const [passaporteDeck, setPassaporteDeck] = useState<PassaporteDeck | null>(
+    readPassaporteDeckFromUrl
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -195,7 +215,7 @@ export default function HostPage() {
 
   const [phase, setPhase] = useState<Phase>('setup');
   const [difficulty, setDifficulty] = useState<DifficultyId>('medium');
-  const [questionCount, setQuestionCount] = useState<8 | 12 | 16>(12);
+  const [questionCount, setQuestionCount] = useState<8 | 12 | 16>(initialQuestionCount);
   const [secondsPerQuestion, setSecondsPerQuestion] = useState<15 | 20 | 30>(20);
   const [showQuestionOnPlayer, setShowQuestionOnPlayer] = useState(true);
 
@@ -284,7 +304,16 @@ export default function HostPage() {
     );
   };
 
-  const canOpenRoom = mode !== 'classic' || categories.length > 0;
+  const clearPassaporteDeck = useCallback(() => {
+    setPassaporteDeck(null);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('deck')) return;
+    url.searchParams.delete('deck');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
+
+  const canOpenRoom = Boolean(passaporteDeck) || mode !== 'classic' || categories.length > 0;
 
   const broadcast = useCallback((payload: HostToPlayerMessage) => {
     lastHostMessageRef.current = payload;
@@ -523,10 +552,10 @@ export default function HostPage() {
   );
 
   const startGame = useCallback(() => {
-    const nextRun = localizeLiveQuestions(
-      buildQuestionRun(mode, difficulty, questionCount, categories),
-      language
-    );
+    const sourceQuestions = passaporteDeck
+      ? passaporteDeck.questions
+      : buildQuestionRun(mode, difficulty, questionCount, categories);
+    const nextRun = localizeLiveQuestions(sourceQuestions, language);
     if (nextRun.length === 0) return;
 
     runRef.current = nextRun;
@@ -535,7 +564,7 @@ export default function HostPage() {
     setScores({});
     revealedIdsRef.current = new Set();
     askQuestion(0);
-  }, [askQuestion, categories, difficulty, language, mode, questionCount]);
+  }, [askQuestion, categories, difficulty, language, mode, passaporteDeck, questionCount]);
 
   /* The question is read on the projector: enter fullscreen as the teacher hits play. */
   const enterFullscreen = useCallback(() => {
@@ -777,6 +806,32 @@ export default function HostPage() {
                 {copy.createRoomHelp}
               </p>
 
+              {passaporteDeck ? (
+                <div className="mt-6 rounded-2xl border-4 border-[var(--accent)] bg-[var(--surface-2)] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                        Baralho da aula
+                      </p>
+                      <p className="mt-1 text-base font-black text-[var(--ink)]">
+                        Aula do dia · {passaporteDeck.title} · {passaporteDeck.questions.length} perguntas
+                      </p>
+                      <p className="mt-1 text-[11px] font-medium text-[var(--muted)]">
+                        Este baralho substitui a seleção de dificuldade, temas e rodadas. O tempo por
+                        pergunta continua valendo.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearPassaporteDeck}
+                      className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                    >
+                      usar quiz padrão
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               {mode === 'classic' && (
                 <div className="mt-6">
                   <div className="flex items-center justify-between gap-3">
@@ -808,7 +863,7 @@ export default function HostPage() {
                       );
                     })}
                   </div>
-                  {categories.length === 0 && (
+                  {!passaporteDeck && categories.length === 0 && (
                     <p className="mt-2 rounded-xl border-2 border-[var(--danger)] px-3 py-2 text-[11px] font-bold text-[var(--danger)]">
                       {copy.selectTopic}
                     </p>
@@ -842,7 +897,11 @@ export default function HostPage() {
                     })}
                   </div>
                   <p className="mt-2 text-[11px] font-medium text-[var(--muted)]">
-                    {copy.questionsReady(getLiveDeck(mode, difficulty, categories).length)}
+                    {copy.questionsReady(
+                      passaporteDeck
+                        ? passaporteDeck.questions.length
+                        : getLiveDeck(mode, difficulty, categories).length
+                    )}
                   </p>
                 </div>
 
@@ -1036,7 +1095,7 @@ export default function HostPage() {
                     className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--tile-shadow)] disabled:opacity-50 sm:w-auto sm:min-w-56"
                   >
                     <Play className="h-5 w-5" aria-hidden="true" />
-                    {copy.start(questionCount)}
+                    {copy.start(passaporteDeck ? passaporteDeck.questions.length : questionCount)}
                   </button>
                 </div>
 
