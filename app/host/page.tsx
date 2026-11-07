@@ -144,6 +144,36 @@ function initialQuestionCount(): 8 | 12 | 16 {
   return 12;
 }
 
+/** Default delay between the reveal and the next question. */
+const REVEAL_ADVANCE_MS = 7000;
+/** Classroom mode (`?auto=1`) moves on a little faster. */
+const REVEAL_ADVANCE_CLASS_MS = 6000;
+
+/** Reads `?room=<code>`: a fixed room code for classroom use. */
+function readRoomCodeFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  const raw = new URLSearchParams(window.location.search).get('room');
+  if (!raw) return null;
+  return sanitizeRoomCode(raw);
+}
+
+/** Reads `?seconds=15|20|30`; anything else keeps the 20 s default. */
+function readSecondsFromUrl(): 15 | 20 | 30 | null {
+  if (typeof window === 'undefined') return null;
+  const raw = new URLSearchParams(window.location.search).get('seconds');
+  if (raw === '15' || raw === '20' || raw === '30') return Number(raw) as 15 | 20 | 30;
+  return null;
+}
+
+/** Reads `?auto=1` (on, 6 s) / `?auto=0` (off); absent keeps the default. */
+function readAutoFromUrl(): boolean | null {
+  if (typeof window === 'undefined') return null;
+  const raw = new URLSearchParams(window.location.search).get('auto');
+  if (raw === '1') return true;
+  if (raw === '0') return false;
+  return null;
+}
+
 const ROUND_LENGTHS: { value: 8 | 12 | 16 }[] = [
   { value: 8 },
   { value: 12 },
@@ -169,6 +199,8 @@ export default function HostPage() {
   const [passaporteDeck, setPassaporteDeck] = useState<PassaporteDeck | null>(
     readPassaporteDeckFromUrl
   );
+  /* `?room=CODE`: when present it wins over the random code and saved sessions. */
+  const [forcedRoomCode] = useState<string | null>(readRoomCodeFromUrl);
 
   useEffect(() => {
     setMounted(true);
@@ -216,10 +248,12 @@ export default function HostPage() {
   const [phase, setPhase] = useState<Phase>('setup');
   const [difficulty, setDifficulty] = useState<DifficultyId>('medium');
   const [questionCount, setQuestionCount] = useState<8 | 12 | 16>(initialQuestionCount);
-  const [secondsPerQuestion, setSecondsPerQuestion] = useState<15 | 20 | 30>(20);
+  const [secondsPerQuestion, setSecondsPerQuestion] = useState<15 | 20 | 30>(
+    () => readSecondsFromUrl() ?? 20
+  );
   const [showQuestionOnPlayer, setShowQuestionOnPlayer] = useState(true);
 
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(forcedRoomCode ?? '');
   const [joinUrl, setJoinUrl] = useState('');
 
   const [players, setPlayers] = useState<HostPlayer[]>([]);
@@ -335,7 +369,7 @@ export default function HostPage() {
     setStatus('connecting');
     const sanitizedPreferred =
       preferredCode && sanitizeRoomCode(preferredCode) ? preferredCode : null;
-    const roomCode = sanitizedPreferred ?? randomRoomCode();
+    const roomCode = forcedRoomCode ?? sanitizedPreferred ?? randomRoomCode();
     const channel = client.channel(channelNameFor(roomCode), {
       config: { presence: { key: randomId('host') } },
     });
@@ -422,7 +456,7 @@ export default function HostPage() {
           await channel.track({ name: 'HOST' });
         }
       });
-  }, [broadcast, liveConfig]);
+  }, [broadcast, forcedRoomCode, liveConfig]);
 
   useEffect(() => {
     return () => {
@@ -623,9 +657,15 @@ export default function HostPage() {
   const [revealCountdown, setRevealCountdown] = useState(7);
 
   /* Auto-advance: after the reveal the game moves on by itself. The host can
-     switch it off and drive Next question manually instead. ON by default. */
-  const [autoAdvance, setAutoAdvance] = useState(true);
-  const autoAdvanceRef = useRef(true);
+     switch it off and drive Next question manually instead. ON by default;
+     `?auto=0` (used by /aula) starts it OFF. */
+  const autoParam = readAutoFromUrl();
+  const [autoAdvance, setAutoAdvance] = useState(() => autoParam ?? true);
+  const autoAdvanceRef = useRef(autoParam ?? true);
+  /* `?auto=1` shortens the reveal → next delay; without it the 7 s default stays. */
+  const [revealAdvanceMs] = useState(() =>
+    autoParam ? REVEAL_ADVANCE_CLASS_MS : REVEAL_ADVANCE_MS
+  );
   const toggleAutoAdvance = useCallback((value: boolean) => {
     setAutoAdvance(value);
     autoAdvanceRef.current = value;
@@ -638,17 +678,21 @@ export default function HostPage() {
 
   useEffect(() => {
     if (phase !== 'reveal') return;
+    const delayMs = revealAdvanceMs;
+    const startCountdown = Math.max(Math.round(delayMs / 1000), 1);
     if (autoAdvanceRef.current) {
-      // Single source of truth for the 7 s jump (or ending the game).
+      // Single source of truth for the jump (or ending the game).
       if (advanceRef.current) window.clearTimeout(advanceRef.current);
       advanceRef.current = window.setTimeout(() => {
         advanceRef.current = null;
         nextQuestionRef.current?.();
-      }, 7000);
+      }, delayMs);
     }
-    setRevealCountdown(7);
+    setRevealCountdown(startCountdown);
     const interval = window.setInterval(() => {
-      setRevealCountdown(autoAdvanceRef.current ? (current) => Math.max(current - 1, 0) : 7);
+      setRevealCountdown(
+        autoAdvanceRef.current ? (current) => Math.max(current - 1, 0) : startCountdown
+      );
     }, 1000);
     return () => {
       window.clearInterval(interval);
@@ -659,7 +703,7 @@ export default function HostPage() {
         advanceRef.current = null;
       }
     };
-  }, [phase, autoAdvance]);
+  }, [phase, autoAdvance, revealAdvanceMs]);
 
   /* Ticker for the projected countdown bar. */
 
