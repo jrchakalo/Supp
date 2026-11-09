@@ -12,9 +12,9 @@
 
 ## Sobre
 
-**Supp** é uma plataforma de dinâmicas para sala de aula. O D20 foi o ponto de partida, mas o projeto cresceu: hoje ele reúne três formas de jogar, baralhos temáticos, competição eliminatória, salas multiplayer com QR code, interface bilíngue e eventos sazonais.
+**Supp** é uma plataforma de dinâmicas para sala de aula. O D20 foi o ponto de partida, mas o projeto cresceu: hoje ele reúne cinco formas de jogar, baralhos temáticos, competição eliminatória, salas multiplayer com QR code, interface bilíngue e eventos sazonais.
 
-- O **modo padrão** é o ponto de entrada: a tela inicial mostra apenas os modos (D20, Competição e Ao vivo), o acesso à sala e o botão de iniciar. Cada modo abre sua própria tela de configuração.
+- O **modo padrão** é o ponto de entrada: a tela inicial mostra os modos (D20, Roleta de temas, Competição, Passa ou Repassa e Ao vivo), o acesso à sala e o botão de iniciar. Cada modo abre sua própria tela de configuração.
 - Os **eventos especiais** ficam em uma área separada, acessível pelo botão no topo. Halloween já está disponível; Natal e Páscoa estão preparados para as próximas temporadas. A área de eventos tem um atalho para voltar aos jogos padrão.
 - A plataforma é **PT/EN**: a interface e o idioma das perguntas podem ser escolhidos de forma independente.
 - O tema **claro/escuro** é uma preferência dos jogos padrão, com claro como padrão. Os eventos especiais mantêm a personalização visual do próprio evento.
@@ -38,6 +38,16 @@ O professor rola um D20 de verdade e toca no número sorteado. O app revela uma 
 - Rodadas de 20 perguntas, com pontuação, sequência e melhor sequência.
 - Atalhos `T`/`F` (ou `V`/`F` em português), `Enter` para continuar e `Esc` para fechar.
 
+### Roleta de temas
+
+Uma roleta com os temas escolhidos pelo professor.
+
+- Tela de configuração própria: temas, dificuldade e idioma das perguntas.
+- A roleta anima o giro e sorteia um tema; em seguida abre uma pergunta de verdadeiro ou falso daquele tema.
+- As perguntas já usadas na rodada não se repetem até o deck do tema acabar.
+- Placar de acertos, número da rodada e botão de nova rodada.
+- Ótima para warm-up: um giro, uma pergunta, a aula continua.
+
 ### Competição
 
 Torneio eliminatório para a turma inteira.
@@ -50,6 +60,17 @@ Torneio eliminatório para a turma inteira.
 - Escadas **Fácil**, **Médio**, **Difícil** e **Progressivo**, com 6 ou 9 fases.
 - As configurações ficam salvas no navegador; a lista de alunos começa vazia em cada nova sessão.
 
+### Passa ou Repassa
+
+Quiz em equipes, no estilo passa ou repassa.
+
+- Duas equipes com nomes editáveis.
+- Meta de **5, 10 ou 15 pontos**.
+- As equipes se alternam em perguntas de verdadeiro ou falso, com 20 segundos por turno.
+- Quem acerta marca 1 ponto; quem erra ou deixa o tempo acabar passa a pergunta para a outra equipe tentar o repasse.
+- O repasse certo também vale 1 ponto.
+- Funciona no modo padrão e no Halloween.
+
 ### Ao vivo (Live)
 
 Sala multiplayer estilo quiz show, com o professor projetando a pergunta e os alunos respondendo no celular.
@@ -58,6 +79,8 @@ Sala multiplayer estilo quiz show, com o professor projetando a pergunta e os al
 - **/join**: o aluno entra com código ou QR, escolhe um apelido e responde com quatro botões coloridos. O tema e o modo do host são sincronizados automaticamente, inclusive no Halloween.
 - **Visual dos celulares:** o host escolhe entre **Pergunta + respostas** (texto completo, melhor para salas grandes) ou **Somente figuras** (apenas símbolos e cores).
 - **Fechar sala:** encerra a partida e devolve os alunos à tela de entrada do `/join` na hora, sem recarregar a página.
+- **Sem repetição:** o host guarda os IDs das perguntas já usadas em salas recentes e sorteia primeiro as que ainda não apareceram. A memória tem limite e pode ser limpa na configuração.
+- **Tradução em tempo real:** no modo inglês, a versão em português entra na metade do tempo, no telão e nos celulares.
 - Pontuação por velocidade: de 100 a 1.000 pontos conforme o tempo de resposta.
 - O host é a autoridade: escolhe as perguntas, calcula a pontuação e emite cada evento.
 - Fases `lobby → question → reveal → gameover`, com rejeição de respostas repetidas ou fora de fase.
@@ -89,21 +112,41 @@ Os cartões já estão reservados na área de eventos. A arquitetura de baralhos
 
 ## Temas e dificuldades
 
-O baralho padrão tem **87 perguntas de verdadeiro ou falso** em cinco temas:
+O baralho padrão tem **250 perguntas de verdadeiro ou falso** em dez temas,
+com **24 perguntas por tema** e o **Anime ampliado para 34**:
 
 | Tema | Conteúdo |
 | --- | --- |
-| **Jogos** | Minecraft, Roblox, Brawl Stars, Valorant, Free Fire, League of Legends |
-| **Anime** | Dragon Ball, Naruto, One Piece, My Hero Academia, Demon Slayer e outros |
-| **Cultura pop** | Filmes, séries, super-heróis e cultura pop |
-| **Animais ameaçados** | Espécies, habitats e conservação |
-| **Tecnologia** | Hardware, internet, Word, PowerPoint, Excel e curiosidades |
+| **Jogos** | Minecraft, Roblox, Brawl Stars, Free Fire, Mario, Pokémon |
+| **Anime** | Dragon Ball, Naruto, One Piece, Demon Slayer, JoJo, Attack on Titan, Jujutsu Kaisen, Nanatsu no Taizai, Haikyuu, Studio Ghibli |
+| **Cultura pop** | Marvel, DC, Disney, Star Wars, Harry Potter, filmes família |
+| **Tecnologia** | Partes do computador, internet, Word/Excel/PowerPoint, código e IA |
+| **Segurança digital** | Senhas, golpes, privacidade, cyberbullying e hábitos saudáveis |
+| **Ciência e espaço** | Corpo humano, planetas, experimentos e ciência do dia a dia |
+| **Natureza e animais** | Habitats, curiosidades animais e recordes do planeta |
+| **Brasil e folclore** | Regiões, cultura, comida, música e lendas brasileiras |
+| **Esportes** | Regras, recordes, Olimpíadas e atletas brasileiros |
+| **Lógica e enigmas** | Sequências, charadas, padrões e desafios de matemática |
 
-- **Fácil (25 perguntas)**, **Médio (30)** e **Difícil (32)**.
+- **Fácil (80 perguntas)**, **Médio (82)** e **Difícil (88)**.
 - Cada pergunta tem tema, dificuldade e tier, usados pela competição.
-- O Live do modo padrão usa um baralho próprio de **60 perguntas de múltipla escolha** (20 por dificuldade, 4 por tema).
-- Todas as perguntas de **Tecnologia** têm versão em português e inglês.
-- A seleção de temas é múltipla e vale para D20, Competição e Live.
+- O Live do modo padrão usa um baralho próprio de **343 perguntas de múltipla
+  escolha** (33 por tema, com o Anime em 46), com opções e explicações em
+  português e inglês.
+- O Live lembra as perguntas já usadas em salas recentes e as evita no próximo
+  sorteio. A memória fica no navegador e pode ser limpa na tela do host.
+- A opção **traduzir após metade do tempo** funciona no modo Live: a pergunta
+  aparece em inglês e a versão em português entra na metade do cronômetro, no
+  telão e nos celulares.
+- A seleção de temas é múltipla e vale para D20, Roleta, Competição, Passa ou
+  Repassa e Live. Temas mais infantis (natureza, ciência, jogos) e mais teens
+  (anime, segurança digital, lógica) podem ser ligados ou desligados conforme a
+  turma.
+- As perguntas de anime mais teens (JoJo, Attack on Titan, Jujutsu Kaisen,
+  Nanatsu no Taizai e Haikyuu) ficam no **médio e difícil**; quem trabalha com
+  os menores pode desligar o tema Anime ou ficar no fácil.
+- Quando um único tema não tem perguntas suficientes para as 20 rolagens do D20,
+  o app completa com os outros níveis do mesmo tema antes de repetir.
 
 ## Música
 
@@ -163,27 +206,32 @@ O baralho padrão tem **87 perguntas de verdadeiro ou falso** em cinco temas:
 
 ```
 app/
-  page.tsx                  Menu, eventos, D20, competição e orquestração das telas
+  page.tsx                  Menu, eventos, D20, roleta, competição, passa ou repassa e orquestração das telas
   host/page.tsx             Sala ao vivo — tela do professor
   join/page.tsx             Sala ao vivo — tela do aluno
   globals.css               Tokens de tema claro/escuro e cenário de Halloween
 components/
   D20Setup.tsx              Configuração do modo D20 (temas, dificuldade e idioma)
+  WheelSetup.tsx            Configuração da roleta de temas
+  WheelGame.tsx             Roleta animada e pergunta sorteada
   CompetitionSetup.tsx      Cadastro de alunos, temas, nível e idioma
   CompetitionGame.tsx       Partida eliminatória
+  PassaRepassaSetup.tsx     Configuração das equipes e meta de pontos
+  PassaRepassaGame.tsx      Partida em equipes com repasse
   QuestionModal.tsx         Pergunta, resposta e feedback bilíngue
   LanguageToggle.tsx        Seletor PT/EN
   ThemeToggle.tsx           Seletor claro/escuro
   VolumeControl.tsx         Controle de áudio
   HalloweenBackdrop.tsx     Cenário animado do evento
 lib/
+  questions/                Baralhos bilíngues por tema (T/F e múltipla escolha)
   classic-questions.ts      Baralho padrão T/F, temas, dificuldades e tiers
   classic-live-questions.ts Baralho padrão de múltipla escolha (Live)
   halloween-questions.ts    Baralho Halloween T/F
   live-questions.ts         Baralho Halloween de múltipla escolha (Live)
   i18n/                     Traduções PT/EN, textos de interface e helpers
   competition.ts            Fases, sorteio e regras da competição
-  live/                     Protocolo, sala e helpers do Supabase Realtime
+  live/                     Protocolo, sala, histórico e helpers do Supabase Realtime
   storage.ts                localStorage com migração das chaves antigas
   game.ts                   Baralhos, dificuldades e utilitários
 SECURITY.md                 Política de segurança e reporte

@@ -74,6 +74,57 @@ export type AulaQuizEndMessage = {
   type: 'quizEnd';
 };
 
+/** The teacher ended the lesson: `/tv` must go back to the connect screen. */
+export type AulaEndMessage = {
+  type: 'end';
+};
+
+/** Warm-up D20: a True/False statement rendered on the projector. */
+export type AulaD20Message = {
+  type: 'd20';
+  text: string;
+  answer: boolean;
+  explanation?: string;
+};
+
+/** Warm-up D20: the teacher revealed the answer. */
+export type AulaD20RevealMessage = {
+  type: 'd20Reveal';
+};
+
+/** One line of the class competition scoreboard. */
+export type AulaCompScore = {
+  name: string;
+  score: number;
+};
+
+/**
+ * Warm-up competition: the teacher shows the statement + scoreboard on the TV
+ * and marks the current student right/wrong before moving on.
+ */
+export type AulaCompMessage = {
+  type: 'comp';
+  student: string;
+  text: string;
+  answer: boolean;
+  explanation?: string;
+  revealed: boolean;
+  scores: AulaCompScore[];
+  round?: number;
+  totalRounds?: number;
+};
+
+/** Warm-up competition: final ranking, shown as the TV podium. */
+export type AulaCompEndMessage = {
+  type: 'compEnd';
+  ranking: AulaCompScore[];
+};
+
+/** Closes a D20/competition overlay so `/tv` accepts slides again. */
+export type AulaWarmupEndMessage = {
+  type: 'warmupEnd';
+};
+
 export type AulaHelloMessage = {
   type: 'hello';
 };
@@ -96,7 +147,13 @@ export type AulaMessage =
   | AulaQuizEndMessage
   | AulaHelloMessage
   | AulaStateMessage
-  | AulaWelcomeMessage;
+  | AulaWelcomeMessage
+  | AulaEndMessage
+  | AulaD20Message
+  | AulaD20RevealMessage
+  | AulaCompMessage
+  | AulaCompEndMessage
+  | AulaWarmupEndMessage;
 
 export type AulaConnectionStatus =
   | 'idle'

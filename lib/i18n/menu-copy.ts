@@ -20,6 +20,8 @@ const EN = {
   joinRoom: 'Join a live room',
   chooseModeToStart: 'Choose a mode to start',
   configureD20: 'Configure D20',
+  configureWheel: 'Configure the wheel',
+  setupPassa: 'Set up Pass or Play',
   d20SetupDescription:
     'Choose the topics, difficulty and question language before the round starts.',
   createLiveRoom: 'Create live room',
@@ -41,10 +43,20 @@ const EN = {
       tagline: 'One question at a time',
       description: 'Roll a real D20 and tap the number you rolled.',
     },
+    wheel: {
+      label: 'Topic wheel',
+      tagline: 'Spin and answer',
+      description: 'Spin a wheel with the topics and answer the selected question.',
+    },
     competition: {
       label: 'Competition',
       tagline: 'Knockout tournament',
       description: 'Register students and run the phase ladder.',
+    },
+    passa: {
+      label: 'Pass or Play',
+      tagline: 'Two-team quiz',
+      description: 'Two teams take turns and steal points on a miss.',
     },
     live: {
       label: 'Live',
@@ -54,20 +66,27 @@ const EN = {
   },
   titles: {
     d20: ['Can you', 'guess?'],
+    wheel: ['Topic', 'wheel'],
     competition: ['Competition'],
+    passa: ['Pass or', 'Play'],
     live: ['Live', 'room'],
     halloweenD20: ['Halloween', 'Trivia'],
     halloweenCompetition: ['Halloween', 'Competition'],
+    halloweenPassa: ['Halloween', 'Pass or Play'],
     halloweenLive: ['Halloween', 'Live'],
   },
   subtitles: {
     d20: 'Pick a mode, choose your topics and difficulty, then let the D20 decide.',
+    wheel: 'Spin the topic wheel and answer a true-or-false question from the selected topic.',
     competition: 'Register your students and run a knockout with the topics you selected.',
+    passa: 'Two teams, one question at a time. Answer correctly or pass the point to the other team.',
     live: 'Create a live room and let students answer on their phones with a code or QR.',
     halloweenD20:
       'Trick or treat! Pick a difficulty, roll a real D20 and answer the spooky true-or-false questions.',
     halloweenCompetition:
       'Register your students and run a Halloween knockout. Each phase asks one question per student.',
+    halloweenPassa:
+      'Two teams take turns with spooky questions. A miss lets the other team steal the point.',
     halloweenLive:
       'Create a live room and let students answer on their phones with a code or QR.',
   },
@@ -81,7 +100,7 @@ const EN = {
     comingSoon: 'Coming soon',
     openEvent: 'Open event',
     defaultGames: 'Default games',
-    defaultGamesDescription: 'D20 Roll, Competition and Live rooms.',
+    defaultGamesDescription: 'D20 Roll, Topic wheel, Competition, Pass or Play and Live rooms.',
     halloween: 'Halloween',
     halloweenDescription:
       'Spooky true-or-false, knockout competition and a live room with QR codes.',
@@ -127,6 +146,8 @@ const PT: MenuCopy = {
   joinRoom: 'Entrar em uma sala',
   chooseModeToStart: 'Escolha um modo para começar',
   configureD20: 'Configurar D20',
+  configureWheel: 'Configurar a roleta',
+  setupPassa: 'Configurar Passa ou Repassa',
   d20SetupDescription:
     'Escolha os temas, a dificuldade e o idioma das perguntas antes de começar a rodada.',
   createLiveRoom: 'Criar sala ao vivo',
@@ -148,10 +169,20 @@ const PT: MenuCopy = {
       tagline: 'Uma pergunta por vez',
       description: 'Role um D20 de verdade e toque no número sorteado.',
     },
+    wheel: {
+      label: 'Roleta de temas',
+      tagline: 'Gire e responda',
+      description: 'Gire uma roleta com os temas e responda à pergunta sorteada.',
+    },
     competition: {
       label: 'Competição',
       tagline: 'Torneio eliminatório',
       description: 'Cadastre os alunos e siga a escada de fases.',
+    },
+    passa: {
+      label: 'Passa ou Repassa',
+      tagline: 'Quiz em equipes',
+      description: 'Duas equipes se alternam e roubam pontos quando alguém erra.',
     },
     live: {
       label: 'Ao vivo',
@@ -161,20 +192,27 @@ const PT: MenuCopy = {
   },
   titles: {
     d20: ['Você consegue', 'adivinhar?'],
+    wheel: ['Roleta', 'de temas'],
     competition: ['Competição'],
+    passa: ['Passa ou', 'Repassa'],
     live: ['Sala', 'ao vivo'],
     halloweenD20: ['Halloween', 'Trivia'],
     halloweenCompetition: ['Halloween', 'Competição'],
+    halloweenPassa: ['Halloween', 'Passa ou Repassa'],
     halloweenLive: ['Halloween', 'Ao vivo'],
   },
   subtitles: {
     d20: 'Escolha um modo, os temas e a dificuldade, e deixe o D20 decidir.',
+    wheel: 'Gire a roleta de temas e responda uma pergunta de verdadeiro ou falso do tema sorteado.',
     competition: 'Cadastre os alunos e rode um torneio eliminatório com os temas escolhidos.',
+    passa: 'Duas equipes, uma pergunta por vez. Quem acerta marca ponto; quem erra passa a vez.',
     live: 'Crie uma sala e deixe os alunos responderem no celular com código ou QR.',
     halloweenD20:
       'Doces ou travessuras! Escolha a dificuldade, role um D20 de verdade e responda às perguntas assustadoras.',
     halloweenCompetition:
       'Cadastre os alunos e rode um torneio de Halloween. Cada fase faz uma pergunta por aluno.',
+    halloweenPassa:
+      'Duas equipes se alternam com perguntas assustadoras. Quem erra deixa a outra roubar o ponto.',
     halloweenLive:
       'Crie uma sala e deixe os alunos responderem no celular com código ou QR.',
   },
@@ -188,7 +226,7 @@ const PT: MenuCopy = {
     comingSoon: 'Em breve',
     openEvent: 'Abrir evento',
     defaultGames: 'Jogos padrão',
-    defaultGamesDescription: 'Rolar D20, Competição e salas ao vivo.',
+    defaultGamesDescription: 'Rolar D20, Roleta de temas, Competição, Passa ou Repassa e salas ao vivo.',
     halloween: 'Halloween',
     halloweenDescription:
       'Verdadeiro ou falso assustador, competição eliminatória e sala ao vivo com QR code.',

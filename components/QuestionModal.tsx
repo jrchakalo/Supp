@@ -11,6 +11,11 @@ import type { AnswerStatus, DifficultyId, ModeId, Question } from '@/lib/types';
 type QuestionModalProps = {
   question: Question;
   diceNumber?: number;
+  /** Replaces the default "Roll" badge when another game uses numbers. */
+  numberLabel?: string;
+  /** Optional countdown shown inside the question card. */
+  timeLeft?: number;
+  timeLimit?: number;
   studentName?: string;
   phaseLabel?: string;
   mode: ModeId;
@@ -25,6 +30,9 @@ type QuestionModalProps = {
 export default function QuestionModal({
   question,
   diceNumber,
+  numberLabel,
+  timeLeft,
+  timeLimit,
   studentName,
   phaseLabel,
   mode,
@@ -126,7 +134,7 @@ export default function QuestionModal({
           )}
           {diceNumber !== undefined && (
             <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--muted)]">
-              {t('Roll', 'Rolagem')} #{diceNumber}
+              {numberLabel ?? t('Roll', 'Rolagem')} #{diceNumber}
             </span>
           )}
           <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[var(--muted)]">
@@ -146,6 +154,28 @@ export default function QuestionModal({
             )
           )}
         </div>
+
+        {timeLeft !== undefined && timeLimit ? (
+          <div className="flex items-center gap-3">
+            <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-[var(--muted)]">
+              {t('Time left', 'Tempo restante')}
+            </span>
+            <div className="h-2.5 flex-1 overflow-hidden rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)]">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-[width] duration-200',
+                  timeLeft <= Math.max(3, Math.ceil(timeLimit * 0.25))
+                    ? 'bg-[var(--danger)]'
+                    : 'bg-[var(--accent)]'
+                )}
+                style={{ width: `${Math.max(0, Math.min(100, (timeLeft / timeLimit) * 100))}%` }}
+              />
+            </div>
+            <span className="w-8 text-right text-sm font-black tabular-nums text-[var(--ink)]">
+              {timeLeft}
+            </span>
+          </div>
+        ) : null}
 
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted)]">

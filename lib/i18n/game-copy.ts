@@ -43,13 +43,33 @@ const EN: GameCopy = {
       label: 'Pop culture',
       description: 'Movies, series and superheroes.',
     },
-    animals: {
-      label: 'Endangered animals',
-      description: 'Wildlife, habitats and conservation.',
-    },
     tech: {
       label: 'Technology',
-      description: 'Hardware, internet, Word, Excel and PowerPoint.',
+      description: 'Computer parts, internet, Office tools, coding and AI.',
+    },
+    'digital-safety': {
+      label: 'Digital safety',
+      description: 'Passwords, scams, privacy and healthy screen habits.',
+    },
+    science: {
+      label: 'Science & space',
+      description: 'The body, planets, experiments and everyday science.',
+    },
+    nature: {
+      label: 'Nature & animals',
+      description: 'Habitats, fun animal facts and planet records.',
+    },
+    brazil: {
+      label: 'Brazil & folklore',
+      description: 'Regions, culture, food, music and Brazilian legends.',
+    },
+    sports: {
+      label: 'Sports',
+      description: 'Rules, records, Olympics and Brazilian athletes.',
+    },
+    logic: {
+      label: 'Logic & puzzles',
+      description: 'Sequences, riddles, patterns and math challenges.',
     },
   },
   difficulties: {
@@ -115,13 +135,33 @@ const PT: GameCopy = {
       label: 'Cultura pop',
       description: 'Filmes, séries e super-heróis.',
     },
-    animals: {
-      label: 'Animais ameaçados',
-      description: 'Vida selvagem, habitats e conservação.',
-    },
     tech: {
       label: 'Tecnologia',
-      description: 'Hardware, internet, Word, Excel e PowerPoint.',
+      description: 'Partes do computador, internet, Office, programação e IA.',
+    },
+    'digital-safety': {
+      label: 'Segurança digital',
+      description: 'Senhas, golpes, privacidade e hábitos saudáveis na tela.',
+    },
+    science: {
+      label: 'Ciência e espaço',
+      description: 'Corpo humano, planetas, experimentos e ciência do dia a dia.',
+    },
+    nature: {
+      label: 'Natureza e animais',
+      description: 'Habitats, curiosidades animais e recordes do planeta.',
+    },
+    brazil: {
+      label: 'Brasil e folclore',
+      description: 'Regiões, cultura, comida, música e lendas brasileiras.',
+    },
+    sports: {
+      label: 'Esportes',
+      description: 'Regras, recordes, Olimpíadas e atletas brasileiros.',
+    },
+    logic: {
+      label: 'Lógica e enigmas',
+      description: 'Sequências, charadas, padrões e desafios de matemática.',
     },
   },
   difficulties: {

@@ -1,3 +1,4 @@
+import { LIVE_PT } from './i18n/live-pt';
 import type { DifficultyId, LiveQuestion } from './types';
 
 /**
@@ -1484,10 +1485,26 @@ const HARD: LiveQuestion[] = [
   },
 ];
 
+/**
+ * Attaches the Portuguese translation inline so the real-time translation
+ * option can reveal it halfway through the timer.
+ */
+function withTranslations(questions: LiveQuestion[]): LiveQuestion[] {
+  return questions.map((question) => {
+    const translation = LIVE_PT[question.id];
+    if (!translation) return question;
+    return {
+      ...question,
+      textPt: translation.text,
+      optionsPt: translation.options,
+    };
+  });
+}
+
 export const LIVE_QUESTIONS: Record<DifficultyId, LiveQuestion[]> = {
-  easy: EASY,
-  medium: MEDIUM,
-  hard: HARD,
+  easy: withTranslations(EASY),
+  medium: withTranslations(MEDIUM),
+  hard: withTranslations(HARD),
 };
 
 export type { LiveQuestion };

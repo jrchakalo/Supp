@@ -29,7 +29,10 @@ import {
   AULA_WELCOME_FALLBACK,
   createAulaChannel,
   type AulaChannel,
+  type AulaCompMessage,
+  type AulaCompScore,
   type AulaConnectionStatus,
+  type AulaD20Message,
   type AulaMessage,
   type AulaWelcomeContent,
 } from '@/lib/aula/sync';
@@ -439,6 +442,197 @@ function LiveSpectator({
   );
 }
 
+type WarmupOverlay = 'none' | 'd20' | 'comp';
+
+/** Warm-up D20: statement first, TRUE/FALSE + explanation after the reveal. */
+function D20Spectator({
+  message,
+  revealed,
+}: {
+  message: AulaD20Message;
+  revealed: boolean;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col items-center justify-center gap-6 p-6 text-center sm:p-10">
+      <p className="text-[clamp(0.9rem,1.8vw,1.5rem)] font-black uppercase tracking-[0.28em] text-[var(--accent)]">
+        🎲 D20 — True or False?
+      </p>
+      <h1 className="max-w-6xl text-balance text-[clamp(1.8rem,4.2vw,4.6rem)] font-black leading-tight text-[var(--ink)]">
+        {message.text}
+      </h1>
+
+      {revealed ? (
+        <div className="flex max-w-5xl flex-col items-center gap-4">
+          <p
+            className={`text-[clamp(3rem,10vw,9rem)] font-black leading-none ${
+              message.answer ? 'text-emerald-400' : 'text-rose-400'
+            }`}
+          >
+            {message.answer ? 'TRUE' : 'FALSE'}
+          </p>
+          {message.explanation ? (
+            <p className="rounded-2xl border-l-4 border-[var(--accent)] bg-[var(--surface-2)] px-4 py-3 text-[clamp(0.95rem,1.7vw,1.5rem)] font-semibold leading-snug text-[var(--ink)]">
+              {message.explanation}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-[clamp(1rem,1.8vw,1.6rem)] font-black uppercase tracking-[0.2em] text-[var(--muted)]">
+          A turma responde: TRUE ou FALSE
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Final competition view: same podium language as the Live quiz. */
+function CompPodium({ ranking }: { ranking: AulaCompScore[] }) {
+  const rows: LiveScoreRow[] = ranking.map((row, index) => ({
+    playerId: `comp-${index}-${row.name}`,
+    name: row.name,
+    total: row.score,
+    streak: 0,
+    gained: 0,
+    correct: false,
+  }));
+
+  useEffect(() => {
+    const common = {
+      colors: ['#f59e0b', '#22d3ee', '#a78bfa', '#34d399', '#f472b6'],
+      disableForReducedMotion: true,
+    };
+    confetti({ ...common, particleCount: 120, spread: 80, origin: { y: 0.62 } });
+    confetti({ ...common, particleCount: 60, angle: 55, spread: 55, origin: { x: 0, y: 0.7 } });
+    confetti({ ...common, particleCount: 60, angle: 125, spread: 55, origin: { x: 1, y: 0.7 } });
+  }, []);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col items-center gap-3 overflow-y-auto p-4 sm:p-6">
+      <div className="shrink-0 text-center">
+        <p className="text-[clamp(0.8rem,1.2vw,1.1rem)] font-black uppercase tracking-[0.24em] text-[var(--accent)]">
+          Fim da competição
+        </p>
+        <h1 className="mt-1 text-[clamp(2rem,4vw,4rem)] font-black leading-none text-[var(--ink)]">
+          Pódio
+        </h1>
+      </div>
+
+      <Podium rows={rows} step={3} />
+
+      <div className="flex min-h-0 w-full max-w-3xl flex-1 flex-col rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-2)]/50 p-3">
+        <p className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--muted)]">
+          Placar final
+        </p>
+        <ol className="mt-1 min-h-0 flex-1 space-y-1 overflow-auto">
+          {rows.slice(0, 10).map((row, index) => (
+            <li
+              key={row.playerId}
+              className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-[clamp(0.8rem,1.3vw,1.2rem)]"
+            >
+              <span className="w-6 shrink-0 text-right font-black text-[var(--accent)]">
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1 truncate font-black text-[var(--ink)]">
+                {row.name}
+              </span>
+              <span className="shrink-0 font-black text-[var(--muted)]">
+                {row.total.toLocaleString('pt-BR')}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+/** Warm-up competition: statement on the left, live scoreboard on the right. */
+function CompSpectator({
+  message,
+  ranking,
+}: {
+  message: AulaCompMessage;
+  ranking: AulaCompScore[] | null;
+}) {
+  if (ranking) return <CompPodium ranking={ranking} />;
+
+  const scores = [...message.scores].sort(
+    (a, b) => b.score - a.score || a.name.localeCompare(b.name)
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-4 p-4 sm:p-6">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-[clamp(0.85rem,1.4vw,1.25rem)] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
+          <Trophy className="h-[1.2em] w-[1.2em]" aria-hidden="true" />
+          Competição da turma
+        </div>
+        {message.round && message.totalRounds ? (
+          <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[clamp(0.7rem,1.1vw,1rem)] font-black uppercase tracking-wide text-[var(--muted)]">
+            Rodada {message.round} de {message.totalRounds}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1.65fr_1fr]">
+        <div className="flex min-h-0 flex-col justify-center gap-4 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] p-5 text-center">
+          <p className="text-[clamp(1rem,2vw,1.8rem)] font-black uppercase tracking-[0.2em] text-[var(--accent-2)]">
+            {message.student}
+          </p>
+          <h1 className="text-balance text-[clamp(1.4rem,3vw,3rem)] font-black leading-tight text-[var(--ink)]">
+            {message.text}
+          </h1>
+
+          {message.revealed ? (
+            <>
+              <p
+                className={`text-[clamp(2.2rem,6vw,5.5rem)] font-black leading-none ${
+                  message.answer ? 'text-emerald-400' : 'text-rose-400'
+                }`}
+              >
+                {message.answer ? 'TRUE' : 'FALSE'}
+              </p>
+              {message.explanation ? (
+                <p className="mx-auto max-w-3xl rounded-xl border-l-4 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-[clamp(0.8rem,1.3vw,1.2rem)] font-semibold text-[var(--ink)]">
+                  {message.explanation}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-[clamp(0.9rem,1.5vw,1.3rem)] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+              Responda: TRUE ou FALSE
+            </p>
+          )}
+        </div>
+
+        <div className="flex min-h-0 flex-col rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-2)]/50 p-3">
+          <p className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--muted)]">
+            Placar
+          </p>
+          <ol className="mt-1 min-h-0 flex-1 space-y-1 overflow-auto">
+            {scores.map((row, index) => (
+              <li
+                key={row.name}
+                className={`flex items-center gap-2 rounded-lg px-2 py-1 text-[clamp(0.8rem,1.3vw,1.2rem)] ${
+                  row.name === message.student ? 'bg-[var(--surface)]' : ''
+                }`}
+              >
+                <span className="w-5 shrink-0 text-right font-black text-[var(--accent)]">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-black text-[var(--ink)]">
+                  {row.name}
+                </span>
+                <span className="shrink-0 font-black text-[var(--muted)]">{row.score}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TvPage() {
   const [mounted, setMounted] = useState(false);
   const [origin, setOrigin] = useState('');
@@ -467,6 +661,13 @@ export default function TvPage() {
   const [liveGameover, setLiveGameover] = useState<{ leaderboard: LiveScoreRow[] } | null>(null);
   const [clock, setClock] = useState(0);
 
+  /* Warm-ups own the screen while active: the teacher's slides are ignored. */
+  const [warmup, setWarmup] = useState<WarmupOverlay>('none');
+  const [d20, setD20] = useState<AulaD20Message | null>(null);
+  const [d20Revealed, setD20Revealed] = useState(false);
+  const [comp, setComp] = useState<AulaCompMessage | null>(null);
+  const [compRanking, setCompRanking] = useState<AulaCompScore[] | null>(null);
+
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const aulaChannelRef = useRef<AulaChannel | null>(null);
@@ -476,10 +677,18 @@ export default function TvPage() {
   const longEnterUntilRef = useRef(0);
   /* Generated inside the channel effect (not during render) to stay pure. */
   const tvPresenceIdRef = useRef('');
+  const warmupRef = useRef<WarmupOverlay>('none');
+  /* The teacher's presence: after seeing them once, 4 s of absence boots us. */
+  const teacherSeenRef = useRef(false);
+  const teacherAbsenceRef = useRef<number | null>(null);
 
   useEffect(() => {
     quizRoomRef.current = quizRoom;
   }, [quizRoom]);
+
+  useEffect(() => {
+    warmupRef.current = warmup;
+  }, [warmup]);
 
   const applySlide = useCallback((next: Slide, imageUrl?: string) => {
     if (welcomeRef.current) {
@@ -510,8 +719,110 @@ export default function TvPage() {
     setClock(0);
   }, []);
 
+  const resetWarmup = useCallback(() => {
+    warmupRef.current = 'none';
+    setWarmup('none');
+    setD20(null);
+    setD20Revealed(false);
+    setComp(null);
+    setCompRanking(null);
+  }, []);
+
+  /** Back to the initial code screen, zeroing every game/slide state. */
+  const returnToConnect = useCallback(() => {
+    if (teacherAbsenceRef.current) {
+      window.clearTimeout(teacherAbsenceRef.current);
+      teacherAbsenceRef.current = null;
+    }
+    teacherSeenRef.current = false;
+    clearSavedQuizState();
+    quizRoomRef.current = null;
+    setQuizRoom(null);
+    forgetLive();
+    resetWarmup();
+    setWelcomeContent(null);
+    showWelcome();
+    setConnection('idle');
+    setCode('');
+    setCodeInput('');
+    setCodeError('');
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('c');
+      url.searchParams.delete('code');
+      window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+    }
+  }, [forgetLive, resetWarmup, showWelcome]);
+
   const handleAulaMessage = useCallback(
     (message: AulaMessage) => {
+      if (message.type === 'end') {
+        returnToConnect();
+        return;
+      }
+
+      if (message.type === 'd20') {
+        clearSavedQuizState();
+        quizRoomRef.current = null;
+        setQuizRoom(null);
+        forgetLive();
+        warmupRef.current = 'd20';
+        setWarmup('d20');
+        setD20(message);
+        setD20Revealed(false);
+        setComp(null);
+        setCompRanking(null);
+        welcomeRef.current = false;
+        setLongEnter(false);
+        setWelcome(false);
+        setSlide(null);
+        setSlideImage(undefined);
+        return;
+      }
+
+      if (message.type === 'd20Reveal') {
+        if (warmupRef.current === 'd20') setD20Revealed(true);
+        return;
+      }
+
+      if (message.type === 'warmupEnd') {
+        resetWarmup();
+        return;
+      }
+
+      if (message.type === 'comp') {
+        clearSavedQuizState();
+        quizRoomRef.current = null;
+        setQuizRoom(null);
+        forgetLive();
+        warmupRef.current = 'comp';
+        setWarmup('comp');
+        setComp(message);
+        setCompRanking(null);
+        setD20(null);
+        setD20Revealed(false);
+        welcomeRef.current = false;
+        setLongEnter(false);
+        setWelcome(false);
+        setSlide(null);
+        setSlideImage(undefined);
+        return;
+      }
+
+      if (message.type === 'compEnd') {
+        if (warmupRef.current === 'comp') setCompRanking(message.ranking);
+        return;
+      }
+
+      /* Slides/welcome never interrupt an active D20 or competition. */
+      if (
+        warmupRef.current !== 'none' &&
+        (message.type === 'welcome' || message.type === 'slide' || message.type === 'state')
+      ) {
+        return;
+      }
+
       /* A restored quiz snapshot (after an F5) wins over the teacher hello:
          slides/welcome must not pull the projector out of a running quiz. */
       const quizActive = quizRoomRef.current !== null;
@@ -535,6 +846,7 @@ export default function TvPage() {
       }
 
       if (message.type === 'quiz') {
+        resetWarmup();
         clearSavedQuizState();
         forgetLive();
         welcomeRef.current = false;
@@ -573,7 +885,7 @@ export default function TvPage() {
         }
       }
     },
-    [applySlide, forgetLive, showWelcome]
+    [applySlide, forgetLive, resetWarmup, returnToConnect, showWelcome]
   );
 
   const handleLiveMessage = useCallback((message: HostToPlayerMessage) => {
@@ -706,6 +1018,27 @@ export default function TvPage() {
         aulaChannelRef.current?.track({ role: 'tv', id: tvPresenceIdRef.current });
         aulaChannelRef.current?.send({ type: 'hello' });
       },
+      onPresence: (members) => {
+        if (!active) return;
+        const hasTeacher = members.some((member) => member.role === 'teacher');
+
+        if (hasTeacher) {
+          teacherSeenRef.current = true;
+          if (teacherAbsenceRef.current) {
+            window.clearTimeout(teacherAbsenceRef.current);
+            teacherAbsenceRef.current = null;
+          }
+          return;
+        }
+
+        /* Only boot when the teacher was here and just left; the first
+           presence snapshot of a fresh tab must not count as absence. */
+        if (!teacherSeenRef.current || teacherAbsenceRef.current) return;
+        teacherAbsenceRef.current = window.setTimeout(() => {
+          teacherAbsenceRef.current = null;
+          if (active) returnToConnect();
+        }, 4000);
+      },
     });
 
     if (!handle) {
@@ -717,10 +1050,14 @@ export default function TvPage() {
     aulaChannelRef.current = handle;
     return () => {
       active = false;
+      if (teacherAbsenceRef.current) {
+        window.clearTimeout(teacherAbsenceRef.current);
+        teacherAbsenceRef.current = null;
+      }
       handle.remove();
       if (aulaChannelRef.current === handle) aulaChannelRef.current = null;
     };
-  }, [code, nonce, handleAulaMessage]);
+  }, [code, nonce, handleAulaMessage, returnToConnect]);
 
   /* Live spectator channel: broadcast only, never presence or answers. */
   useEffect(() => {
@@ -793,6 +1130,12 @@ export default function TvPage() {
     quizRoomRef.current = null;
     setQuizRoom(null);
     forgetLive();
+    resetWarmup();
+    teacherSeenRef.current = false;
+    if (teacherAbsenceRef.current) {
+      window.clearTimeout(teacherAbsenceRef.current);
+      teacherAbsenceRef.current = null;
+    }
 
     if (next === code) {
       setNonce((value) => value + 1);
@@ -802,7 +1145,7 @@ export default function TvPage() {
       url.searchParams.set('c', next);
       window.history.replaceState(null, '', `${url.pathname}${url.search}`);
     }
-  }, [code, codeInput, forgetLive, showWelcome]);
+  }, [code, codeInput, forgetLive, resetWarmup, showWelcome]);
 
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) {
@@ -904,6 +1247,10 @@ export default function TvPage() {
               </p>
             </section>
           </div>
+        ) : warmup === 'd20' && d20 ? (
+          <D20Spectator message={d20} revealed={d20Revealed} />
+        ) : warmup === 'comp' && comp ? (
+          <CompSpectator message={comp} ranking={compRanking} />
         ) : quizRoom ? (
           <LiveSpectator
             phase={livePhase}
@@ -966,6 +1313,12 @@ export default function TvPage() {
           supp.lol · aula{' '}
           <span className="text-[var(--ink)]">{code || '—'}</span>
           {quizRoom ? <span className="ml-2 text-[var(--accent-2)]">· quiz {quizRoom}</span> : null}
+          {warmup === 'd20' ? (
+            <span className="ml-2 text-[var(--accent)]">· warm-up D20</span>
+          ) : null}
+          {warmup === 'comp' ? (
+            <span className="ml-2 text-[var(--accent)]">· competição</span>
+          ) : null}
         </span>
 
         <div className="flex items-center gap-3">

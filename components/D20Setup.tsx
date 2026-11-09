@@ -7,11 +7,16 @@ import {
   Check,
   Clapperboard,
   Cpu,
+  FlaskConical,
   Gamepad2,
   Ghost,
-  PawPrint,
+  Leaf,
+  MapPin,
   Play,
+  Puzzle,
+  ShieldCheck,
   Skull,
+  Trophy,
   Tv,
 } from 'lucide-react';
 import LanguageToggle from './LanguageToggle';
@@ -27,8 +32,13 @@ const CATEGORY_ICONS = {
   games: Gamepad2,
   anime: Tv,
   'pop-culture': Clapperboard,
-  animals: PawPrint,
   tech: Cpu,
+  'digital-safety': ShieldCheck,
+  science: FlaskConical,
+  nature: Leaf,
+  brazil: MapPin,
+  sports: Trophy,
+  logic: Puzzle,
 } as const;
 
 const DIFFICULTY_ICONS = {

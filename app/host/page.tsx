@@ -38,6 +38,7 @@ import {
   ANSWER_BUTTONS,
   buildQuestionRun,
   formatPoints,
+  getLiveCapacity,
   getLiveDeck,
   prepareQuestion,
   randomId,
@@ -46,6 +47,7 @@ import {
   scoreForAnswer,
   sortLeaderboard,
 } from '@/lib/live/room';
+import { readRecentLiveIds, rememberLiveRun, clearLiveHistory } from '@/lib/live/history';
 import type { ClassicCategoryId, DifficultyId, ModeId, Theme } from '@/lib/types';
 
 type Phase = 'setup' | 'lobby' | 'question' | 'reveal' | 'over';
@@ -173,6 +175,14 @@ function readSecondsFromUrl(): 15 | 20 | 30 | null {
   return null;
 }
 
+/** Reads `?count=8|12|16` (used by the /aula warm-up); ignored otherwise. */
+function readCountFromUrl(): 8 | 12 | 16 | null {
+  if (typeof window === 'undefined') return null;
+  const raw = new URLSearchParams(window.location.search).get('count');
+  if (raw === '8' || raw === '12' || raw === '16') return Number(raw) as 8 | 12 | 16;
+  return null;
+}
+
 /** Reads `?auto=1` (on, 6 s) / `?auto=0` (off); absent keeps the default. */
 function readAutoFromUrl(): boolean | null {
   if (typeof window === 'undefined') return null;
@@ -262,7 +272,9 @@ export default function HostPage() {
 
   const [phase, setPhase] = useState<Phase>('setup');
   const [difficulty, setDifficulty] = useState<DifficultyId>('medium');
-  const [questionCount, setQuestionCount] = useState<8 | 12 | 16>(initialQuestionCount);
+  const [questionCount, setQuestionCount] = useState<8 | 12 | 16>(
+    () => readCountFromUrl() ?? initialQuestionCount()
+  );
   const [secondsPerQuestion, setSecondsPerQuestion] = useState<15 | 20 | 30>(
     () => readSecondsFromUrl() ?? 20
   );
@@ -291,6 +303,7 @@ export default function HostPage() {
   const [showTranslation, setShowTranslation] = useState(false);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'live'>('idle');
   const [savedSession, setSavedSession] = useState<SavedSession | null>(null);
+  const [historyReset, setHistoryReset] = useState(false);
 
   useEffect(() => {
     writeStorage('language', language);
@@ -642,9 +655,22 @@ export default function HostPage() {
   const startGame = useCallback(() => {
     const sourceQuestions = passaporteDeck
       ? passaporteDeck.questions
-      : buildQuestionRun(mode, difficulty, questionCount, categories);
+      : buildQuestionRun(
+          mode,
+          difficulty,
+          questionCount,
+          categories,
+          readRecentLiveIds(mode)
+        );
     const nextRun = localizeLiveQuestions(sourceQuestions, language);
     if (nextRun.length === 0) return;
+
+    if (!passaporteDeck) {
+      rememberLiveRun(
+        mode,
+        nextRun.map((question) => question.id)
+      );
+    }
 
     runRef.current = nextRun;
     setRun(nextRun);
@@ -783,13 +809,15 @@ export default function HostPage() {
     return () => window.clearTimeout(timer);
   }, [phase, question, secondsPerQuestion, startedAt, translateAtHalf]);
 
-  /* Does the currently selected deck carry any Portuguese translation? */
+  /* Does the currently selected deck carry any Portuguese translation?
+     In Portuguese rooms the questions are already in Portuguese. */
   const translationAvailable = useMemo(() => {
+    if (language !== 'en') return false;
     const deck = passaporteDeck
       ? passaporteDeck.questions
       : getLiveDeck(mode, difficulty, categories);
     return deck.some((item) => Boolean(item.textPt));
-  }, [categories, difficulty, mode, passaporteDeck]);
+  }, [categories, difficulty, language, mode, passaporteDeck]);
 
   useEffect(() => {
     if (phase !== 'lobby') return;
@@ -1019,9 +1047,23 @@ export default function HostPage() {
                     {copy.questionsReady(
                       passaporteDeck
                         ? passaporteDeck.questions.length
-                        : getLiveDeck(mode, difficulty, categories).length
+                        : getLiveCapacity(mode, difficulty, categories)
                     )}
                   </p>
+                  <p className="mt-1 text-[11px] font-medium text-[var(--muted)]">
+                    {copy.historyHelp}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearLiveHistory(mode);
+                      setHistoryReset(true);
+                      window.setTimeout(() => setHistoryReset(false), 3000);
+                    }}
+                    className="mt-2 rounded-lg border-2 border-[var(--line-soft)] bg-[var(--surface)] px-2.5 py-1.5 text-[11px] font-black text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  >
+                    {historyReset ? copy.historyCleared : copy.clearHistory}
+                  </button>
                 </div>
 
                 <div>
@@ -1162,15 +1204,27 @@ export default function HostPage() {
                   <button
                     type="button"
                     role="switch"
-                    aria-checked={translateAtHalf}
-                    onClick={() => setTranslateAtHalf((current) => !current)}
+                    aria-checked={translateAtHalf && translationAvailable}
+                    aria-disabled={!translationAvailable}
+                    disabled={!translationAvailable}
+                    title={
+                      translationAvailable
+                        ? copy.translateAtHalfHelp
+                        : copy.translateAtHalfUnavailable
+                    }
+                    onClick={() => {
+                      if (!translationAvailable) return;
+                      setTranslateAtHalf((current) => !current);
+                    }}
                     className={`ml-1 flex min-w-20 flex-none items-center justify-center rounded-full px-4 py-2 text-xs font-black uppercase tracking-wide transition-colors ${
-                      translateAtHalf
-                        ? 'bg-[var(--accent)] text-white'
-                        : 'border-2 border-[var(--line)] bg-[var(--surface)] text-[var(--muted)]'
+                      !translationAvailable
+                        ? 'cursor-not-allowed border-2 border-[var(--line)] bg-[var(--surface-2)] text-[var(--muted)] opacity-60'
+                        : translateAtHalf
+                          ? 'bg-[var(--accent)] text-white'
+                          : 'border-2 border-[var(--line)] bg-[var(--surface)] text-[var(--muted)]'
                     }`}
                   >
-                    {translateAtHalf ? copy.on : copy.off}
+                    {translateAtHalf && translationAvailable ? copy.on : copy.off}
                   </button>
                 </div>
               </div>

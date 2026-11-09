@@ -10,20 +10,26 @@ import {
   Candy,
   Check,
   ChevronRight,
+  CircleDot,
   Clapperboard,
   Cpu,
   Dices,
   Egg,
   Flame,
+  FlaskConical,
   Gamepad2,
   Ghost,
   GraduationCap,
-  PawPrint,
+  Leaf,
+  MapPin,
+  Puzzle,
   RotateCcw,
+  ShieldCheck,
   Skull,
   Smartphone,
   Snowflake,
   Sparkles,
+  Swords,
   Trophy,
   Tv,
   Wifi,
@@ -33,9 +39,13 @@ import CompetitionSetup from '@/components/CompetitionSetup';
 import D20Setup from '@/components/D20Setup';
 import HalloweenBackdrop from '@/components/HalloweenBackdrop';
 import LanguageToggle from '@/components/LanguageToggle';
+import PassaRepassaGame from '@/components/PassaRepassaGame';
+import PassaRepassaSetup from '@/components/PassaRepassaSetup';
 import QuestionModal from '@/components/QuestionModal';
 import ThemeToggle from '@/components/ThemeToggle';
 import VolumeControl from '@/components/VolumeControl';
+import WheelGame from '@/components/WheelGame';
+import WheelSetup from '@/components/WheelSetup';
 import { buildCompetitionPhases } from '@/lib/competition';
 import {
   DICE_NUMBERS,
@@ -47,6 +57,7 @@ import {
   CLASSIC_ALL_CATEGORIES,
   CLASSIC_CATEGORIES,
   getClassicDeck,
+  getClassicRunDeck,
 } from '@/lib/classic-questions';
 import type {
   AnswerStatus,
@@ -55,6 +66,7 @@ import type {
   CompetitionLevelId,
   DifficultyId,
   ModeId,
+  PassTargetScore,
   ProgressiveRounds,
   Question,
   Student,
@@ -125,18 +137,27 @@ const CATEGORY_ICONS = {
   games: Gamepad2,
   anime: Tv,
   'pop-culture': Clapperboard,
-  animals: PawPrint,
   tech: Cpu,
+  'digital-safety': ShieldCheck,
+  science: FlaskConical,
+  nature: Leaf,
+  brazil: MapPin,
+  sports: Trophy,
+  logic: Puzzle,
 } as const;
 
-type PlayStyle = 'd20' | 'competition' | 'live';
+type PlayStyle = 'd20' | 'competition' | 'live' | 'wheel' | 'passa';
 type Screen =
   | 'menu'
   | 'events'
   | 'd20-setup'
   | 'playing'
   | 'competition-setup'
-  | 'competition';
+  | 'competition'
+  | 'wheel-setup'
+  | 'wheel'
+  | 'passa-setup'
+  | 'passa';
 
 function readCompetitionConfig(): CompetitionConfig | null {
   if (typeof window === 'undefined') return null;
@@ -182,6 +203,11 @@ export default function GamePage() {
   );
   const [competitionStudents, setCompetitionStudents] = useState<Student[]>([]);
   const [competitionRun, setCompetitionRun] = useState(0);
+  const [passTeamNames, setPassTeamNames] = useState<[string, string]>([
+    'Equipe Azul',
+    'Equipe Vermelha',
+  ]);
+  const [passTargetScore, setPassTargetScore] = useState<PassTargetScore>(5);
 
   const [queue, setQueue] = useState<Question[]>(() =>
     shuffle(getClassicDeck('medium', CLASSIC_ALL_CATEGORIES))
@@ -224,40 +250,57 @@ export default function GamePage() {
   const isClassic = mode === 'classic';
   const isLive = playStyle === 'live';
   const isCompetition = playStyle === 'competition';
+  const isWheel = playStyle === 'wheel';
+  const isPassa = playStyle === 'passa';
   const c = MENU_COPY[uiLanguage];
   const titleLines = isHalloween
     ? isCompetition
       ? c.titles.halloweenCompetition
       : isLive
         ? c.titles.halloweenLive
-        : c.titles.halloweenD20
-    : isCompetition
-      ? c.titles.competition
-      : isLive
-        ? c.titles.live
-        : c.titles.d20;
+        : isPassa
+          ? c.titles.halloweenPassa
+          : c.titles.halloweenD20
+    : isWheel
+      ? c.titles.wheel
+      : isPassa
+        ? c.titles.passa
+        : isCompetition
+          ? c.titles.competition
+          : isLive
+            ? c.titles.live
+            : c.titles.d20;
   const subtitle = isHalloween
     ? isCompetition
       ? c.subtitles.halloweenCompetition
       : isLive
         ? c.subtitles.halloweenLive
-        : c.subtitles.halloweenD20
-    : isCompetition
-      ? c.subtitles.competition
-      : isLive
-        ? c.subtitles.live
-        : c.subtitles.d20;
+        : isPassa
+          ? c.subtitles.halloweenPassa
+          : c.subtitles.halloweenD20
+    : isWheel
+      ? c.subtitles.wheel
+      : isPassa
+        ? c.subtitles.passa
+        : isCompetition
+          ? c.subtitles.competition
+          : isLive
+            ? c.subtitles.live
+            : c.subtitles.d20;
   const difficultyMeta = difficultyCopy(difficulty, uiLanguage);
   const activeDeck = useMemo(
     () =>
       isClassic
-        ? getClassicDeck(difficulty, classicCategories)
+        ? getClassicRunDeck(difficulty, classicCategories)
         : getDeck('halloween', difficulty),
     [classicCategories, difficulty, isClassic]
   );
   const deckSize = activeDeck.length;
   const canStartRound =
-    playStyle !== null && (!isClassic || classicCategories.length > 0);
+    playStyle !== null &&
+    (!isClassic || classicCategories.length > 0) &&
+    (!isPassa ||
+      (passTeamNames[0].trim().length > 0 && passTeamNames[1].trim().length > 0));
   const roundComplete = roundCount >= ROUND_LENGTH;
   const competitionLevelMeta = competitionLevelCopy(
     competitionConfig.level,
@@ -562,6 +605,20 @@ export default function GamePage() {
     playTone(392, 'triangle', 0.09, 0.055);
   }, [playTone]);
 
+  const openWheelSetup = useCallback(() => {
+    setPlayStyle('wheel');
+    bgmRef.current?.pause();
+    setScreen('wheel-setup');
+    playTone(392, 'triangle', 0.09, 0.055);
+  }, [playTone]);
+
+  const openPassaSetup = useCallback(() => {
+    setPlayStyle('passa');
+    bgmRef.current?.pause();
+    setScreen('passa-setup');
+    playTone(392, 'triangle', 0.09, 0.055);
+  }, [playTone]);
+
   const openLiveRoom = useCallback(() => {
     window.location.href = `/host?mode=${mode}`;
   }, [mode]);
@@ -579,8 +636,12 @@ export default function GamePage() {
       openCompetitionSetup();
     } else if (playStyle === 'live') {
       openLiveRoom();
+    } else if (playStyle === 'wheel') {
+      openWheelSetup();
+    } else if (playStyle === 'passa') {
+      openPassaSetup();
     }
-  }, [openCompetitionSetup, openD20Setup, openLiveRoom, playStyle]);
+  }, [openCompetitionSetup, openD20Setup, openLiveRoom, openPassaSetup, openWheelSetup, playStyle]);
 
   const startCompetition = useCallback(() => {
     if (competitionStudents.length < 2) return;
@@ -596,6 +657,30 @@ export default function GamePage() {
     competitionStudents.length,
     ensureAudioContext,
     isClassic,
+    playTone,
+    startBgm,
+  ]);
+
+  const startWheel = useCallback(() => {
+    if (classicCategories.length === 0) return;
+    setScreen('wheel');
+    void ensureAudioContext();
+    startBgm();
+    playTone(392, 'triangle', 0.1, 0.06);
+  }, [classicCategories.length, ensureAudioContext, playTone, startBgm]);
+
+  const startPassa = useCallback(() => {
+    if (isClassic && classicCategories.length === 0) return;
+    if (!passTeamNames[0].trim() || !passTeamNames[1].trim()) return;
+    setScreen('passa');
+    void ensureAudioContext();
+    startBgm();
+    playTone(392, 'triangle', 0.1, 0.06);
+  }, [
+    classicCategories.length,
+    ensureAudioContext,
+    isClassic,
+    passTeamNames,
     playTone,
     startBgm,
   ]);
@@ -817,12 +902,30 @@ export default function GamePage() {
                       description: c.modes.d20.description,
                       Icon: Dices,
                     },
+                    ...(isClassic
+                      ? [
+                          {
+                            id: 'wheel' as PlayStyle,
+                            label: c.modes.wheel.label,
+                            tagline: c.modes.wheel.tagline,
+                            description: c.modes.wheel.description,
+                            Icon: CircleDot,
+                          },
+                        ]
+                      : []),
                     {
                       id: 'competition' as PlayStyle,
                       label: c.modes.competition.label,
                       tagline: c.modes.competition.tagline,
                       description: c.modes.competition.description,
                       Icon: Trophy,
+                    },
+                    {
+                      id: 'passa' as PlayStyle,
+                      label: c.modes.passa.label,
+                      tagline: c.modes.passa.tagline,
+                      description: c.modes.passa.description,
+                      Icon: Swords,
                     },
                     {
                       id: 'live' as PlayStyle,
@@ -907,6 +1010,10 @@ export default function GamePage() {
                     <Wifi className="h-5 w-5" aria-hidden="true" />
                   ) : playStyle === 'competition' ? (
                     <Trophy className="h-5 w-5" aria-hidden="true" />
+                  ) : playStyle === 'wheel' ? (
+                    <CircleDot className="h-5 w-5" aria-hidden="true" />
+                  ) : playStyle === 'passa' ? (
+                    <Swords className="h-5 w-5" aria-hidden="true" />
                   ) : (
                     <Sparkles className="h-5 w-5" aria-hidden="true" />
                   )}
@@ -916,7 +1023,11 @@ export default function GamePage() {
                       ? c.createLiveRoom
                       : playStyle === 'competition'
                         ? c.setupCompetition
-                        : c.configureD20}
+                        : playStyle === 'wheel'
+                          ? c.configureWheel
+                          : playStyle === 'passa'
+                            ? c.setupPassa
+                            : c.configureD20}
                   <ChevronRight className="h-5 w-5" aria-hidden="true" />
                 </motion.button>
               </div>
@@ -1067,6 +1178,83 @@ export default function GamePage() {
               onLanguageChange={setLanguage}
               onStart={startGame}
               onBack={backToMenu}
+            />
+          )}
+
+          {screen === 'wheel-setup' && (
+            <WheelSetup
+              key="wheel-setup"
+              uiLanguage={uiLanguage}
+              language={language}
+              difficulty={difficulty}
+              categories={classicCategories}
+              onDifficultyChange={setDifficulty}
+              onCategoriesChange={setClassicCategories}
+              onLanguageChange={setLanguage}
+              onStart={startWheel}
+              onBack={backToMenu}
+            />
+          )}
+
+          {screen === 'wheel' && (
+            <WheelGame
+              key="wheel"
+              mode={mode}
+              difficulty={difficulty}
+              categories={classicCategories}
+              language={language}
+              uiLanguage={uiLanguage}
+              volume={volume}
+              muted={isMuted}
+              onVolumeChange={handleVolumeChange}
+              onToggleMute={toggleMute}
+              onLanguageChange={setLanguage}
+              playTone={playTone}
+              triggerConfetti={triggerConfetti}
+              onExit={backToMenu}
+              onOpenSetup={openWheelSetup}
+            />
+          )}
+
+          {screen === 'passa-setup' && (
+            <PassaRepassaSetup
+              key="passa-setup"
+              mode={mode}
+              uiLanguage={uiLanguage}
+              language={language}
+              difficulty={difficulty}
+              categories={classicCategories}
+              teamNames={passTeamNames}
+              targetScore={passTargetScore}
+              onTeamNamesChange={setPassTeamNames}
+              onTargetScoreChange={setPassTargetScore}
+              onDifficultyChange={setDifficulty}
+              onCategoriesChange={setClassicCategories}
+              onLanguageChange={setLanguage}
+              onStart={startPassa}
+              onBack={backToMenu}
+            />
+          )}
+
+          {screen === 'passa' && (
+            <PassaRepassaGame
+              key="passa"
+              mode={mode}
+              teamNames={passTeamNames}
+              targetScore={passTargetScore}
+              difficulty={difficulty}
+              categories={classicCategories}
+              language={language}
+              uiLanguage={uiLanguage}
+              volume={volume}
+              muted={isMuted}
+              onVolumeChange={handleVolumeChange}
+              onToggleMute={toggleMute}
+              onLanguageChange={setLanguage}
+              playTone={playTone}
+              triggerConfetti={triggerConfetti}
+              onExit={backToMenu}
+              onOpenSetup={openPassaSetup}
             />
           )}
 

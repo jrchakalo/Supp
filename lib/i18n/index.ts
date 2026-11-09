@@ -1,6 +1,5 @@
 import { CLASSIC_EN } from './classic-en';
 import { CLASSIC_LIVE_PT } from './classic-live-pt';
-import { CLASSIC_PT } from './classic-pt';
 import { HALLOWEEN_PT } from './halloween-pt';
 import { LIVE_PT } from './live-pt';
 import type { Language } from './types';
@@ -24,17 +23,14 @@ export function localizeQuestion(question: Question, language: Language): Questi
     }
   }
 
-  if (language === 'pt' && question.id.startsWith('classic-')) {
-    const translation = CLASSIC_PT[question.id];
-    if (translation) {
-      return { ...question, text: translation.text };
-    }
-  }
-
   if (language === 'en' && question.id.startsWith('classic-')) {
     const translation = CLASSIC_EN[question.id];
     if (translation) {
-      return { ...question, text: translation.text };
+      return {
+        ...question,
+        text: translation.text,
+        explanation: translation.explanation ?? question.explanation,
+      };
     }
   }
 
@@ -57,6 +53,10 @@ export function localizeLiveQuestion(
         text: translation.text,
         options: translation.options,
         explanation: translation.explanation ?? question.explanation,
+        // The question is already in Portuguese: a second Portuguese copy
+        // would only duplicate the text on the projector.
+        textPt: undefined,
+        optionsPt: undefined,
       };
     }
   }

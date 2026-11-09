@@ -26,7 +26,7 @@ const EN = {
   translateAtHalf: 'Translate after half the time',
   translateAtHalfHelp:
     'On: halfway through the timer, questions that have a translation show the Portuguese version here and on the phones. The original stays on screen.',
-  translateAtHalfUnavailable: 'This deck has no Portuguese translations, so this option changes nothing.',
+  translateAtHalfUnavailable: 'This deck has no Portuguese translation.',
   translationLabel: 'PT',
   on: 'On',
   off: 'Off',
@@ -34,6 +34,10 @@ const EN = {
   openingRoom: 'Opening room…',
   rejoin: (code: string) => `Rejoin room ${code} (after refresh)`,
   questionsReady: (n: number) => `${n} multiple-choice questions ready.`,
+  historyHelp:
+    'Questions already shown in recent rooms are skipped automatically, so the draw feels fresh.',
+  clearHistory: 'Reset history',
+  historyCleared: 'History cleared — the whole deck can appear again.',
   questionCount: (n: number) => `${n} questions`,
   seconds: (n: number) => `${n} s`,
   realtimeTitle: 'Realtime not configured',
@@ -96,8 +100,7 @@ const PT: HostCopy = {
   translateAtHalf: 'Traduzir após metade do tempo',
   translateAtHalfHelp:
     'Ligado: na metade do tempo, as perguntas que têm tradução mostram a versão em português aqui e nos celulares. A original continua na tela.',
-  translateAtHalfUnavailable:
-    'Este baralho não tem traduções em português, então esta opção não muda nada.',
+  translateAtHalfUnavailable: 'Este baralho não tem tradução em português.',
   translationLabel: 'PT',
   on: 'Ligado',
   off: 'Desligado',
@@ -105,6 +108,10 @@ const PT: HostCopy = {
   openingRoom: 'Abrindo sala…',
   rejoin: (code: string) => `Reentrar na sala ${code} (após atualizar)`,
   questionsReady: (n: number) => `${n} perguntas de múltipla escolha prontas.`,
+  historyHelp:
+    'Perguntas já mostradas em salas recentes são puladas automaticamente, então o sorteio parece novo.',
+  clearHistory: 'Limpar histórico',
+  historyCleared: 'Histórico limpo — o baralho inteiro pode aparecer de novo.',
   questionCount: (n: number) => `${n} perguntas`,
   seconds: (n: number) => `${n} s`,
   realtimeTitle: 'Realtime não configurado',

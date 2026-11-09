@@ -14,8 +14,10 @@ import {
   KeyRound,
   LogOut,
   MonitorPlay,
+  Plus,
   Presentation,
   Radio,
+  Trash2,
   Trophy,
   Users,
   X,
@@ -26,7 +28,11 @@ import { QUIZ_LESSON_ID, buildQuizSlides } from '@/components/aula/quizSlides';
 import { flattenBeats, type Lesson, type Slide } from '@/lib/passaporte-lessons';
 import { fetchLessons } from '@/lib/aula/lessons';
 import { PASSAPORTE_DECKS } from '@/lib/passaporte-decks';
+import { CLASSIC_CATEGORIES } from '@/lib/classic-questions';
+import { categoryCopy } from '@/lib/i18n/game-copy';
+import { getDeck } from '@/lib/game';
 import { randomRoomCode, sanitizeRoomCode } from '@/lib/live/room';
+import type { ClassicCategoryId } from '@/lib/types';
 import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
 import {
   AULA_GATE_STORAGE,
@@ -35,7 +41,10 @@ import {
   PASSAPORTE_GATE_CODE,
   createAulaChannel,
   type AulaChannel,
+  type AulaCompMessage,
+  type AulaCompScore,
   type AulaConnectionStatus,
+  type AulaD20Message,
   type AulaMessage,
 } from '@/lib/aula/sync';
 
@@ -116,17 +125,42 @@ function ConnectionPill({
   );
 }
 
-const WARMUP_LINKS = [
-  { label: 'Live', description: 'Quiz ao vivo', href: '/host', Icon: Radio },
-  { label: 'Competição', description: 'Torneio da turma', href: '/?screen=competition', Icon: Trophy },
-  { label: 'D20', description: 'Dado de perguntas', href: '/?screen=d20', Icon: Dices },
-] as const;
+type WarmupKind = 'none' | 'live' | 'd20' | 'comp';
+
+const WARMUP_ITEMS: {
+  id: Exclude<WarmupKind, 'none'>;
+  label: string;
+  description: string;
+  Icon: typeof Radio;
+}[] = [
+  { id: 'live', label: 'Live', description: 'Quiz ao vivo', Icon: Radio },
+  { id: 'comp', label: 'Competição', description: 'Torneio da turma', Icon: Trophy },
+  { id: 'd20', label: 'D20', description: 'Dado de perguntas', Icon: Dices },
+];
+
+/** Live warm-up theme labels (the id maps to the classic categories). */
+const LIVE_THEMES: { id: ClassicCategoryId | 'all'; label: string }[] = [
+  { id: 'all', label: 'Todos' },
+  ...CLASSIC_CATEGORIES.map((category) => ({
+    id: category.id,
+    label: categoryCopy(category.id, 'pt').label,
+  })),
+];
+
+const LIVE_COUNTS: (8 | 12 | 16)[] = [8, 12, 16];
+const COMP_ROUNDS: number[] = [1, 2, 3, 5];
 
 /**
- * Quick warm-up shortcuts for the teacher. They live outside the lesson flow
- * and always open in a new tab, so the current session is never left behind.
+ * Warm-up shortcuts for the teacher. Each one opens a configuration modal and
+ * runs on the projector (`/tv`), so the student screen never leaves the aula.
  */
-function WarmupBar() {
+function WarmupBar({
+  active,
+  onOpen,
+}: {
+  active: WarmupKind;
+  onOpen: (kind: Exclude<WarmupKind, 'none'>) => void;
+}) {
   return (
     <section
       aria-label="Warm-up rápido"
@@ -137,24 +171,32 @@ function WarmupBar() {
           Warm-up rápido
         </p>
         <p className="text-[11px] font-semibold text-[var(--muted)]">
-          Abre em nova aba, fora do fluxo da aula.
+          Configura aqui e roda no telão — a aula continua aberta.
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {WARMUP_LINKS.map((item) => (
-          <a
-            key={item.label}
-            href={item.href}
-            target="_blank"
-            rel="noreferrer"
-            title={`${item.label} — ${item.description}`}
-            className="flex items-center gap-2 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          >
-            <item.Icon className="h-4 w-4" aria-hidden="true" />
-            {item.label}
-          </a>
-        ))}
+        {WARMUP_ITEMS.map((item) => {
+          const isActive = active === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onOpen(item.id)}
+              title={`${item.label} — ${item.description}`}
+              aria-pressed={isActive}
+              className={
+                isActive
+                  ? 'flex items-center gap-2 rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--accent)]'
+                  : 'flex items-center gap-2 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]'
+              }
+            >
+              <item.Icon className="h-4 w-4" aria-hidden="true" />
+              {item.label}
+              {isActive ? <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" /> : null}
+            </button>
+          );
+        })}
       </div>
     </section>
   );
@@ -195,6 +237,20 @@ export default function AulaPage() {
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [usePhones, setUsePhones] = useState(true);
 
+  /* Warm-ups: configured here, rendered by /tv. */
+  const [warmup, setWarmup] = useState<WarmupKind>('none');
+  const [warmupModal, setWarmupModal] = useState<WarmupKind>('none');
+  const [liveCount, setLiveCount] = useState<8 | 12 | 16>(12);
+  const [liveSeconds, setLiveSeconds] = useState<QuizSeconds>(20);
+  const [liveTheme, setLiveTheme] = useState<ClassicCategoryId | 'all'>('all');
+  const [d20, setD20] = useState<AulaD20Message | null>(null);
+  const [d20Revealed, setD20Revealed] = useState(false);
+  const [compNames, setCompNames] = useState<string[]>([]);
+  const [compNameInput, setCompNameInput] = useState('');
+  const [compRounds, setCompRounds] = useState(3);
+  const [compMessage, setCompMessage] = useState<AulaCompMessage | null>(null);
+  const [compRanking, setCompRanking] = useState<AulaCompScore[] | null>(null);
+
   const channelRef = useRef<AulaChannel | null>(null);
   const sessionRestoredRef = useRef(false);
   const activeLessonRef = useRef<Lesson | null>(null);
@@ -206,6 +262,18 @@ export default function AulaPage() {
   const liveQuizRef = useRef<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
 
+  /* Warm-up refs, read by the channel sync without waiting for a re-render. */
+  const warmupRef = useRef<WarmupKind>('none');
+  const d20Ref = useRef<AulaD20Message | null>(null);
+  const d20RevealedRef = useRef(false);
+  const compNamesRef = useRef<string[]>([]);
+  const compRoundsRef = useRef(3);
+  const compMessageRef = useRef<AulaCompMessage | null>(null);
+  const compRankingRef = useRef<AulaCompScore[] | null>(null);
+  const compScoresRef = useRef<Record<string, number>>({});
+  const compTurnRef = useRef(0);
+  const teacherPresenceIdRef = useRef('');
+
   useEffect(() => {
     activeLessonRef.current = activeLesson;
     beatIndexRef.current = beatIndex;
@@ -214,7 +282,29 @@ export default function AulaPage() {
     phaseRef.current = phase;
     imageUrlsRef.current = imageUrls;
     liveQuizRef.current = liveQuizCode;
-  }, [activeLesson, beatIndex, quizIndex, imageUrls, liveQuizCode, mode, phase]);
+    warmupRef.current = warmup;
+    d20Ref.current = d20;
+    d20RevealedRef.current = d20Revealed;
+    compNamesRef.current = compNames;
+    compRoundsRef.current = compRounds;
+    compMessageRef.current = compMessage;
+    compRankingRef.current = compRanking;
+  }, [
+    activeLesson,
+    beatIndex,
+    compMessage,
+    compNames,
+    compRanking,
+    compRounds,
+    d20,
+    d20Revealed,
+    imageUrls,
+    liveQuizCode,
+    mode,
+    phase,
+    quizIndex,
+    warmup,
+  ]);
 
   /* ------------------------------------------------------------------ */
   /* Boot: gate + today's date                                           */
@@ -270,6 +360,8 @@ export default function AulaPage() {
         code?: unknown;
         index?: unknown;
         quiz?: unknown;
+        warmup?: unknown;
+        hostUrl?: unknown;
         phase?: unknown;
         images?: unknown;
       };
@@ -286,6 +378,10 @@ export default function AulaPage() {
           : 0;
       const savedQuiz =
         typeof parsed.quiz === 'string' ? sanitizeRoomCode(parsed.quiz) : null;
+      /* Only the Live warm-up can be restored: D20/competition carry a live
+         question that lives in memory, so they simply start over. */
+      const savedWarmup: WarmupKind = parsed.warmup === 'live' && savedQuiz ? 'live' : 'none';
+      const savedHostUrl = typeof parsed.hostUrl === 'string' ? parsed.hostUrl : '';
       /* Sessions saved before the welcome screen existed default to live. */
       const savedPhase: AulaPhase = parsed.phase === 'welcome' ? 'welcome' : 'live';
       const savedImages: Record<number, string> = {};
@@ -310,10 +406,15 @@ export default function AulaPage() {
       setImageUrls(savedImages);
       setImageInput(savedImages[savedIndex] ?? '');
       setTvUrl(`${window.location.origin}/tv?c=${code}`);
+      if (savedWarmup === 'live') {
+        setWarmup('live');
+        warmupRef.current = 'live';
+      }
       if (savedQuiz) {
         setLiveQuizCode(savedQuiz);
         setHostUrl(
-          `${window.location.origin}/host?deck=${encodeURIComponent(lesson.deckId)}&room=${savedQuiz}&lang=pt&start=1`
+          savedHostUrl ||
+            `${window.location.origin}/host?deck=${encodeURIComponent(lesson.deckId)}&room=${savedQuiz}&lang=pt&start=1`
         );
       }
 
@@ -348,11 +449,13 @@ export default function AulaPage() {
         code: sessionCode,
         index: beatIndex,
         quiz: liveQuizCode,
+        warmup,
+        hostUrl,
         phase,
         images: imageUrls,
       })
     );
-  }, [activeLesson, sessionCode, beatIndex, liveQuizCode, phase, imageUrls]);
+  }, [activeLesson, sessionCode, beatIndex, liveQuizCode, warmup, hostUrl, phase, imageUrls]);
 
   useEffect(() => {
     if (!activeLesson || !sessionCode) return;
@@ -369,6 +472,23 @@ export default function AulaPage() {
 
       if (phaseRef.current === 'welcome') {
         channelRef.current?.send({ type: 'welcome', welcome: lesson.welcome });
+        return;
+      }
+
+      /* A D20/competition warm-up owns the projector: re-send its last state
+         instead of a slide, so an F5 on the TV lands on the game screen. */
+      if (warmupRef.current === 'd20') {
+        if (d20Ref.current) {
+          channelRef.current?.send(d20Ref.current);
+          if (d20RevealedRef.current) channelRef.current?.send({ type: 'd20Reveal' });
+        }
+        return;
+      }
+      if (warmupRef.current === 'comp') {
+        if (compMessageRef.current) channelRef.current?.send(compMessageRef.current);
+        if (compRankingRef.current) {
+          channelRef.current?.send({ type: 'compEnd', ranking: compRankingRef.current });
+        }
         return;
       }
 
@@ -408,6 +528,11 @@ export default function AulaPage() {
       },
       onSubscribed: () => {
         if (!active) return;
+        if (!teacherPresenceIdRef.current) {
+          teacherPresenceIdRef.current = `teacher-${Math.random().toString(36).slice(2, 10)}`;
+        }
+        /* Presence is how `/tv` knows the teacher is still in the room. */
+        channelRef.current?.track({ role: 'teacher', id: teacherPresenceIdRef.current });
         syncTv();
       },
       onPresence: (members) => {
@@ -457,6 +582,42 @@ export default function AulaPage() {
     channelRef.current?.send(message);
   }, []);
 
+  /** Re-sends the teacher's current slide (lesson beat or quiz presentation). */
+  const sendCurrentSlide = useCallback(() => {
+    const lesson = activeLessonRef.current;
+    if (!lesson) return;
+
+    if (phaseRef.current === 'welcome') {
+      broadcast({ type: 'welcome', welcome: lesson.welcome });
+      return;
+    }
+
+    const inQuiz = modeRef.current === 'quiz';
+    const lessonId = inQuiz ? QUIZ_LESSON_ID : lesson.id;
+    const index = inQuiz ? quizIndexRef.current : beatIndexRef.current;
+    const slide = resolveSlide(lesson, lessonId, index) ?? WAITING_SLIDE;
+    const imageUrl = inQuiz ? undefined : imageUrlsRef.current[index];
+    broadcast({ type: 'slide', lessonId, index, slide, imageUrl });
+  }, [broadcast]);
+
+  /** Clears every warm-up overlay, locally and on the projector. */
+  const resetWarmupState = useCallback(() => {
+    warmupRef.current = 'none';
+    setWarmup('none');
+    d20Ref.current = null;
+    setD20(null);
+    d20RevealedRef.current = false;
+    setD20Revealed(false);
+    compMessageRef.current = null;
+    setCompMessage(null);
+    compRankingRef.current = null;
+    setCompRanking(null);
+    liveQuizRef.current = null;
+    setLiveQuizCode(null);
+    setHostUrl('');
+    setWarmupModal('none');
+  }, []);
+
   const goToBeat = useCallback(
     (index: number) => {
       const lesson = activeLessonRef.current;
@@ -469,6 +630,7 @@ export default function AulaPage() {
       if (!slide) return;
 
       const imageUrl = imageUrlsRef.current[next];
+      const leavingOverlay = warmupRef.current === 'd20' || warmupRef.current === 'comp';
       modeRef.current = 'lesson';
       liveQuizRef.current = null;
       beatIndexRef.current = next;
@@ -477,10 +639,12 @@ export default function AulaPage() {
       setHostUrl('');
       setBeatIndex(next);
       setImageInput(imageUrlsRef.current[next] ?? '');
+      resetWarmupState();
+      if (leavingOverlay) broadcast({ type: 'warmupEnd' });
       broadcast({ type: 'quizEnd' });
       broadcast({ type: 'slide', lessonId: lesson.id, index: next, slide, imageUrl });
     },
-    [broadcast]
+    [broadcast, resetWarmupState]
   );
 
   const goToQuizSlide = useCallback(
@@ -498,9 +662,13 @@ export default function AulaPage() {
       quizIndexRef.current = next;
       setMode('quiz');
       setQuizIndex(next);
+      if (warmupRef.current === 'd20' || warmupRef.current === 'comp') {
+        broadcast({ type: 'warmupEnd' });
+      }
+      resetWarmupState();
       broadcast({ type: 'slide', lessonId: QUIZ_LESSON_ID, index: next, slide });
     },
-    [broadcast]
+    [broadcast, resetWarmupState]
   );
 
   const goPrev = useCallback(() => {
@@ -525,17 +693,31 @@ export default function AulaPage() {
     if (beatIndexRef.current < total - 1) goToBeat(beatIndexRef.current + 1);
   }, [goToBeat, goToQuizSlide]);
 
+  /**
+   * Leaves every overlay and returns the projector to the current slide (or
+   * the welcome screen, when the warm-up was started before the lesson).
+   */
   const backToLessonSlides = useCallback(() => {
     const lesson = activeLessonRef.current;
     if (!lesson) return;
-    const slide = flattenBeats(lesson)[beatIndexRef.current]?.slide;
+
+    if (warmupRef.current === 'd20' || warmupRef.current === 'comp') {
+      broadcast({ type: 'warmupEnd' });
+    }
+    if (warmupRef.current === 'live' || liveQuizRef.current) {
+      broadcast({ type: 'quizEnd' });
+    }
 
     modeRef.current = 'lesson';
-    liveQuizRef.current = null;
-    broadcast({ type: 'quizEnd' });
-    setLiveQuizCode(null);
-    setHostUrl('');
     setMode('lesson');
+    resetWarmupState();
+
+    if (phaseRef.current === 'welcome') {
+      broadcast({ type: 'welcome', welcome: lesson.welcome });
+      return;
+    }
+
+    const slide = flattenBeats(lesson)[beatIndexRef.current]?.slide;
     if (slide) {
       broadcast({
         type: 'slide',
@@ -545,10 +727,10 @@ export default function AulaPage() {
         imageUrl: imageUrlsRef.current[beatIndexRef.current],
       });
     }
-  }, [broadcast]);
+  }, [broadcast, resetWarmupState]);
 
   useEffect(() => {
-    if (!activeLesson || quizModalOpen) return;
+    if (!activeLesson || quizModalOpen || warmupModal !== 'none') return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
@@ -569,7 +751,7 @@ export default function AulaPage() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeLesson, goNext, goPrev, quizModalOpen]);
+  }, [activeLesson, goNext, goPrev, quizModalOpen, warmupModal]);
 
   /* ------------------------------------------------------------------ */
   /* Session actions                                                     */
@@ -584,6 +766,7 @@ export default function AulaPage() {
     phaseRef.current = 'welcome';
     imageUrlsRef.current = {};
     liveQuizRef.current = null;
+    resetWarmupState();
     setActiveLesson(lesson);
     setSessionCode(code);
     setBeatIndex(0);
@@ -597,7 +780,7 @@ export default function AulaPage() {
     setConnection('connecting');
     setTvOnline(false);
     setTvUrl(`${window.location.origin}/tv?c=${code}`);
-  }, []);
+  }, [resetWarmupState]);
 
   /** Leaves the welcome screen and broadcasts beat 0. */
   const startLive = useCallback(() => {
@@ -611,6 +794,9 @@ export default function AulaPage() {
   }, [goToBeat]);
 
   const endSession = useCallback(() => {
+    /* Tell the projector before the channel goes away; its presence timeout is
+       just the safety net if this message is ever dropped. */
+    channelRef.current?.send({ type: 'end' });
     removeStorage(AULA_SESSION_STORAGE);
     activeLessonRef.current = null;
     beatIndexRef.current = 0;
@@ -619,6 +805,7 @@ export default function AulaPage() {
     phaseRef.current = 'welcome';
     imageUrlsRef.current = {};
     liveQuizRef.current = null;
+    resetWarmupState();
     setActiveLesson(null);
     setSessionCode('');
     setTvUrl('');
@@ -633,7 +820,7 @@ export default function AulaPage() {
     setQuizModalOpen(false);
     setConnection('idle');
     setTvOnline(false);
-  }, []);
+  }, [resetWarmupState]);
 
   const logout = useCallback(() => {
     removeStorage(AULA_GATE_STORAGE);
@@ -709,6 +896,11 @@ export default function AulaPage() {
     if (!lesson) return;
     setQuizModalOpen(false);
 
+    if (warmupRef.current === 'd20' || warmupRef.current === 'comp') {
+      broadcast({ type: 'warmupEnd' });
+    }
+    resetWarmupState();
+
     if (usePhones) {
       const params = new URLSearchParams({
         deck: lesson.deckId,
@@ -720,10 +912,12 @@ export default function AulaPage() {
       });
       const url = `${window.location.origin}/host?${params.toString()}`;
       liveQuizRef.current = sessionCode;
+      warmupRef.current = 'live';
       modeRef.current = 'lesson';
       quizIndexRef.current = 0;
       setMode('lesson');
       setQuizIndex(0);
+      setWarmup('live');
       setLiveQuizCode(sessionCode);
       window.open(url, '_blank', 'noopener,noreferrer');
       setHostUrl(url);
@@ -743,16 +937,463 @@ export default function AulaPage() {
     if (slide) {
       broadcast({ type: 'slide', lessonId: QUIZ_LESSON_ID, index: 0, slide });
     }
-  }, [autoAdvance, broadcast, seconds, sessionCode, usePhones]);
+  }, [autoAdvance, broadcast, resetWarmupState, seconds, sessionCode, usePhones]);
+
+  /* ------------------------------------------------------------------ */
+  /* Warm-ups (Live / D20 / competition) — configured here, run on /tv  */
+  /* ------------------------------------------------------------------ */
+
+  const openWarmup = useCallback((kind: Exclude<WarmupKind, 'none'>) => {
+    setQuizModalOpen(false);
+    setWarmupModal(kind);
+  }, []);
+
+  /** LIVE avulso: opens /host in a new tab and puts the TV in spectator mode. */
+  const startLiveWarmup = useCallback(() => {
+    const lesson = activeLessonRef.current;
+    if (!lesson) return;
+
+    if (warmupRef.current === 'd20' || warmupRef.current === 'comp') {
+      broadcast({ type: 'warmupEnd' });
+    }
+    if (warmupRef.current === 'live' && liveQuizRef.current) {
+      broadcast({ type: 'quizEnd' });
+    }
+
+    const code = randomRoomCode();
+    const params = new URLSearchParams({
+      mode: 'classic',
+      difficulty: 'medium',
+      room: code,
+      seconds: String(liveSeconds),
+      count: String(liveCount),
+      auto: '1',
+      lang: 'pt',
+      start: '1',
+    });
+    if (liveTheme !== 'all') params.set('categories', liveTheme);
+    const url = `${window.location.origin}/host?${params.toString()}`;
+
+    resetWarmupState();
+    window.open(url, '_blank', 'noopener,noreferrer');
+    warmupRef.current = 'live';
+    liveQuizRef.current = code;
+    modeRef.current = 'lesson';
+    setWarmup('live');
+    setLiveQuizCode(code);
+    setHostUrl(url);
+    broadcast({ type: 'quiz', code, active: true });
+  }, [broadcast, liveCount, liveSeconds, liveTheme, resetWarmupState]);
+
+  const drawD20 = useCallback(() => {
+    const deck = getDeck('classic', 'medium');
+    if (deck.length === 0) return;
+
+    const current = d20Ref.current;
+    let pick = deck[Math.floor(Math.random() * deck.length)] ?? deck[0];
+    if (deck.length > 1 && current && pick.text === current.text) {
+      const index = deck.findIndex((item) => item.id === pick.id);
+      pick = deck[(index + 1) % deck.length] ?? pick;
+    }
+
+    const message: AulaD20Message = {
+      type: 'd20',
+      text: pick.text,
+      answer: pick.answer,
+      explanation: pick.explanation,
+    };
+    d20Ref.current = message;
+    setD20(message);
+    d20RevealedRef.current = false;
+    setD20Revealed(false);
+    warmupRef.current = 'd20';
+    setWarmup('d20');
+    setWarmupModal('none');
+    broadcast(message);
+  }, [broadcast]);
+
+  const startD20Warmup = useCallback(() => {
+    if (warmupRef.current === 'live' || liveQuizRef.current) {
+      broadcast({ type: 'quizEnd' });
+    }
+    if (warmupRef.current === 'comp') {
+      broadcast({ type: 'warmupEnd' });
+    }
+    resetWarmupState();
+    drawD20();
+  }, [broadcast, drawD20, resetWarmupState]);
+
+  const revealD20 = useCallback(() => {
+    if (!d20Ref.current || d20RevealedRef.current) return;
+    d20RevealedRef.current = true;
+    setD20Revealed(true);
+    broadcast({ type: 'd20Reveal' });
+  }, [broadcast]);
+
+  const drawCompQuestion = useCallback(
+    (flatTurn: number) => {
+      const names = compNamesRef.current;
+      const rounds = compRoundsRef.current;
+      const deck = getDeck('classic', 'medium');
+      if (names.length === 0 || deck.length === 0) return;
+
+      const pick = deck[Math.floor(Math.random() * deck.length)] ?? deck[0];
+      const student = names[flatTurn % names.length] ?? names[0];
+      const round = Math.floor(flatTurn / names.length) + 1;
+      const scores = names.map((name) => ({
+        name,
+        score: compScoresRef.current[name] ?? 0,
+      }));
+
+      const message: AulaCompMessage = {
+        type: 'comp',
+        student,
+        text: pick.text,
+        answer: pick.answer,
+        explanation: pick.explanation,
+        revealed: false,
+        scores,
+        round,
+        totalRounds: rounds,
+      };
+
+      compTurnRef.current = flatTurn;
+      compMessageRef.current = message;
+      setCompMessage(message);
+      compRankingRef.current = null;
+      setCompRanking(null);
+      warmupRef.current = 'comp';
+      setWarmup('comp');
+      broadcast(message);
+    },
+    [broadcast]
+  );
+
+  const startCompWarmup = useCallback(() => {
+    const names = compNames.map((name) => name.trim()).filter(Boolean);
+    if (names.length < 2) return;
+
+    if (warmupRef.current === 'live' || liveQuizRef.current) {
+      broadcast({ type: 'quizEnd' });
+    }
+    if (warmupRef.current === 'd20') {
+      broadcast({ type: 'warmupEnd' });
+    }
+    resetWarmupState();
+
+    compNamesRef.current = names;
+    compRoundsRef.current = compRounds;
+    compScoresRef.current = Object.fromEntries(names.map((name) => [name, 0]));
+    compTurnRef.current = 0;
+    setWarmupModal('none');
+    drawCompQuestion(0);
+  }, [broadcast, compNames, compRounds, drawCompQuestion, resetWarmupState]);
+
+  const markComp = useCallback(
+    (correct: boolean) => {
+      const message = compMessageRef.current;
+      if (!message || message.revealed) return;
+
+      if (correct) {
+        compScoresRef.current = {
+          ...compScoresRef.current,
+          [message.student]: (compScoresRef.current[message.student] ?? 0) + 1,
+        };
+      }
+
+      const scores = compNamesRef.current.map((name) => ({
+        name,
+        score: compScoresRef.current[name] ?? 0,
+      }));
+      const next: AulaCompMessage = { ...message, revealed: true, scores };
+      compMessageRef.current = next;
+      setCompMessage(next);
+      broadcast(next);
+    },
+    [broadcast]
+  );
+
+  const nextCompTurn = useCallback(() => {
+    const names = compNamesRef.current;
+    const totalTurns = names.length * compRoundsRef.current;
+    const next = compTurnRef.current + 1;
+
+    if (next >= totalTurns) {
+      const ranking = names
+        .map((name) => ({ name, score: compScoresRef.current[name] ?? 0 }))
+        .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+      compRankingRef.current = ranking;
+      setCompRanking(ranking);
+      broadcast({ type: 'compEnd', ranking });
+      return;
+    }
+
+    drawCompQuestion(next);
+  }, [broadcast, drawCompQuestion]);
+
+  const addCompName = useCallback(() => {
+    const name = compNameInput.trim().slice(0, 24);
+    if (!name) return;
+    setCompNames((current) =>
+      current.some((item) => item.toLowerCase() === name.toLowerCase()) ? current : [...current, name]
+    );
+    setCompNameInput('');
+  }, [compNameInput]);
+
+  const removeCompName = useCallback((name: string) => {
+    setCompNames((current) => current.filter((item) => item !== name));
+  }, []);
 
   useEffect(() => {
-    if (!quizModalOpen) return;
+    if (!quizModalOpen && warmupModal === 'none') return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setQuizModalOpen(false);
+      if (event.key !== 'Escape') return;
+      if (quizModalOpen) setQuizModalOpen(false);
+      else setWarmupModal('none');
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [quizModalOpen]);
+  }, [quizModalOpen, warmupModal]);
+
+  /**
+   * Warm-up setup modal shared by the welcome screen and the live session.
+   * The actual game always runs on `/tv`; only the Live warm-up also opens
+   * `/host` in a new tab so the teacher can drive the room.
+   */
+  const warmupModalView =
+    warmupModal !== 'none' ? (
+      <div
+        className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-3 sm:items-center sm:p-6"
+        onClick={() => setWarmupModal('none')}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="aula-warmup-title"
+          onClick={(event) => event.stopPropagation()}
+          className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-3xl border-2 border-[var(--line)] bg-[var(--surface)] p-5 shadow-2xl sm:p-6"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--accent)]">
+                Warm-up rápido
+              </p>
+              <h2 id="aula-warmup-title" className="mt-1 text-2xl font-black leading-tight">
+                {warmupModal === 'live'
+                  ? 'Live na TV'
+                  : warmupModal === 'd20'
+                    ? 'D20 na TV'
+                    : 'Competição na TV'}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setWarmupModal('none')}
+              aria-label="Fechar configuração do warm-up"
+              className="rounded-full border-2 border-[var(--line)] bg-[var(--surface-2)] p-1.5 text-[var(--muted)]"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+
+          {warmupModal === 'live' ? (
+            <>
+              <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
+                Quiz ao vivo com celulares. O telão entra em modo espectador e o /host abre em
+                nova aba para você controlar.
+              </p>
+
+              <fieldset className="mt-5">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Quantidade de perguntas
+                </legend>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {LIVE_COUNTS.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={liveCount === value}
+                      onClick={() => setLiveCount(value)}
+                      className={
+                        liveCount === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2.5 text-sm font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2.5 text-sm font-black text-[var(--muted)] transition hover:border-[var(--line)]'
+                      }
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Tempo por pergunta
+                </legend>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {QUIZ_SECONDS.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={liveSeconds === value}
+                      onClick={() => setLiveSeconds(value)}
+                      className={
+                        liveSeconds === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2.5 text-sm font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2.5 text-sm font-black text-[var(--muted)] transition hover:border-[var(--line)]'
+                      }
+                    >
+                      {value}s
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Tema
+                </legend>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {LIVE_THEMES.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-pressed={liveTheme === item.id}
+                      onClick={() => setLiveTheme(item.id)}
+                      className={
+                        liveTheme === item.id
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--muted)] transition hover:border-[var(--line)]'
+                      }
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <button
+                type="button"
+                onClick={startLiveWarmup}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)]"
+              >
+                <Radio className="h-5 w-5" aria-hidden="true" />
+                Abrir Live na TV
+              </button>
+            </>
+          ) : warmupModal === 'd20' ? (
+            <>
+              <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
+                Sorteia uma pergunta True/False do baralho clássico. O telão mostra a afirmação e
+                você controla Revelar / Próxima por aqui.
+              </p>
+              <button
+                type="button"
+                onClick={startD20Warmup}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)]"
+              >
+                <Dices className="h-5 w-5" aria-hidden="true" />
+                Rodar D20
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
+                O telão mostra a pergunta e o placar. Marque Acertou/Errou aqui e avance até o
+                pódio.
+              </p>
+
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  addCompName();
+                }}
+                className="mt-4 flex gap-2"
+              >
+                <input
+                  value={compNameInput}
+                  onChange={(event) => setCompNameInput(event.target.value)}
+                  placeholder="Nome do aluno"
+                  aria-label="Nome do aluno na competição"
+                  maxLength={24}
+                  className="min-w-0 flex-1 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-sm font-semibold text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+                />
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--ink)] transition hover:border-[var(--accent)]"
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Adicionar
+                </button>
+              </form>
+
+              {compNames.length > 0 ? (
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {compNames.map((name) => (
+                    <li
+                      key={name}
+                      className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-xs font-black text-[var(--ink)]"
+                    >
+                      {name}
+                      <button
+                        type="button"
+                        onClick={() => removeCompName(name)}
+                        aria-label={`Remover ${name}`}
+                        className="text-[var(--muted)] transition hover:text-[var(--danger)]"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-xs font-semibold text-[var(--muted)]">
+                  Adicione pelo menos 2 alunos.
+                </p>
+              )}
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Rodadas
+                </legend>
+                <div className="mt-2 grid grid-cols-4 gap-2">
+                  {COMP_ROUNDS.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={compRounds === value}
+                      onClick={() => setCompRounds(value)}
+                      className={
+                        compRounds === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2 py-2.5 text-sm font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-2.5 text-sm font-black text-[var(--muted)] transition hover:border-[var(--line)]'
+                      }
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <button
+                type="button"
+                onClick={startCompWarmup}
+                disabled={compNames.length < 2}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] disabled:opacity-50"
+              >
+                <Trophy className="h-5 w-5" aria-hidden="true" />
+                Começar competição na TV
+              </button>
+            </>
+          )}
+
+          <p className="mt-3 text-[11px] font-semibold text-[var(--muted)]">
+            Enquanto o warm-up estiver ativo, o telão ignora os slides. Use “Voltar aos slides”
+            para retomar.
+          </p>
+        </div>
+      </div>
+    ) : null;
 
   /* ------------------------------------------------------------------ */
   /* Render: loading / gate                                              */
@@ -975,7 +1616,115 @@ export default function AulaPage() {
             </div>
           </header>
 
-          <WarmupBar />
+          <WarmupBar active={warmup} onOpen={openWarmup} />
+
+          {warmup === 'live' ? (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--accent-2)] bg-[var(--surface)] px-4 py-3 text-sm font-black">
+              <span className="flex items-center gap-2">
+                <Radio className="h-4 w-4 text-[var(--accent-2)]" aria-hidden="true" />
+                Live ativo na sala {liveQuizCode}
+              </span>
+              <span className="flex flex-wrap items-center gap-2">
+                {hostUrl ? (
+                  <a
+                    href={hostUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                    Abrir /host
+                  </a>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={backToLessonSlides}
+                  className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
+                >
+                  Voltar aos slides
+                </button>
+              </span>
+            </div>
+          ) : null}
+
+          {warmup === 'd20' && d20 ? (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--accent)] bg-[var(--surface)] px-4 py-3">
+              <span className="min-w-0 text-sm font-black text-[var(--ink)]">
+                🎲 D20 na TV: {d20.text}{' '}
+                <span className="text-xs font-bold text-[var(--muted)]">
+                  · resposta {d20.answer ? 'TRUE' : 'FALSE'}
+                </span>
+              </span>
+              <span className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={revealD20}
+                  disabled={d20Revealed}
+                  className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)] disabled:opacity-50"
+                >
+                  Revelar
+                </button>
+                <button
+                  type="button"
+                  onClick={drawD20}
+                  className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--ink)]"
+                >
+                  Próxima
+                </button>
+                <button
+                  type="button"
+                  onClick={backToLessonSlides}
+                  className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)]"
+                >
+                  Voltar aos slides
+                </button>
+              </span>
+            </div>
+          ) : null}
+
+          {warmup === 'comp' && compMessage ? (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--accent-2)] bg-[var(--surface)] px-4 py-3">
+              <span className="min-w-0 text-sm font-black text-[var(--ink)]">
+                🏆 Competição: {compMessage.student} · rodada {compMessage.round ?? 1} de{' '}
+                {compMessage.totalRounds ?? compRounds}
+              </span>
+              <span className="flex flex-wrap items-center gap-2">
+                {compRanking ? null : compMessage.revealed ? (
+                  <button
+                    type="button"
+                    onClick={nextCompTurn}
+                    className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
+                  >
+                    Próxima
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => markComp(true)}
+                      className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-black uppercase tracking-wide text-[#071018]"
+                    >
+                      Acertou
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => markComp(false)}
+                      className="rounded-xl bg-rose-500 px-3 py-2 text-xs font-black uppercase tracking-wide text-white"
+                    >
+                      Errou
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={backToLessonSlides}
+                  className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)]"
+                >
+                  Voltar aos slides
+                </button>
+              </span>
+            </div>
+          ) : null}
 
           <section className="rounded-3xl border-2 border-[var(--line)] bg-[var(--surface)] p-6 shadow-[var(--card-shadow)] sm:p-10">
             <div className="text-center">
@@ -1058,6 +1807,7 @@ export default function AulaPage() {
             </p>
           </section>
         </div>
+        {warmupModalView}
       </main>
     );
   }
@@ -1107,7 +1857,7 @@ export default function AulaPage() {
           {activeLesson.turma} · {formatLessonDate(activeLesson.date)}
         </p>
 
-        <WarmupBar />
+        <WarmupBar active={warmup} onOpen={openWarmup} />
 
         {connection === 'offline' ? (
           <p className="mt-3 rounded-xl border-2 border-amber-500/60 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300">
@@ -1162,8 +1912,142 @@ export default function AulaPage() {
                 onClick={backToLessonSlides}
                 className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
               >
-                Voltar aos slides da aula
+                Voltar aos slides
               </button>
+            </div>
+          </div>
+        ) : null}
+
+        {warmup === 'd20' && d20 ? (
+          <div className="mt-3 rounded-2xl border-2 border-[var(--accent)] bg-[var(--surface)] px-4 py-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-2 text-sm font-black">
+                  <Dices className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                  D20 na TV — True or False?
+                </p>
+                <p className="mt-1 text-base font-black leading-snug text-[var(--ink)]">{d20.text}</p>
+                <p className="mt-1 text-xs font-bold text-[var(--muted)]">
+                  Resposta:{' '}
+                  <span className={d20.answer ? 'text-emerald-400' : 'text-rose-400'}>
+                    {d20.answer ? 'TRUE' : 'FALSE'}
+                  </span>
+                  {d20.explanation ? ` · ${d20.explanation}` : ''}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={revealD20}
+                  disabled={d20Revealed}
+                  className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)] disabled:opacity-50"
+                >
+                  Revelar
+                </button>
+                <button
+                  type="button"
+                  onClick={drawD20}
+                  className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--ink)] transition hover:border-[var(--accent)]"
+                >
+                  Próxima
+                </button>
+                <button
+                  type="button"
+                  onClick={backToLessonSlides}
+                  className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
+                >
+                  Voltar aos slides
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {warmup === 'comp' && compMessage ? (
+          <div className="mt-3 rounded-2xl border-2 border-[var(--accent-2)] bg-[var(--surface)] px-4 py-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-2 text-sm font-black">
+                  <Trophy className="h-4 w-4 text-[var(--accent-2)]" aria-hidden="true" />
+                  Competição na TV
+                  <span className="text-xs font-semibold text-[var(--muted)]">
+                    rodada {compMessage.round ?? 1} de {compMessage.totalRounds ?? compRounds} ·{' '}
+                    {compMessage.student}
+                  </span>
+                </p>
+                <p className="mt-1 text-base font-black leading-snug text-[var(--ink)]">
+                  {compMessage.text}
+                </p>
+                <p className="mt-1 text-xs font-bold text-[var(--muted)]">
+                  Resposta:{' '}
+                  <span className={compMessage.answer ? 'text-emerald-400' : 'text-rose-400'}>
+                    {compMessage.answer ? 'TRUE' : 'FALSE'}
+                  </span>
+                  {compMessage.explanation ? ` · ${compMessage.explanation}` : ''}
+                </p>
+                <p className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-bold text-[var(--muted)]">
+                  {[...compMessage.scores]
+                    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+                    .map((row) => (
+                      <span
+                        key={row.name}
+                        className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-0.5 text-[var(--ink)]"
+                      >
+                        {row.name}: {row.score}
+                      </span>
+                    ))}
+                </p>
+                {compRanking ? (
+                  <p className="mt-2 text-xs font-black text-[var(--accent)]">
+                    Fim da competição — pódio no telão.
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {compRanking ? (
+                  <button
+                    type="button"
+                    onClick={backToLessonSlides}
+                    className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
+                  >
+                    Voltar aos slides
+                  </button>
+                ) : compMessage.revealed ? (
+                  <button
+                    type="button"
+                    onClick={nextCompTurn}
+                    className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
+                  >
+                    Próxima
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => markComp(true)}
+                      className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-black uppercase tracking-wide text-[#071018]"
+                    >
+                      Acertou
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => markComp(false)}
+                      className="rounded-xl bg-rose-500 px-3 py-2 text-xs font-black uppercase tracking-wide text-white"
+                    >
+                      Errou
+                    </button>
+                  </>
+                )}
+                {!compRanking ? (
+                  <button
+                    type="button"
+                    onClick={backToLessonSlides}
+                    className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
+                  >
+                    Voltar aos slides
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
         ) : null}
@@ -1408,10 +2292,6 @@ export default function AulaPage() {
                     />
                   ) : null}
                 </div>
-                <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--muted)]">
-                  <MonitorPlay className="h-3.5 w-3.5" aria-hidden="true" />
-                  Prévia do telão — mesmo palco 16:9 do /tv, só reduzido para caber aqui.
-                </p>
               </div>
             </div>
 
@@ -1443,14 +2323,16 @@ export default function AulaPage() {
                 {totalItems}
               </span>
 
-              <button
-                type="button"
-                onClick={openQuizModal}
-                className="ml-auto flex items-center gap-2 rounded-xl bg-[var(--cta-bg)] px-4 py-2.5 text-sm font-black uppercase tracking-wide text-[var(--cta-text)]"
-              >
-                <Gamepad2 className="h-4 w-4" aria-hidden="true" />
-                Abrir sala do quiz
-              </button>
+              {beat?.segmentId === 'quiz' ? (
+                <button
+                  type="button"
+                  onClick={openQuizModal}
+                  className="ml-auto flex items-center gap-2 rounded-xl bg-[var(--cta-bg)] px-4 py-2.5 text-sm font-black uppercase tracking-wide text-[var(--cta-text)]"
+                >
+                  <Gamepad2 className="h-4 w-4" aria-hidden="true" />
+                  Abrir sala do quiz
+                </button>
+              ) : null}
             </div>
           </section>
         </div>
@@ -1590,6 +2472,7 @@ export default function AulaPage() {
           </div>
         </div>
       ) : null}
+      {warmupModalView}
     </main>
   );
 }

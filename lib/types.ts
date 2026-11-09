@@ -4,8 +4,24 @@ export type Theme = 'light' | 'dark';
 
 export type DifficultyId = 'easy' | 'medium' | 'hard';
 
-/** Topics available in the classic deck. */
-export type ClassicCategoryId = 'games' | 'anime' | 'pop-culture' | 'animals' | 'tech';
+/**
+ * Topics available in the classic deck.
+ *
+ * The set is intentionally broad so the teacher can enable only the themes
+ * that fit a given class. Each theme carries questions from warm-up to teen
+ * level, and the difficulty filter does the age tuning.
+ */
+export type ClassicCategoryId =
+  | 'games'
+  | 'anime'
+  | 'pop-culture'
+  | 'tech'
+  | 'digital-safety'
+  | 'science'
+  | 'nature'
+  | 'brazil'
+  | 'sports'
+  | 'logic';
 
 /** 1 = gentlest questions in a deck, 3 = hardest questions in that deck. */
 export type QuestionTier = 1 | 2 | 3;
@@ -62,6 +78,9 @@ export type DifficultyMeta = {
 };
 
 export type CompetitionLevelId = 'easy' | 'medium' | 'hard' | 'progressive';
+
+/** Points needed to win a Pass or Play match. */
+export type PassTargetScore = 5 | 10 | 15;
 
 export type ProgressiveRounds = 2 | 3;
 
