@@ -2,21 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, Check, RotateCcw, Swords, Trophy, X } from 'lucide-react';
+import { ArrowLeft, Check, RotateCcw, Trophy, X } from 'lucide-react';
 import LanguageToggle from './LanguageToggle';
 import VolumeControl from './VolumeControl';
-import { getClassicDeck } from '@/lib/classic-questions';
-import { getDeck } from '@/lib/game';
 import { categoryCopy } from '@/lib/i18n/game-copy';
 import { EXTRA_GAMES_COPY } from '@/lib/i18n/extra-games-copy';
-import { localizeQuestion, type Language } from '@/lib/i18n';
+import { localizeLiveQuestion, type Language } from '@/lib/i18n';
+import {
+  ANSWER_BUTTONS,
+  getLiveDeck,
+  prepareQuestion,
+} from '@/lib/live/room';
 import type {
   AnswerStatus,
   ClassicCategoryId,
   DifficultyId,
   ModeId,
   PassTargetScore,
-  Question,
 } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +29,15 @@ type Phase = 'question' | 'steal' | 'reveal' | 'over';
 type RoundResult = {
   scoringTeam: 0 | 1 | null;
   stolen: boolean;
+};
+
+type PassQuestion = {
+  id: string;
+  text: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+  category?: ClassicCategoryId;
 };
 
 type PassaRepassaGameProps = {
@@ -74,10 +85,7 @@ export default function PassaRepassaGame({
   const copy = EXTRA_GAMES_COPY[uiLanguage].pass;
 
   const deck = useMemo(
-    () =>
-      mode === 'classic'
-        ? getClassicDeck(difficulty, categories)
-        : getDeck('halloween', difficulty),
+    () => getLiveDeck(mode, difficulty, categories),
     [categories, difficulty, mode]
   );
 
@@ -85,7 +93,7 @@ export default function PassaRepassaGame({
   const [starter, setStarter] = useState<0 | 1>(0);
   const [activeTeam, setActiveTeam] = useState<0 | 1>(0);
   const [phase, setPhase] = useState<Phase>('question');
-  const [question, setQuestion] = useState<Question | null>(null);
+  const [question, setQuestion] = useState<PassQuestion | null>(null);
   const [status, setStatus] = useState<AnswerStatus>(null);
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
   const [round, setRound] = useState(0);
@@ -95,15 +103,25 @@ export default function PassaRepassaGame({
   const usedRef = useRef<Set<string>>(new Set());
   const startedRef = useRef(false);
 
-  const drawQuestion = useCallback((): Question | null => {
+  const drawQuestion = useCallback((): PassQuestion | null => {
     const fresh = deck.filter((item) => !usedRef.current.has(item.id));
     const pool = fresh.length > 0 ? fresh : deck;
     if (pool.length === 0) return null;
 
-    const next = pool[Math.floor(Math.random() * pool.length)];
-    usedRef.current.add(next.id);
-    return next;
-  }, [deck]);
+    const raw = pool[Math.floor(Math.random() * pool.length)];
+    usedRef.current.add(raw.id);
+    const localized = localizeLiveQuestion(raw, language);
+    const prepared = prepareQuestion(localized);
+
+    return {
+      id: prepared.id,
+      text: prepared.text,
+      options: prepared.options,
+      correctIndex: prepared.correctIndex,
+      explanation: localized.explanation,
+      category: raw.category,
+    };
+  }, [deck, language]);
 
   const beginRound = useCallback(
     (team: 0 | 1) => {
@@ -182,10 +200,10 @@ export default function PassaRepassaGame({
   );
 
   const answer = useCallback(
-    (guess: boolean) => {
+    (optionIndex: number) => {
       if (!question || status || phase === 'reveal' || phase === 'over') return;
 
-      const correct = guess === question.answer;
+      const correct = optionIndex === question.correctIndex;
 
       if (phase === 'question') {
         if (correct) {
@@ -256,12 +274,42 @@ export default function PassaRepassaGame({
   }, [beginRound]);
 
   const teamColor = (team: 0 | 1) => (team === 0 ? '#1368ce' : '#e21b3c');
-  const localized = question ? localizeQuestion(question, language) : null;
   const categoryLabel =
     question?.category ? categoryCopy(question.category, uiLanguage).label : null;
   const diff = Math.abs(scores[0] - scores[1]);
   const leader: 0 | 1 | null =
     scores[0] === scores[1] ? null : scores[0] > scores[1] ? 0 : 1;
+
+  const teamCard = (team: 0 | 1) => {
+    const active = activeTeam === team;
+    return (
+      <div
+        key={team}
+        className={cn(
+          'rounded-2xl border-4 bg-[var(--surface)] p-3 transition-all sm:p-5',
+          active ? 'scale-[1.01] shadow-[var(--panel-shadow)]' : 'opacity-80'
+        )}
+        style={{ borderColor: teamColor(team) }}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-xs font-black uppercase tracking-wider text-[var(--muted)] sm:text-sm">
+            {teamNames[team]}
+          </p>
+          {active && (
+            <span
+              className="rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white"
+              style={{ backgroundColor: teamColor(team) }}
+            >
+              {phase === 'steal' ? copy.steal : copy.turn}
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-4xl font-black tabular-nums text-[var(--ink)] sm:text-6xl">
+          {scores[team]}
+        </p>
+      </div>
+    );
+  };
 
   if (phase === 'over') {
     const champion = winner ?? (scores[0] >= scores[1] ? 0 : 1);
@@ -383,42 +431,13 @@ export default function PassaRepassaGame({
 
       <section aria-label={copy.score} className="mt-4">
         <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2 sm:gap-4">
-          {[0, 1].map((team) => {
-            const teamIndex = team as 0 | 1;
-            const active = activeTeam === teamIndex;
-            return (
-              <div
-                key={team}
-                className={cn(
-                  'rounded-2xl border-4 bg-[var(--surface)] p-3 transition-all sm:p-5',
-                  active ? 'scale-[1.01] shadow-[var(--panel-shadow)]' : 'opacity-80'
-                )}
-                style={{ borderColor: teamColor(teamIndex) }}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-xs font-black uppercase tracking-wider text-[var(--muted)] sm:text-sm">
-                    {teamNames[teamIndex]}
-                  </p>
-                  {active && (
-                    <span
-                      className="rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white"
-                      style={{ backgroundColor: teamColor(teamIndex) }}
-                    >
-                      {phase === 'steal' ? copy.steal : copy.turn}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 text-4xl font-black tabular-nums text-[var(--ink)] sm:text-6xl">
-                  {scores[teamIndex]}
-                </p>
-              </div>
-            );
-          })}
+          {teamCard(0)}
           <div className="flex items-center justify-center">
             <span className="rounded-full border-2 border-[var(--line)] bg-[var(--surface-2)] px-2 py-1 text-[10px] font-black uppercase tracking-wider text-[var(--muted)] sm:px-3 sm:text-xs">
               VS
             </span>
           </div>
+          {teamCard(1)}
         </div>
         <p className="mt-2 text-center text-[11px] font-black uppercase tracking-wider text-[var(--accent)]">
           {leader === null ? copy.tied : copy.scoreDifference(diff)}
@@ -426,7 +445,7 @@ export default function PassaRepassaGame({
       </section>
 
       <section className="mt-4 flex flex-1 flex-col">
-        {phase === 'reveal' && question && localized ? (
+        {phase === 'reveal' && question ? (
           <motion.div
             key={`reveal-${round}`}
             initial={{ opacity: 0, y: 10 }}
@@ -466,14 +485,32 @@ export default function PassaRepassaGame({
                 {categoryLabel ?? (mode === 'halloween' ? 'Halloween' : 'Trivia')}
               </p>
               <p className="mt-1 text-base font-bold leading-snug text-[var(--ink)]">
-                {localized.text}
+                {question.text}
               </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {question.options.map((option, index) => (
+                  <div
+                    key={`${question.id}-reveal-${index}`}
+                    className={cn(
+                      'flex items-center gap-2 rounded-xl border-2 px-3 py-2 text-sm font-bold leading-snug',
+                      index === question.correctIndex
+                        ? 'border-[var(--accent-2)] bg-emerald-400/10 text-[var(--ink)]'
+                        : 'border-[var(--line-soft)] text-[var(--muted)] opacity-70'
+                    )}
+                  >
+                    <span className="shrink-0 text-lg" aria-hidden="true">
+                      {ANSWER_BUTTONS[index]?.shape}
+                    </span>
+                    <span>{option}</span>
+                  </div>
+                ))}
+              </div>
               <p className="mt-3 text-sm font-black uppercase tracking-wide text-[var(--accent)]">
-                {copy.answerWas(question.answer)}
+                {copy.answerWas(question.options[question.correctIndex])}
               </p>
-              {localized.explanation && (
+              {question.explanation && (
                 <p className="mt-2 rounded-xl bg-[var(--surface-2)] px-3 py-2 text-sm font-medium leading-relaxed text-[var(--muted)]">
-                  {localized.explanation}
+                  {question.explanation}
                 </p>
               )}
             </div>
@@ -488,7 +525,7 @@ export default function PassaRepassaGame({
               </button>
             </div>
           </motion.div>
-        ) : question && localized ? (
+        ) : question ? (
           <motion.div
             key={`question-${round}-${phase}`}
             initial={{ opacity: 0, y: 10 }}
@@ -536,26 +573,29 @@ export default function PassaRepassaGame({
             </div>
 
             <h2 className="mx-auto mt-6 max-w-3xl text-center text-2xl font-black leading-snug text-[var(--ink)] sm:text-4xl">
-              {localized.text}
+              {question.text}
             </h2>
 
-            <div className="mx-auto mt-7 grid w-full max-w-2xl gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => answer(true)}
-                className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--accent-2)] px-4 text-lg font-black uppercase tracking-wide text-[#052e1f] shadow-[0_6px_0_rgba(0,0,0,0.18)] transition active:translate-y-1 active:shadow-none sm:text-xl"
-              >
-                <Check className="h-5 w-5" aria-hidden="true" />
-                {language === 'pt' ? 'Verdadeiro' : 'True'}
-              </button>
-              <button
-                type="button"
-                onClick={() => answer(false)}
-                className="flex min-h-[64px] items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--danger)] px-4 text-lg font-black uppercase tracking-wide text-white shadow-[0_6px_0_rgba(0,0,0,0.18)] transition active:translate-y-1 active:shadow-none sm:text-xl"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
-                {language === 'pt' ? 'Falso' : 'False'}
-              </button>
+            <div className="mx-auto mt-7 grid w-full max-w-3xl gap-3 sm:grid-cols-2">
+              {question.options.map((option, index) => {
+                const style = ANSWER_BUTTONS[index] ?? ANSWER_BUTTONS[0];
+                return (
+                  <button
+                    key={`${question.id}-option-${index}`}
+                    type="button"
+                    onClick={() => answer(index)}
+                    className="flex min-h-[64px] items-center gap-3 rounded-2xl border-4 border-[var(--line)] px-4 text-left text-white shadow-[0_6px_0_rgba(0,0,0,0.18)] transition hover:brightness-105 active:translate-y-1 active:shadow-none"
+                    style={{ backgroundColor: style.bg }}
+                  >
+                    <span className="shrink-0 text-2xl sm:text-3xl" aria-hidden="true">
+                      {style.shape}
+                    </span>
+                    <span className="min-w-0 flex-1 break-words text-sm font-black leading-tight sm:text-base">
+                      {option}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             <button

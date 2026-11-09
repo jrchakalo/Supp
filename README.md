@@ -66,7 +66,7 @@ Quiz em equipes, no estilo passa ou repassa.
 
 - Duas equipes com nomes editáveis.
 - Meta de **5, 10 ou 15 pontos**.
-- As equipes se alternam em perguntas de verdadeiro ou falso, com 20 segundos por turno.
+- As equipes se alternam em perguntas de múltipla escolha, com 20 segundos por turno.
 - Quem acerta marca 1 ponto; quem erra ou deixa o tempo acabar passa a pergunta para a outra equipe tentar o repasse.
 - O repasse certo também vale 1 ponto.
 - Funciona no modo padrão e no Halloween.

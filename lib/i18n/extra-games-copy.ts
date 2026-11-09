@@ -48,7 +48,7 @@ const EN = {
     questionLanguageHelp:
       'Only the questions and game feedback change. The interface follows the language selector at the top.',
     rules: 'How it works',
-    rule1: 'Teams take turns answering true-or-false questions.',
+    rule1: 'Teams take turns answering multiple-choice questions.',
     rule2: 'A correct answer scores 1 point.',
     rule3: 'A miss or timeout passes the question to the other team.',
     rule4: 'If the other team gets the steal right, they score the point.',
@@ -82,7 +82,8 @@ const EN = {
     scored: (team: string) => `${team} scored!`,
     stole: (team: string) => `${team} stole the point!`,
     noPoints: 'No points this round.',
-    answerWas: (answer: boolean) => `The answer was ${answer ? 'TRUE' : 'FALSE'}.`,
+    correctAnswer: 'Correct answer',
+    answerWas: (answer: string) => `The correct answer was: ${answer}`,
   },
 };
 
@@ -136,7 +137,7 @@ const PT: ExtraGamesCopy = {
     questionLanguageHelp:
       'Apenas as perguntas e o feedback do jogo mudam. A interface segue o seletor de idioma no topo.',
     rules: 'Como funciona',
-    rule1: 'As equipes se alternam respondendo perguntas de verdadeiro ou falso.',
+    rule1: 'As equipes se alternam respondendo perguntas de múltipla escolha.',
     rule2: 'Uma resposta certa vale 1 ponto.',
     rule3: 'Quem erra ou deixa o tempo acabar passa a pergunta para a outra equipe.',
     rule4: 'Se a outra equipe acertar o repasse, ela marca o ponto.',
@@ -170,7 +171,8 @@ const PT: ExtraGamesCopy = {
     scored: (team: string) => `${team} marcou!`,
     stole: (team: string) => `${team} roubou o ponto!`,
     noPoints: 'Nenhum ponto nesta rodada.',
-    answerWas: (answer: boolean) => `A resposta era ${answer ? 'VERDADEIRO' : 'FALSO'}.`,
+    correctAnswer: 'Resposta correta',
+    answerWas: (answer: string) => `A resposta certa era: ${answer}`,
   },
 };
 
