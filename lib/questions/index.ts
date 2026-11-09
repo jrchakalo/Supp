@@ -12,6 +12,7 @@ import * as sports from './classic-sports';
 import * as logic from './classic-logic';
 import * as liveExtra from './classic-live-extra';
 import * as animeTeen from './classic-anime-teen';
+import * as animeLegacy from './classic-anime-legacy';
 
 /** Order used by the topic pickers and by the combined deck. */
 export const CLASSIC_THEME_ORDER: ClassicCategoryId[] = [
@@ -43,10 +44,12 @@ const MODULES = [
 export const CLASSIC_TF_SEEDS: ClassicTfSeed[] = [
   ...MODULES.flatMap((module) => module.TF),
   ...animeTeen.TF,
+  ...animeLegacy.TF,
 ];
 
 export const CLASSIC_LIVE_SEEDS: ClassicLiveSeed[] = [
   ...MODULES.flatMap((module) => module.LIVE),
   ...liveExtra.LIVE,
   ...animeTeen.LIVE,
+  ...animeLegacy.LIVE,
 ];

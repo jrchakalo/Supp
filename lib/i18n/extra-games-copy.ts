@@ -60,6 +60,7 @@ const EN = {
     stealTurn: (team: string) => `${team}, steal the point!`,
     turn: 'Turn',
     steal: 'Steal',
+    passTurn: 'Pass',
     timeLeft: 'Time left',
     score: 'Score',
     round: 'Round',
@@ -75,6 +76,13 @@ const EN = {
     targetLabel: (n: number) => `First to ${n}`,
     stealHint: 'The other team can still steal this point.',
     noSteal: 'No points this round.',
+    scoreDifference: (diff: number) =>
+      diff === 0 ? 'Tied game' : `${diff}-point lead`,
+    tied: 'Tied game',
+    scored: (team: string) => `${team} scored!`,
+    stole: (team: string) => `${team} stole the point!`,
+    noPoints: 'No points this round.',
+    answerWas: (answer: boolean) => `The answer was ${answer ? 'TRUE' : 'FALSE'}.`,
   },
 };
 
@@ -140,6 +148,7 @@ const PT: ExtraGamesCopy = {
     stealTurn: (team: string) => `${team}, roube o ponto!`,
     turn: 'Vez',
     steal: 'Repasse',
+    passTurn: 'Passar',
     timeLeft: 'Tempo restante',
     score: 'Placar',
     round: 'Rodada',
@@ -155,6 +164,13 @@ const PT: ExtraGamesCopy = {
     targetLabel: (n: number) => `Primeiro a ${n}`,
     stealHint: 'A outra equipe ainda pode roubar este ponto.',
     noSteal: 'Nenhum ponto nesta rodada.',
+    scoreDifference: (diff: number) =>
+      diff === 0 ? 'Empate' : `${diff} ponto${diff === 1 ? '' : 's'} de vantagem`,
+    tied: 'Empate',
+    scored: (team: string) => `${team} marcou!`,
+    stole: (team: string) => `${team} roubou o ponto!`,
+    noPoints: 'Nenhum ponto nesta rodada.',
+    answerWas: (answer: boolean) => `A resposta era ${answer ? 'VERDADEIRO' : 'FALSO'}.`,
   },
 };
 

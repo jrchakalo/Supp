@@ -112,8 +112,8 @@ Os cartões já estão reservados na área de eventos. A arquitetura de baralhos
 
 ## Temas e dificuldades
 
-O baralho padrão tem **250 perguntas de verdadeiro ou falso** em dez temas,
-com **24 perguntas por tema** e o **Anime ampliado para 34**:
+O baralho padrão tem **258 perguntas de verdadeiro ou falso** em dez temas,
+com **24 perguntas por tema** e o **Anime ampliado para 42**:
 
 | Tema | Conteúdo |
 | --- | --- |
@@ -128,10 +128,10 @@ com **24 perguntas por tema** e o **Anime ampliado para 34**:
 | **Esportes** | Regras, recordes, Olimpíadas e atletas brasileiros |
 | **Lógica e enigmas** | Sequências, charadas, padrões e desafios de matemática |
 
-- **Fácil (80 perguntas)**, **Médio (82)** e **Difícil (88)**.
+- **Fácil (80 perguntas)**, **Médio (85)** e **Difícil (93)**.
 - Cada pergunta tem tema, dificuldade e tier, usados pela competição.
-- O Live do modo padrão usa um baralho próprio de **343 perguntas de múltipla
-  escolha** (33 por tema, com o Anime em 46), com opções e explicações em
+- O Live do modo padrão usa um baralho próprio de **344 perguntas de múltipla
+  escolha** (33 por tema, com o Anime em 47), com opções e explicações em
   português e inglês.
 - O Live lembra as perguntas já usadas em salas recentes e as evita no próximo
   sorteio. A memória fica no navegador e pode ser limpa na tela do host.
