@@ -510,6 +510,12 @@ export default function GamePage() {
     } else if (requested === 'd20') {
       setPlayStyle('d20');
       setScreen('d20-setup');
+    } else if (requested === 'wheel') {
+      setPlayStyle('wheel');
+      setScreen('wheel-setup');
+    } else if (requested === 'passa') {
+      setPlayStyle('passa');
+      setScreen('passa-setup');
     }
   }, []);
 

@@ -197,6 +197,27 @@ function WarmupBar({
             </button>
           );
         })}
+
+        <div className="flex flex-wrap items-center gap-2 border-l-2 border-[var(--line)] pl-3">
+          <a
+            href="/?screen=wheel"
+            target="_blank"
+            rel="noreferrer"
+            title="Roleta de perguntas — abre na tela do professor"
+            className="flex items-center gap-2 rounded-xl border-2 border-dashed border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            Roleta
+          </a>
+          <a
+            href="/?screen=passa"
+            target="_blank"
+            rel="noreferrer"
+            title="Passa Repassa — abre na tela do professor"
+            className="flex items-center gap-2 rounded-xl border-2 border-dashed border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            Passa Repassa
+          </a>
+        </div>
       </div>
     </section>
   );
