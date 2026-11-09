@@ -449,6 +449,27 @@ export default function GamePage() {
     writeStorage(THEME_STORAGE_KEY, theme);
   }, [hydrated, theme]);
 
+  /*
+   * Deep links used by the /aula warm-up bar:
+   *   /?screen=competition  → competition (setup first if there is no roster)
+   *   /?screen=d20          → d20-setup
+   * Without the param nothing changes.
+   */
+  const requestedScreenAppliedRef = useRef(false);
+  useEffect(() => {
+    if (requestedScreenAppliedRef.current) return;
+    requestedScreenAppliedRef.current = true;
+
+    const requested = new URLSearchParams(window.location.search).get('screen');
+    if (requested === 'competition') {
+      setPlayStyle('competition');
+      setScreen('competition');
+    } else if (requested === 'd20') {
+      setPlayStyle('d20');
+      setScreen('d20-setup');
+    }
+  }, []);
+
   useEffect(() => {
     const href = isHalloween ? '/supp-icon-halloween.png' : '/supp-icon.png';
     let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
@@ -1210,7 +1231,8 @@ export default function GamePage() {
             </motion.div>
           )}
 
-          {screen === 'competition-setup' && (
+          {(screen === 'competition-setup' ||
+            (screen === 'competition' && competitionStudents.length < 2)) && (
             <CompetitionSetup
               key="competition-setup"
               mode={mode}
@@ -1228,7 +1250,7 @@ export default function GamePage() {
             />
           )}
 
-          {screen === 'competition' && (
+          {screen === 'competition' && competitionStudents.length >= 2 && (
             <CompetitionGame
               key={`competition-${competitionRun}`}
               mode={mode}

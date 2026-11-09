@@ -23,6 +23,11 @@ const EN = {
   questionLanguage: 'Question language',
   questionLanguageHelp:
     'Only the questions and game feedback change. The interface follows the language selector on the main menu.',
+  translateAtHalf: 'Translate after half the time',
+  translateAtHalfHelp:
+    'On: halfway through the timer, questions that have a translation show the Portuguese version here and on the phones. The original stays on screen.',
+  translateAtHalfUnavailable: 'This deck has no Portuguese translations, so this option changes nothing.',
+  translationLabel: 'PT',
   on: 'On',
   off: 'Off',
   openRoom: 'Open room',
@@ -88,6 +93,12 @@ const PT: HostCopy = {
   questionLanguage: 'Idioma das perguntas',
   questionLanguageHelp:
     'Apenas as perguntas e o feedback do jogo mudam. A interface segue o seletor de idioma no menu principal.',
+  translateAtHalf: 'Traduzir após metade do tempo',
+  translateAtHalfHelp:
+    'Ligado: na metade do tempo, as perguntas que têm tradução mostram a versão em português aqui e nos celulares. A original continua na tela.',
+  translateAtHalfUnavailable:
+    'Este baralho não tem traduções em português, então esta opção não muda nada.',
+  translationLabel: 'PT',
   on: 'Ligado',
   off: 'Desligado',
   openRoom: 'Abrir sala',

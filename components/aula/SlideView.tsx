@@ -1,19 +1,30 @@
 'use client';
 
 import clsx from 'clsx';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import type { CaseOption, Slide } from '@/lib/passaporte-lessons';
 import { ANSWER_BUTTONS } from '@/lib/live/room';
 
-type Variant = 'preview' | 'tv';
+/**
+ * The slide is authored once, at a fixed 16:9 design size, and laid out with
+ * container query units (`cqw`). That means the teacher preview (a 960×540
+ * stage scaled with `transform`) and the TV (a fluid aspect-video stage) render
+ * the exact same composition — no separate "preview" typography to drift.
+ */
+export const SLIDE_STAGE_WIDTH = 960;
+export const SLIDE_STAGE_HEIGHT = 540;
 
 type SlideViewProps = {
   slide: Slide;
-  variant?: Variant;
   className?: string;
   /** Scene image (e.g. the crime scene) sent along with the slide. */
   imageUrl?: string;
+  /**
+   * Teacher notes belong to the Colinha, so the teacher preview hides them.
+   * The TV (default) still shows the `case` note on reveal.
+   */
+  showNotes?: boolean;
 };
 
 /** Tiny Lua tokenizer: enough color to separate keywords, strings and numbers. */
@@ -67,21 +78,45 @@ function caseCorrectIndex(slide: { options: CaseOption[]; correct?: number }): n
   );
 }
 
+/* Typography scale, all relative to the slide width. On a 1920px TV one `cqw`
+   is 19.2px; on the 960px preview stage it is 9.6px before the scale factor. */
+const EYEBROW_CLS =
+  'text-[1.15cqw] font-black uppercase tracking-[0.3em] text-[var(--accent)]';
+const TITLE_CLS =
+  'text-[4.4cqw] font-black leading-[1.03] text-balance break-words text-[var(--ink)]';
+const SUBTITLE_CLS = 'text-[1.75cqw] font-bold leading-snug text-[var(--muted)]';
+const BODY_CLS = 'text-[2.4cqw] font-black leading-[1.18] text-[var(--ink)]';
+const SMALL_CLS =
+  'text-[1.4cqw] font-semibold leading-snug text-[var(--muted)]';
+
+function SlideHeader({
+  title,
+  subtitle,
+  eyebrow = 'Supp · Aula',
+}: {
+  title: string;
+  subtitle?: string;
+  eyebrow?: string;
+}) {
+  return (
+    <header className="flex shrink-0 flex-col gap-[0.4cqw]">
+      <p className={EYEBROW_CLS}>{eyebrow}</p>
+      <h2 className={TITLE_CLS}>{title}</h2>
+      {subtitle ? <p className={SUBTITLE_CLS}>{subtitle}</p> : null}
+    </header>
+  );
+}
+
 /**
- * Scene image, rendered below the slide title. A broken link shows a discreet
- * placeholder instead of a broken-image icon on the projector.
+ * Scene image, rendered between the title and the bullets. A broken link shows
+ * a discreet placeholder instead of a broken-image icon on the projector.
  */
-function SceneImage({ src, tv }: { src: string; tv: boolean }) {
+function SceneImage({ src }: { src: string }) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {
     return (
-      <div
-        className={clsx(
-          'flex h-full w-full items-center justify-center rounded-2xl border border-dashed border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--muted)]',
-          tv ? 'text-[clamp(0.9rem,1.4vw,1.4rem)]' : 'text-[10px]'
-        )}
-      >
+      <div className="flex h-full w-full items-center justify-center rounded-[1.2cqw] border border-dashed border-[var(--line-soft)] bg-[var(--surface-2)] text-[1.35cqw] font-semibold text-[var(--muted)]">
         Imagem indisponível
       </div>
     );
@@ -93,62 +128,61 @@ function SceneImage({ src, tv }: { src: string; tv: boolean }) {
       src={src}
       alt="Imagem da cena"
       onError={() => setFailed(true)}
-      className="h-full w-full rounded-2xl object-contain shadow-2xl"
+      className="h-full w-full rounded-[1.2cqw] object-contain shadow-2xl"
     />
   );
 }
 
-function SceneImageFrame({ src, tv }: { src: string; tv: boolean }) {
+function SceneImageFrame({ src }: { src: string }) {
   return (
-    <div
-      className={clsx(
-        'flex min-h-0 flex-1 items-center justify-center overflow-hidden',
-        tv ? 'mt-[clamp(0.6rem,1.4vw,1.4rem)]' : 'mt-2'
-      )}
-    >
-      <SceneImage key={src} src={src} tv={tv} />
+    <div className="mt-[1.2cqw] flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+      <SceneImage key={src} src={src} />
     </div>
   );
 }
 
-function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUrl?: string }) {
-  const eyebrowCls = tv
-    ? 'text-[clamp(0.85rem,1.2vw,1.3rem)] font-black uppercase tracking-[0.3em] text-[var(--accent)]'
-    : 'text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]';
-  const titleCls = tv
-    ? 'text-[clamp(2rem,4.4vw,4.8rem)] font-black leading-[1.03] text-balance text-[var(--ink)]'
-    : 'text-xl font-black leading-tight text-[var(--ink)] sm:text-2xl';
-  const subtitleCls = tv
-    ? 'text-[clamp(1.05rem,1.9vw,2.1rem)] font-bold text-[var(--muted)]'
-    : 'text-xs font-semibold text-[var(--muted)] sm:text-sm';
-  const bodyCls = tv
-    ? 'text-[clamp(1.3rem,2.5vw,2.8rem)] font-black leading-tight text-[var(--ink)]'
-    : 'text-sm font-semibold leading-snug text-[var(--ink)] sm:text-base';
-  const smallCls = tv
-    ? 'text-[clamp(0.95rem,1.6vw,1.7rem)] font-semibold text-[var(--muted)]'
-    : 'text-[11px] font-semibold text-[var(--muted)]';
-  const chipCls = tv
-    ? 'rounded-full border-2 border-[var(--line)] bg-[var(--surface-2)] px-[clamp(0.8rem,1.5vw,1.4rem)] py-[clamp(0.35rem,0.7vw,0.65rem)] text-[clamp(0.9rem,1.45vw,1.5rem)] font-black text-[var(--ink)]'
-    : 'rounded-full border-2 border-[var(--line)] bg-[var(--surface-2)] px-2.5 py-1 text-[10px] font-black text-[var(--ink)]';
+/** Font size that keeps a long bullet list inside the 16:9 stage. */
+function bulletTextClass(count: number): string {
+  if (count > 12) return 'text-[1.55cqw]';
+  if (count > 10) return 'text-[1.75cqw]';
+  if (count > 8) return 'text-[1.95cqw]';
+  if (count > 6) return 'text-[2.15cqw]';
+  return 'text-[2.45cqw]';
+}
 
+/** Font size that keeps a table readable but inside the stage. */
+function tableTextClass(rowCount: number): string {
+  if (rowCount > 12) return 'text-[1.05cqw]';
+  if (rowCount > 9) return 'text-[1.2cqw]';
+  if (rowCount > 6) return 'text-[1.4cqw]';
+  return 'text-[1.6cqw]';
+}
+
+function SlideBody({
+  slide,
+  imageUrl,
+  showNotes,
+}: {
+  slide: Slide;
+  imageUrl?: string;
+  showNotes: boolean;
+}) {
   switch (slide.kind) {
     case 'cover':
       return (
-        <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-          <p className={eyebrowCls}>Supp · Aula</p>
-          <h1
-            className={clsx(
-              'font-black leading-[1.02] text-balance text-[var(--ink)]',
-              tv ? 'text-[clamp(2.7rem,6.4vw,7.2rem)]' : 'text-3xl'
-            )}
-          >
+        <div className="flex h-full min-h-0 flex-col items-center justify-center gap-[1.4cqw] overflow-hidden text-center">
+          <p className={EYEBROW_CLS}>Supp · Aula</p>
+          <h1 className="text-[6.4cqw] font-black leading-[1.02] text-balance break-words text-[var(--ink)]">
             {slide.title}
           </h1>
-          {slide.subtitle ? <p className={subtitleCls}>{slide.subtitle}</p> : null}
+          {slide.subtitle ? <p className={SUBTITLE_CLS}>{slide.subtitle}</p> : null}
           {slide.chips?.length ? (
-            <div className={clsx('mt-5 flex flex-wrap justify-center gap-2', tv && 'gap-3')}>
+            <div className="mt-[1.4cqw] flex flex-wrap justify-center gap-[0.8cqw]">
               {slide.chips.map((chip) => (
-                <span key={chip} className={chipCls}>
+                <span
+                  key={chip}
+                  className="rounded-full border-2 border-[var(--line)] bg-[var(--surface-2)] px-[1.5cqw] py-[0.65cqw] text-[1.4cqw] font-black text-[var(--ink)]"
+                >
                   {chip}
                 </span>
               ))}
@@ -157,94 +191,86 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
         </div>
       );
 
-    case 'bullets':
+    case 'bullets': {
+      const count = slide.bullets.length;
+      /* More than six bullets automatically flow into two columns. */
+      const twoColumns = count > 6;
+      const bulletCls = bulletTextClass(count);
+
       return (
         <div className="flex h-full min-h-0 flex-col">
-          <header className="flex shrink-0 flex-col gap-1">
-            <p className={eyebrowCls}>Supp · Aula</p>
-            <h2 className={titleCls}>{slide.title}</h2>
-            {slide.subtitle ? <p className={subtitleCls}>{slide.subtitle}</p> : null}
-          </header>
-          {imageUrl ? <SceneImageFrame src={imageUrl} tv={tv} /> : null}
+          <SlideHeader title={slide.title} subtitle={slide.subtitle} />
+          {imageUrl ? <SceneImageFrame src={imageUrl} /> : null}
           <ul
             className={clsx(
-              'flex flex-col',
-              imageUrl ? 'min-h-0 shrink-0 overflow-hidden' : 'min-h-0 flex-1 justify-center',
-              tv ? 'mt-4 gap-[clamp(0.7rem,1.6vw,1.8rem)]' : 'mt-3 gap-2'
+              'grid min-h-0',
+              twoColumns
+                ? 'grid-cols-2 gap-x-[3cqw]'
+                : 'grid-cols-1',
+              count > 8 ? 'gap-y-[0.7cqw]' : 'gap-y-[1.1cqw]',
+              imageUrl
+                ? 'mt-[1.2cqw] max-h-[42%] shrink-0 overflow-hidden content-start'
+                : 'mt-[1.6cqw] flex-1 content-center'
             )}
           >
             {slide.bullets.map((bullet, bulletIndex) => (
-              <li key={`${bullet}-${bulletIndex}`} className="flex items-start gap-3">
+              <li
+                key={`${bullet}-${bulletIndex}`}
+                className="flex min-w-0 items-start gap-[1cqw]"
+              >
                 <span
                   aria-hidden="true"
-                  className="mt-[0.36em] h-[0.6em] w-[0.6em] shrink-0 rounded-[2px] bg-[var(--accent)]"
+                  className="mt-[0.42em] h-[0.55em] w-[0.55em] shrink-0 rounded-[0.12em] bg-[var(--accent)]"
                 />
-                <span className={bodyCls}>{bullet}</span>
+                <span className={clsx('min-w-0 break-words', BODY_CLS, bulletCls)}>
+                  {bullet}
+                </span>
               </li>
             ))}
           </ul>
-          {!tv && slide.note ? (
-            <p
-              className={clsx(
-                'shrink-0 rounded-xl border-l-4 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2',
-                smallCls
-              )}
-            >
-              {slide.note}
-            </p>
-          ) : null}
         </div>
       );
+    }
 
     case 'case': {
       const correctIndex = caseCorrectIndex(slide);
-      /* Preview always shows the answer so the teacher knows it before revealing. */
-      const showAnswer = !tv || slide.revealed === true;
+      /* The TV only reveals the answer (and the note) when requested. */
+      const showAnswer = slide.revealed === true;
+      const compact = slide.options.length > 4;
+      const optionTextCls = compact ? 'text-[1.8cqw]' : 'text-[2.05cqw]';
 
       return (
         <div className="flex h-full min-h-0 flex-col">
-          <header className="flex shrink-0 flex-col gap-1">
-            <h2 className={titleCls}>{slide.title}</h2>
-            {slide.subtitle ? <p className={subtitleCls}>{slide.subtitle}</p> : null}
-          </header>
-          <p
-            className={clsx(
-              'shrink-0 font-black text-[var(--accent)]',
-              tv ? 'mt-[clamp(0.8rem,1.6vw,1.8rem)] text-[clamp(1.4rem,2.7vw,3rem)]' : 'mt-2 text-sm'
-            )}
-          >
+          <SlideHeader title={slide.title} subtitle={slide.subtitle} />
+          <p className="mt-[1.2cqw] shrink-0 text-[2.2cqw] font-black leading-tight text-[var(--accent)]">
             {slide.prompt}
           </p>
-          <ul
-            className={clsx(
-              'flex flex-col',
-              tv ? 'min-h-0 flex-1 justify-center' : 'justify-start',
-              tv ? 'mt-4 gap-[clamp(0.5rem,1.2vw,1.2rem)]' : 'mt-2 gap-1.5'
-            )}
-          >
+          <ul className="mt-[1.2cqw] flex min-h-0 flex-1 flex-col justify-center gap-[0.9cqw] overflow-hidden">
             {slide.options.map((option, index) => {
               const isCorrect = showAnswer && index === correctIndex;
               return (
                 <li
                   key={`${caseOptionText(option)}-${index}`}
                   className={clsx(
-                    'flex items-center gap-3 rounded-xl border-2 bg-[var(--surface-2)] px-3 py-2',
+                    'flex min-w-0 items-center gap-[1.2cqw] rounded-[1cqw] border-2 bg-[var(--surface-2)] px-[1.3cqw] py-[0.9cqw]',
                     isCorrect
                       ? 'border-emerald-400 ring-2 ring-emerald-400/40'
                       : 'border-[var(--line-soft)]'
                   )}
                 >
-                  <span
-                    className={clsx(
-                      'flex shrink-0 items-center justify-center rounded-lg bg-[var(--surface)] font-black text-[var(--accent)]',
-                      tv ? 'h-[clamp(2rem,3vw,3rem)] w-[clamp(2rem,3vw,3rem)] text-[clamp(1rem,1.7vw,1.7rem)]' : 'h-7 w-7 text-xs'
-                    )}
-                  >
+                  <span className="flex h-[2.8cqw] w-[2.8cqw] shrink-0 items-center justify-center rounded-[0.7cqw] bg-[var(--surface)] text-[1.4cqw] font-black text-[var(--accent)]">
                     {String.fromCharCode(65 + index)}
                   </span>
-                  <span className={clsx('min-w-0 flex-1', bodyCls)}>{caseOptionText(option)}</span>
+                  <span
+                    className={clsx(
+                      'min-w-0 flex-1 break-words font-black leading-[1.2] text-[var(--ink)]',
+                      optionTextCls
+                    )}
+                  >
+                    {caseOptionText(option)}
+                  </span>
                   {isCorrect ? (
-                    <span className="shrink-0 rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[#071018]">
+                    <span className="shrink-0 rounded-full bg-emerald-400 px-[0.9cqw] py-[0.2cqw] text-[1.05cqw] font-black uppercase tracking-wide text-[#071018]">
                       (raiz)
                     </span>
                   ) : null}
@@ -252,14 +278,8 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
               );
             })}
           </ul>
-          {showAnswer && slide.note ? (
-            <p
-              className={clsx(
-                'shrink-0 rounded-xl border-l-4 border-emerald-400 bg-[var(--surface-2)] px-3 py-2',
-                tv ? 'mt-[clamp(0.6rem,1.2vw,1.2rem)]' : 'mt-2',
-                smallCls
-              )}
-            >
+          {showNotes && showAnswer && slide.note ? (
+            <p className="mt-[1cqw] shrink-0 break-words rounded-[0.9cqw] border-l-4 border-emerald-400 bg-[var(--surface-2)] px-[1.2cqw] py-[0.75cqw] text-[1.35cqw] font-semibold leading-snug text-[var(--ink)]">
               {slide.note}
             </p>
           ) : null}
@@ -269,54 +289,32 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
 
     case 'code': {
       const lineCount = slide.code.split('\n').length;
-      const codeCls = tv
-        ? lineCount > 16
-          ? 'text-[clamp(0.62rem,1.05vw,0.98rem)]'
-          : 'text-[clamp(0.85rem,1.5vw,1.4rem)]'
-        : 'text-[10px] sm:text-[11px]';
+      const codeCls =
+        lineCount > 16 ? 'text-[1.05cqw]' : 'text-[1.5cqw]';
 
       return (
         <div className="flex h-full min-h-0 flex-col">
-          <header className="flex shrink-0 flex-col gap-1">
-            <h2 className={titleCls}>{slide.title}</h2>
-            {slide.subtitle ? <p className={subtitleCls}>{slide.subtitle}</p> : null}
-          </header>
+          <SlideHeader title={slide.title} subtitle={slide.subtitle} />
           <pre
             className={clsx(
-              'mt-2 min-h-0 flex-1 overflow-auto rounded-xl border-2 border-[var(--line)] bg-[#080d1a] p-3 font-mono leading-relaxed text-[#e2e8f0] sm:p-4',
-              codeCls,
-              tv && 'mt-3 rounded-2xl'
+              'mt-[1.2cqw] min-h-0 flex-1 overflow-auto rounded-[1.2cqw] border-2 border-[var(--line)] bg-[#080d1a] p-[1.4cqw] font-mono leading-relaxed text-[#e2e8f0]',
+              codeCls
             )}
           >
             <code>{highlightLua(slide.code)}</code>
           </pre>
           {slide.rows?.length ? (
-            <div
-              className={clsx(
-                'shrink-0 overflow-auto rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)]',
-                tv ? 'mt-3 max-h-[36%]' : 'mt-2 max-h-32'
-              )}
-            >
+            <div className="mt-[1cqw] max-h-[34%] shrink-0 overflow-auto rounded-[1cqw] border-2 border-[var(--line-soft)] bg-[var(--surface-2)]">
               <ul>
                 {slide.rows.map((row) => (
                   <li
                     key={`${row.left}-${row.right}`}
-                    className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-2 border-b border-[var(--line-soft)] px-2.5 py-1.5 last:border-b-0"
+                    className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-[1cqw] border-b border-[var(--line-soft)] px-[1.1cqw] py-[0.55cqw] last:border-b-0"
                   >
-                    <code
-                      className={clsx(
-                        'truncate font-mono font-bold text-[var(--accent-2)]',
-                        tv ? 'text-[clamp(0.6rem,1vw,1rem)]' : 'text-[9px]'
-                      )}
-                    >
+                    <code className="truncate font-mono text-[1.05cqw] font-bold text-[var(--accent-2)]">
                       {row.left}
                     </code>
-                    <span
-                      className={clsx(
-                        'text-[var(--muted)]',
-                        tv ? 'text-[clamp(0.6rem,1vw,1rem)]' : 'text-[9px]'
-                      )}
-                    >
+                    <span className="break-words text-[1.05cqw] text-[var(--muted)]">
                       {row.right}
                     </span>
                   </li>
@@ -328,23 +326,26 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
       );
     }
 
-    case 'table':
+    case 'table': {
+      const rowCount = slide.rows.length;
+      const cellCls = tableTextClass(rowCount);
+      const headCls =
+        rowCount > 9 ? 'text-[1.05cqw]' : rowCount > 6 ? 'text-[1.2cqw]' : 'text-[1.35cqw]';
+
       return (
         <div className="flex h-full min-h-0 flex-col">
-          <header className="flex shrink-0 flex-col gap-1">
-            <h2 className={titleCls}>{slide.title}</h2>
-            {slide.subtitle ? <p className={subtitleCls}>{slide.subtitle}</p> : null}
-          </header>
-          <div className="mt-3 min-h-0 flex-1 overflow-auto rounded-xl border-2 border-[var(--line)]">
-            <table className="w-full border-collapse text-left">
-              <thead className="sticky top-0 bg-[var(--surface-2)]">
+          <SlideHeader title={slide.title} subtitle={slide.subtitle} />
+          <div className="mt-[1.4cqw] min-h-0 flex-1 overflow-auto rounded-[1.2cqw] border-2 border-[var(--line)]">
+            <table className="w-full table-fixed border-collapse text-left">
+              <thead className="sticky top-0 z-10 bg-[var(--surface-2)]">
                 <tr>
-                  {slide.head.map((cell) => (
+                  {slide.head.map((cell, index) => (
                     <th
-                      key={cell}
+                      key={`${cell}-${index}`}
                       className={clsx(
-                        'border-b-2 border-[var(--line)] px-3 py-2 font-black uppercase tracking-wide text-[var(--accent)]',
-                        tv ? 'text-[clamp(0.7rem,1.1vw,1.1rem)]' : 'text-[9px]'
+                        'border-b-2 border-[var(--line)] px-[1.2cqw] py-[0.8cqw] font-black uppercase tracking-wide text-[var(--accent)]',
+                        headCls,
+                        index === 0 ? 'w-[28%]' : 'w-auto'
                       )}
                     >
                       {cell}
@@ -362,11 +363,11 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
                       <td
                         key={`cell-${rowIndex}-${cellIndex}`}
                         className={clsx(
-                          'px-3 py-2 align-top',
+                          'break-words px-[1.2cqw] py-[0.7cqw] align-top',
                           cellIndex === 0
                             ? 'font-black text-[var(--ink)]'
                             : 'font-semibold text-[var(--muted)]',
-                          tv ? 'text-[clamp(0.75rem,1.3vw,1.35rem)]' : 'text-[9px]'
+                          cellCls
                         )}
                       >
                         {cell}
@@ -379,27 +380,20 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
           </div>
         </div>
       );
+    }
 
     case 'big':
       return (
-        <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-          {slide.subtitle ? <p className={eyebrowCls}>{slide.subtitle}</p> : null}
-          <h1
-            className={clsx(
-              'font-black leading-none text-balance text-[var(--ink)]',
-              tv ? 'text-[clamp(3rem,8vw,9rem)]' : 'text-3xl'
-            )}
-          >
+        <div className="flex h-full min-h-0 flex-col items-center justify-center gap-[1.2cqw] overflow-hidden text-center">
+          {slide.subtitle ? <p className={EYEBROW_CLS}>{slide.subtitle}</p> : null}
+          <h1 className="text-[7.5cqw] font-black leading-none text-balance break-words text-[var(--ink)]">
             {slide.title}
           </h1>
-          <ul className={clsx('flex flex-col', tv ? 'mt-[clamp(1rem,2.4vw,2.6rem)] gap-2' : 'mt-3 gap-1.5')}>
+          <ul className="mt-[1.2cqw] flex w-full flex-col items-center gap-[0.8cqw]">
             {slide.lines.map((line) => (
               <li
                 key={line}
-                className={clsx(
-                  'rounded-xl bg-[var(--surface-2)] px-4 py-2 font-black text-[var(--ink)]',
-                  tv ? 'text-[clamp(1.2rem,2.3vw,2.5rem)]' : 'text-sm'
-                )}
+                className="max-w-full rounded-[1cqw] bg-[var(--surface-2)] px-[1.6cqw] py-[0.75cqw] text-[2.2cqw] font-black leading-tight text-[var(--ink)]"
               >
                 {line}
               </li>
@@ -410,77 +404,51 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
 
     case 'quiz':
       return (
-        <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-          <h1
-            className={clsx(
-              'font-black leading-none text-balance text-[var(--ink)]',
-              tv ? 'text-[clamp(2.8rem,7vw,8rem)]' : 'text-3xl'
-            )}
-          >
+        <div className="flex h-full min-h-0 flex-col items-center justify-center gap-[1cqw] overflow-hidden text-center">
+          <h1 className="text-[7cqw] font-black leading-none text-balance break-words text-[var(--ink)]">
             {slide.title}
           </h1>
-          {slide.subtitle ? <p className={subtitleCls}>{slide.subtitle}</p> : null}
-          <ul className={clsx('flex flex-col', tv ? 'mt-[clamp(1rem,2.4vw,2.6rem)] gap-2' : 'mt-3 gap-1.5')}>
+          {slide.subtitle ? <p className={SUBTITLE_CLS}>{slide.subtitle}</p> : null}
+          <ul className="mt-[1.2cqw] flex w-full flex-col items-center gap-[0.7cqw]">
             {slide.bullets.map((bullet, bulletIndex) => (
               <li
                 key={`${bullet}-${bulletIndex}`}
-                className={clsx(
-                  'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-2 font-black text-[var(--ink)]',
-                  tv ? 'text-[clamp(1.2rem,2.2vw,2.4rem)]' : 'text-sm'
-                )}
+                className="max-w-full rounded-[1cqw] border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-[1.6cqw] py-[0.7cqw] text-[2.1cqw] font-black leading-tight text-[var(--ink)]"
               >
                 {bullet}
               </li>
             ))}
           </ul>
-          <p className={clsx('mt-2 font-black text-[var(--accent)]', tv ? 'text-[clamp(1.2rem,2vw,2rem)]' : 'text-sm')}>
-            supp.lol/join
-          </p>
+          <p className="mt-[0.8cqw] text-[1.9cqw] font-black text-[var(--accent)]">supp.lol/join</p>
         </div>
       );
 
     case 'question':
       return (
         <div className="flex h-full min-h-0 flex-col">
-          <p className={eyebrowCls}>{slide.title}</p>
-          <h2
-            className={clsx(
-              'font-black leading-tight text-balance text-[var(--ink)]',
-              tv ? 'mt-2 text-[clamp(1.9rem,4vw,4.6rem)]' : 'mt-1 text-lg sm:text-xl'
-            )}
-          >
+          <p className={EYEBROW_CLS}>{slide.title}</p>
+          <h2 className="mt-[0.6cqw] text-[4cqw] font-black leading-tight text-balance break-words text-[var(--ink)]">
             {slide.question}
           </h2>
-          {slide.subtitle ? <p className={clsx('mt-1', subtitleCls)}>{slide.subtitle}</p> : null}
-          <div
-            className={clsx(
-              'grid min-h-0 flex-1 content-center grid-cols-1 sm:grid-cols-2',
-              tv ? 'mt-4 gap-[clamp(0.6rem,1.4vw,1.4rem)]' : 'mt-3 gap-1.5'
-            )}
-          >
+          {slide.subtitle ? (
+            <p className={clsx('mt-[0.5cqw]', SUBTITLE_CLS)}>{slide.subtitle}</p>
+          ) : null}
+          <div className="mt-[1.4cqw] grid min-h-0 flex-1 grid-cols-2 content-center gap-[1.2cqw]">
             {slide.options.map((option, index) => {
               const style = ANSWER_BUTTONS[index % ANSWER_BUTTONS.length];
               return (
                 <div
                   key={option}
-                  className={clsx(
-                    'flex items-center gap-3 rounded-2xl text-white shadow-[var(--tile-shadow)]',
-                    tv ? 'px-4 py-3' : 'px-2.5 py-2'
-                  )}
+                  className="flex min-w-0 items-center gap-[1.2cqw] rounded-[1.2cqw] px-[1.4cqw] py-[1.1cqw] text-white shadow-[var(--tile-shadow)]"
                   style={{ backgroundColor: style.bg }}
                 >
                   <span
                     aria-hidden="true"
-                    className={clsx('shrink-0', tv ? 'text-[clamp(1.6rem,2.6vw,2.8rem)]' : 'text-lg')}
+                    className="shrink-0 text-[2.6cqw] leading-none"
                   >
                     {style.shape}
                   </span>
-                  <span
-                    className={clsx(
-                      'min-w-0 flex-1 font-black leading-tight',
-                      tv ? 'text-[clamp(1.05rem,2vw,2rem)]' : 'text-xs'
-                    )}
-                  >
+                  <span className="min-w-0 flex-1 break-words text-[2cqw] font-black leading-tight">
                     {option}
                   </span>
                 </div>
@@ -493,21 +461,11 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
     case 'answer':
       return (
         <div className="flex h-full min-h-0 flex-col">
-          <p className={eyebrowCls}>{slide.title}</p>
-          <h2
-            className={clsx(
-              'font-black leading-tight text-balance text-[var(--ink)]',
-              tv ? 'mt-2 text-[clamp(1.5rem,3vw,3.4rem)]' : 'mt-1 text-base sm:text-lg'
-            )}
-          >
+          <p className={EYEBROW_CLS}>{slide.title}</p>
+          <h2 className="mt-[0.6cqw] text-[3.2cqw] font-black leading-tight text-balance break-words text-[var(--ink)]">
             {slide.question}
           </h2>
-          <div
-            className={clsx(
-              'grid min-h-0 flex-1 content-center grid-cols-1 sm:grid-cols-2',
-              tv ? 'mt-4 gap-[clamp(0.6rem,1.4vw,1.4rem)]' : 'mt-3 gap-1.5'
-            )}
-          >
+          <div className="mt-[1.4cqw] grid min-h-0 flex-1 grid-cols-2 content-center gap-[1.2cqw]">
             {slide.options.map((option, index) => {
               const style = ANSWER_BUTTONS[index % ANSWER_BUTTONS.length];
               const correct = index === slide.correctIndex;
@@ -515,43 +473,30 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
                 <div
                   key={option}
                   className={clsx(
-                    'flex items-center gap-3 rounded-2xl text-white shadow-[var(--tile-shadow)]',
-                    correct && 'ring-4 ring-[var(--accent-2)] ring-offset-2 ring-offset-[var(--surface)]',
-                    tv ? 'px-4 py-3' : 'px-2.5 py-2'
+                    'flex min-w-0 items-center gap-[1.2cqw] rounded-[1.2cqw] px-[1.4cqw] py-[1.1cqw] text-white shadow-[var(--tile-shadow)]',
+                    correct &&
+                      'ring-4 ring-[var(--accent-2)] ring-offset-2 ring-offset-[var(--surface)]'
                   )}
                   style={{ backgroundColor: style.bg }}
                 >
                   <span
                     aria-hidden="true"
-                    className={clsx('shrink-0', tv ? 'text-[clamp(1.6rem,2.6vw,2.8rem)]' : 'text-lg')}
+                    className="shrink-0 text-[2.6cqw] leading-none"
                   >
                     {style.shape}
                   </span>
-                  <span
-                    className={clsx(
-                      'min-w-0 flex-1 font-black leading-tight',
-                      tv ? 'text-[clamp(1.05rem,2vw,2rem)]' : 'text-xs'
-                    )}
-                  >
+                  <span className="min-w-0 flex-1 break-words text-[2cqw] font-black leading-tight">
                     {option}
                   </span>
                   {correct ? (
-                    <Check
-                      aria-hidden="true"
-                      className={clsx('shrink-0', tv ? 'h-[1.4em] w-[1.4em]' : 'h-4 w-4')}
-                    />
+                    <Check aria-hidden="true" className="h-[1.4em] w-[1.4em] shrink-0" />
                   ) : null}
                 </div>
               );
             })}
           </div>
           {slide.explanation ? (
-            <p
-              className={clsx(
-                'shrink-0 rounded-xl border-l-4 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 font-semibold text-[var(--ink)]',
-                tv ? 'mt-3 text-[clamp(1rem,1.7vw,1.8rem)]' : 'mt-2 text-[11px]'
-              )}
-            >
+            <p className="mt-[1.2cqw] shrink-0 break-words rounded-[0.9cqw] border-l-4 border-[var(--accent)] bg-[var(--surface-2)] px-[1.2cqw] py-[0.75cqw] text-[1.35cqw] font-semibold leading-snug text-[var(--ink)]">
               {slide.explanation}
             </p>
           ) : null}
@@ -563,20 +508,89 @@ function SlideBody({ slide, tv, imageUrl }: { slide: Slide; tv: boolean; imageUr
   }
 }
 
-export default function SlideView({ slide, variant = 'preview', className, imageUrl }: SlideViewProps) {
-  const tv = variant === 'tv';
-
+/**
+ * The one and only slide renderer. Its outer element is a size container, so
+ * every `cqw` below is relative to the slide width: the TV and the teacher
+ * preview share the exact same layout at any size.
+ */
+export default function SlideView({
+  slide,
+  className,
+  imageUrl,
+  showNotes = true,
+}: SlideViewProps) {
   return (
     <section
       className={clsx(
-        'flex h-full w-full flex-col overflow-hidden bg-[var(--surface)]',
-        tv ? 'p-[clamp(1.4rem,3.4vw,3.8rem)]' : 'p-4',
+        'slide-stage relative h-full w-full overflow-hidden bg-[var(--surface)]',
         className
       )}
     >
-      <div className={clsx('flex w-full flex-1 flex-col', tv && 'min-h-0')}>
-        <SlideBody slide={slide} tv={tv} imageUrl={imageUrl} />
+      <div className="flex h-full w-full min-h-0 flex-col p-[4.2cqw]">
+        <div className="flex min-h-0 w-full flex-1 flex-col">
+          <SlideBody slide={slide} imageUrl={imageUrl} showNotes={showNotes} />
+        </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * Teacher preview: renders the real TV slide on a fixed 960×540 stage and
+ * scales it with `transform` to fit the available width. Because the stage is
+ * always 16:9 and the slide uses container units, what the teacher sees is
+ * pixel-for-pixel the same composition the TV renders.
+ */
+export function SlideStage({
+  slide,
+  imageUrl,
+  className,
+}: {
+  slide: Slide;
+  imageUrl?: string;
+  className?: string;
+}) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const measure = () => {
+      const width = frame.clientWidth;
+      setScale(width > 0 ? width / SLIDE_STAGE_WIDTH : 0);
+    };
+
+    measure();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={frameRef}
+      className={clsx('relative w-full overflow-hidden', className)}
+      style={{ aspectRatio: `${SLIDE_STAGE_WIDTH} / ${SLIDE_STAGE_HEIGHT}` }}
+    >
+      <div
+        className="absolute left-0 top-0 origin-top-left"
+        style={{
+          width: `${SLIDE_STAGE_WIDTH}px`,
+          height: `${SLIDE_STAGE_HEIGHT}px`,
+          transform: `scale(${scale})`,
+          visibility: scale > 0 ? 'visible' : 'hidden',
+        }}
+      >
+        <SlideView slide={slide} imageUrl={imageUrl} showNotes={false} />
+      </div>
+    </div>
   );
 }

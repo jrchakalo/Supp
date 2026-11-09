@@ -58,7 +58,13 @@ export default function JoinPage() {
   const [nameInput, setNameInput] = useState('');
   const [error, setError] = useState('');
 
-  const [question, setQuestion] = useState<{ text: string; options: string[] } | null>(null);
+  const [question, setQuestion] = useState<{
+    text: string;
+    options: string[];
+    textPt?: string;
+    optionsPt?: string[];
+    translateAtMs?: number;
+  } | null>(null);
   const [startedAt, setStartedAt] = useState(0);
   const [timeoutMs, setTimeoutMs] = useState(0);
   const [chosenIndex, setChosenIndex] = useState<number | null>(null);
@@ -155,7 +161,13 @@ export default function JoinPage() {
     if (payload.kind === 'question') {
       if (payload.seq <= seqRef.current) return;
       seqRef.current = payload.seq;
-      setQuestion({ text: payload.text, options: payload.options });
+      setQuestion({
+        text: payload.text,
+        options: payload.options,
+        textPt: payload.textPt,
+        optionsPt: payload.optionsPt,
+        translateAtMs: payload.translateAtMs,
+      });
       setStartedAt(payload.startedAt);
       setTimeoutMs(payload.timeoutMs);
       setChosenIndex(null);
@@ -261,10 +273,11 @@ export default function JoinPage() {
     []
   );
 
-  /* Countdown ticker on the phone. */
+  /* Countdown ticker on the phone. Keeps running after the answer so the
+     half-time translation still appears on the "locked in" screen. */
   const [, setTick] = useState(0);
   useEffect(() => {
-    if (phase !== 'question') return;
+    if (phase !== 'question' && phase !== 'answered') return;
     const interval = window.setInterval(() => setTick((n) => n + 1), 250);
     return () => window.clearInterval(interval);
   }, [phase]);
@@ -275,6 +288,13 @@ export default function JoinPage() {
 
   const ratio =
     startedAt && timeoutMs ? Math.max(secondsLeft(startedAt, timeoutMs) / (timeoutMs / 1000), 0) : 0;
+  /* Local clock, so the translation shows up without any new host message. */
+  const translationVisible = Boolean(
+    question?.textPt &&
+      typeof question.translateAtMs === 'number' &&
+      startedAt > 0 &&
+      Date.now() >= startedAt + question.translateAtMs
+  );
   const t = (en: string, pt: string) => (uiLanguage === 'pt' ? pt : en);
 
   const themeClass =
@@ -414,6 +434,21 @@ export default function JoinPage() {
                     <p className="max-h-24 overflow-y-auto text-sm font-black leading-snug text-[var(--ink)]">
                       {question.text}
                     </p>
+                    {translationVisible ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="mt-2 rounded-xl border-2 border-[var(--accent)] bg-[var(--surface)] px-2 py-1.5"
+                      >
+                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                          PT
+                        </p>
+                        <p className="max-h-20 overflow-y-auto text-sm font-bold leading-snug text-[var(--ink)]">
+                          {question.textPt}
+                        </p>
+                      </motion.div>
+                    ) : null}
                   </div>
                   <div className="grid min-h-0 flex-1 grid-cols-1 gap-2.5 sm:grid-cols-2">
                     {question.options.map((option, index) => {
@@ -437,8 +472,20 @@ export default function JoinPage() {
                           <span className="shrink-0 text-3xl sm:text-4xl" aria-hidden="true">
                             {style.shape}
                           </span>
-                          <span className="min-w-0 flex-1 break-words text-sm font-black leading-tight">
-                            {option}
+                          <span className="min-w-0 flex-1">
+                            <span className="block break-words text-sm font-black leading-tight">
+                              {option}
+                            </span>
+                            {translationVisible && question.optionsPt?.[index] ? (
+                              <motion.span
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.3 }}
+                                className="mt-0.5 block break-words text-[11px] font-bold leading-tight text-white/85"
+                              >
+                                {question.optionsPt[index]}
+                              </motion.span>
+                            ) : null}
                           </span>
                         </motion.button>
                       );
@@ -446,10 +493,26 @@ export default function JoinPage() {
                   </div>
                 </div>
               ) : (
-                <div
-                  className="mx-auto mt-3 grid w-full min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2.5"
-                  style={{ maxWidth: 'min(56rem, calc((100dvh - 12rem) * 2))' }}
-                >
+                <>
+                  {translationVisible && question.textPt ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="mx-auto mt-3 w-full max-w-xl rounded-2xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-center"
+                    >
+                      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                        PT
+                      </p>
+                      <p className="max-h-20 overflow-y-auto text-sm font-bold leading-snug text-[var(--ink)]">
+                        {question.textPt}
+                      </p>
+                    </motion.div>
+                  ) : null}
+                  <div
+                    className="mx-auto mt-3 grid w-full min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2.5"
+                    style={{ maxWidth: 'min(56rem, calc((100dvh - 12rem) * 2))' }}
+                  >
                   {question.options.map((_, index) => {
                     const style = ANSWER_BUTTONS[index];
                     const locked = chosenSeqRef.current === seqRef.current;
@@ -463,7 +526,7 @@ export default function JoinPage() {
                         whileTap={disabled ? undefined : { scale: 0.97 }}
                         disabled={disabled}
                         onClick={() => answer(index)}
-                        className={`flex h-full min-h-0 w-full items-center justify-center rounded-3xl text-white shadow-xl transition-opacity ${
+                        className={`flex h-full min-h-0 w-full flex-col items-center justify-center gap-1 rounded-3xl text-white shadow-xl transition-opacity ${
                           locked && !chosen ? 'opacity-40' : ''
                         } ${chosen ? 'ring-4 ring-white/80' : ''}`}
                         style={{ backgroundColor: style.bg }}
@@ -471,10 +534,21 @@ export default function JoinPage() {
                         <span className="text-6xl sm:text-7xl" aria-hidden="true">
                           {style.shape}
                         </span>
+                        {translationVisible && question.optionsPt?.[index] ? (
+                          <motion.span
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.3 }}
+                            className="max-w-[92%] break-words text-center text-xs font-bold leading-tight text-white/85 sm:text-sm"
+                          >
+                            {question.optionsPt[index]}
+                          </motion.span>
+                        ) : null}
                       </motion.button>
                     );
                   })}
-                </div>
+                  </div>
+                </>
               )}
 
               {phase === 'answered' ? (

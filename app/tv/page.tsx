@@ -943,7 +943,7 @@ export default function TvPage() {
               } aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-[var(--surface)] shadow-2xl`}
               style={{ maxWidth: 'min(100%, calc(177.78dvh - 9.4rem))' }}
             >
-              <SlideView slide={slide} variant="tv" imageUrl={slideImage} />
+              <SlideView slide={slide} imageUrl={slideImage} />
             </div>
           </div>
         ) : (

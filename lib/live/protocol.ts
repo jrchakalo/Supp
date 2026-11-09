@@ -25,6 +25,11 @@ export type LiveGameConfig = {
   secondsPerQuestion: 15 | 20 | 30;
   /** When true, player devices show the question and answer texts. */
   showQuestionOnPlayer: boolean;
+  /**
+   * When true, questions that carry a Portuguese translation reveal it halfway
+   * through the timer, on the projector and on the player devices.
+   */
+  translateAtHalf?: boolean;
   /** Classic topics. Ignored by Halloween rooms. */
   categories?: ClassicCategoryId[];
 };
@@ -60,6 +65,11 @@ export type QuestionStartMessage = {
   options: string[];
   timeoutMs: number;
   startedAt: number;
+  /** Portuguese translation of `text`, aligned with the shuffled `options`. */
+  textPt?: string;
+  optionsPt?: string[];
+  /** Milliseconds after `startedAt` at which the translation must appear. */
+  translateAtMs?: number;
 };
 
 /** Host → players: question is over, show the reveal. */

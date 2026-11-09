@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Check,
   Ghost,
+  Languages,
   Play,
   RotateCcw,
   Timer,
@@ -68,11 +69,17 @@ type ScoreEntry = {
 };
 
 const HOST_SESSION_KEY = 'live-host';
+/** Remembers the half-time translation switch between visits. */
+const TRANSLATE_AT_HALF_KEY = 'live-translate-at-half';
 
 type SavedSession = {
   code: string;
   config: LiveGameConfig;
 };
+
+function readTranslateAtHalfSetting(): boolean {
+  return readStorage(TRANSLATE_AT_HALF_KEY) === '1';
+}
 
 function readSavedSession(): SavedSession | null {
   if (typeof window === 'undefined') return null;
@@ -109,6 +116,7 @@ function readSavedSession(): SavedSession | null {
             questionCount: questionCount ?? 12,
             secondsPerQuestion: secondsPerQuestion ?? 20,
             showQuestionOnPlayer: parsed.config.showQuestionOnPlayer !== false,
+            translateAtHalf: parsed.config.translateAtHalf === true,
             categories: categories && categories.length > 0 ? categories : undefined,
           },
         };
@@ -259,6 +267,7 @@ export default function HostPage() {
     () => readSecondsFromUrl() ?? 20
   );
   const [showQuestionOnPlayer, setShowQuestionOnPlayer] = useState(true);
+  const [translateAtHalf, setTranslateAtHalf] = useState(readTranslateAtHalfSetting);
 
   const [code, setCode] = useState(forcedRoomCode ?? '');
   const [joinUrl, setJoinUrl] = useState('');
@@ -278,6 +287,8 @@ export default function HostPage() {
   } | null>(null);
   const [msLeft, setMsLeft] = useState(0);
   const [startedAt, setStartedAt] = useState(0);
+  /** Turns on halfway through the question when the deck carries a translation. */
+  const [showTranslation, setShowTranslation] = useState(false);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'live'>('idle');
   const [savedSession, setSavedSession] = useState<SavedSession | null>(null);
 
@@ -288,6 +299,10 @@ export default function HostPage() {
   useEffect(() => {
     writeStorage('theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    writeStorage(TRANSLATE_AT_HALF_KEY, translateAtHalf ? '1' : '0');
+  }, [translateAtHalf]);
 
   useEffect(() => {
     setSavedSession(readSavedSession());
@@ -326,6 +341,7 @@ export default function HostPage() {
       questionCount,
       secondsPerQuestion,
       showQuestionOnPlayer,
+      translateAtHalf,
       categories: mode === 'classic' ? categories : undefined,
     }),
     [
@@ -336,6 +352,7 @@ export default function HostPage() {
       questionCount,
       secondsPerQuestion,
       showQuestionOnPlayer,
+      translateAtHalf,
       theme,
     ]
   );
@@ -587,7 +604,11 @@ export default function HostPage() {
       seqRef.current = seqIndex;
       setStartedAt(now);
       setMsLeft(secondsPerQuestion * 1000);
+      setShowTranslation(false);
       setPhase('question');
+
+      const timeoutMs = secondsPerQuestion * 1000;
+      const offersTranslation = translateAtHalf && Boolean(prepared.textPt);
 
       broadcast({
         kind: 'question',
@@ -595,8 +616,15 @@ export default function HostPage() {
         questionId: prepared.id,
         text: prepared.text,
         options: prepared.options,
-        timeoutMs: secondsPerQuestion * 1000,
+        timeoutMs,
         startedAt: now,
+        ...(offersTranslation
+          ? {
+              textPt: prepared.textPt,
+              optionsPt: prepared.optionsPt,
+              translateAtMs: Math.round(timeoutMs / 2),
+            }
+          : {}),
       } satisfies HostToPlayerMessage);
 
       if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
@@ -606,9 +634,9 @@ export default function HostPage() {
       }
       timeoutRef.current = window.setTimeout(() => {
         endQuestion(seqIndex);
-      }, secondsPerQuestion * 1000);
+      }, timeoutMs);
     },
-    [broadcast, endQuestion, secondsPerQuestion]
+    [broadcast, endQuestion, secondsPerQuestion, translateAtHalf]
   );
 
   const startGame = useCallback(() => {
@@ -741,6 +769,27 @@ export default function HostPage() {
     }, 200);
     return () => window.clearInterval(tick);
   }, [phase, secondsPerQuestion, startedAt]);
+
+  /* Half-time translation on the projector: same clock as the countdown bar,
+     so the PT block appears exactly when the timer crosses the halfway mark. */
+  useEffect(() => {
+    setShowTranslation(false);
+    if (phase !== 'question' || !translateAtHalf) return;
+    if (!question?.textPt) return;
+
+    const translateAtMs = Math.round((secondsPerQuestion * 1000) / 2);
+    const delay = Math.max(startedAt + translateAtMs - Date.now(), 0);
+    const timer = window.setTimeout(() => setShowTranslation(true), delay);
+    return () => window.clearTimeout(timer);
+  }, [phase, question, secondsPerQuestion, startedAt, translateAtHalf]);
+
+  /* Does the currently selected deck carry any Portuguese translation? */
+  const translationAvailable = useMemo(() => {
+    const deck = passaporteDeck
+      ? passaporteDeck.questions
+      : getLiveDeck(mode, difficulty, categories);
+    return deck.some((item) => Boolean(item.textPt));
+  }, [categories, difficulty, mode, passaporteDeck]);
 
   useEffect(() => {
     if (phase !== 'lobby') return;
@@ -1094,6 +1143,38 @@ export default function HostPage() {
                 </p>
               </div>
 
+              <div className="mt-4 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 text-left">
+                    <p className="flex items-center gap-1.5 text-sm font-black text-[var(--ink)]">
+                      <Languages className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                      {copy.translateAtHalf}
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-medium text-[var(--muted)]">
+                      {copy.translateAtHalfHelp}
+                    </p>
+                    {!translationAvailable ? (
+                      <p className="mt-1 text-[11px] font-bold text-[var(--accent)]">
+                        {copy.translateAtHalfUnavailable}
+                      </p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={translateAtHalf}
+                    onClick={() => setTranslateAtHalf((current) => !current)}
+                    className={`ml-1 flex min-w-20 flex-none items-center justify-center rounded-full px-4 py-2 text-xs font-black uppercase tracking-wide transition-colors ${
+                      translateAtHalf
+                        ? 'bg-[var(--accent)] text-white'
+                        : 'border-2 border-[var(--line)] bg-[var(--surface)] text-[var(--muted)]'
+                    }`}
+                  >
+                    {translateAtHalf ? copy.on : copy.off}
+                  </button>
+                </div>
+              </div>
+
               <button
                 type="button"
                 disabled={status === 'connecting' || !canOpenRoom}
@@ -1116,6 +1197,7 @@ export default function HostPage() {
                     setQuestionCount(savedSession.config.questionCount);
                     setSecondsPerQuestion(savedSession.config.secondsPerQuestion);
                     setShowQuestionOnPlayer(savedSession.config.showQuestionOnPlayer);
+                    setTranslateAtHalf(savedSession.config.translateAtHalf === true);
                     void openRoom(savedSession.code);
                   }}
                   className="mt-3 block w-full rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-5 py-2.5 text-sm font-black uppercase tracking-wide text-[var(--muted)] disabled:opacity-60 sm:w-auto sm:min-w-64"
@@ -1220,6 +1302,21 @@ export default function HostPage() {
                     {copy.questionOf(seq + 1, run.length)}
                   </span>
                   <h1 className="mt-2 text-2xl font-black leading-snug text-[var(--ink)] sm:text-4xl">{question.text}</h1>
+                  {showTranslation && question.textPt ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="mt-3 rounded-2xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2"
+                    >
+                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                        {copy.translationLabel}
+                      </span>
+                      <p className="mt-0.5 text-base font-semibold leading-snug text-[var(--ink)] sm:text-lg">
+                        {question.textPt}
+                      </p>
+                    </motion.div>
+                  ) : null}
                 </div>
 
                 <div className="rounded-3xl border-4 border-[var(--line)] bg-[var(--surface)] p-6 text-center">
@@ -1250,6 +1347,35 @@ export default function HostPage() {
                   );
                 })}
               </div>
+
+              {showTranslation && question.textPt && question.optionsPt ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="mx-auto mt-4 max-w-3xl rounded-2xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-4 py-3"
+                >
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                    {copy.translationLabel}
+                  </p>
+                  <ol className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                    {question.optionsPt.map((option, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <span
+                          className="mt-0.5 text-sm leading-none"
+                          style={{ color: ANSWER_BUTTONS[index]?.bg }}
+                          aria-hidden="true"
+                        >
+                          {ANSWER_BUTTONS[index]?.shape}
+                        </span>
+                        <span className="min-w-0 text-sm font-semibold leading-snug text-[var(--ink)]">
+                          {option}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </motion.div>
+              ) : null}
 
               <p className="mt-4 text-center text-xs font-semibold text-[var(--muted)]">
                 {copy.studentsRead}

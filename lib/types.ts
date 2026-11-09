@@ -44,6 +44,10 @@ export type LiveQuestion = {
   correctIndex: LiveOptionIndex;
   /** Short, kid-friendly fact shown on the reveal screen. */
   explanation: string;
+  /** Optional Portuguese translation of `text`, revealed halfway through the timer. */
+  textPt?: string;
+  /** Optional Portuguese translation of `options`, aligned to the same indexes. */
+  optionsPt?: [string, string, string, string];
 };
 
 export type AnswerStatus = 'correct' | 'incorrect' | null;

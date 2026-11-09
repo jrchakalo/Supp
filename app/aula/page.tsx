@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Dices,
   ExternalLink,
   Gamepad2,
   Image as ImageIcon,
@@ -15,11 +16,12 @@ import {
   MonitorPlay,
   Presentation,
   Radio,
+  Trophy,
   Users,
   X,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import SlideView from '@/components/aula/SlideView';
+import { SlideStage } from '@/components/aula/SlideView';
 import { QUIZ_LESSON_ID, buildQuizSlides } from '@/components/aula/quizSlides';
 import { flattenBeats, type Lesson, type Slide } from '@/lib/passaporte-lessons';
 import { fetchLessons } from '@/lib/aula/lessons';
@@ -111,6 +113,50 @@ function ConnectionPill({
       <span aria-hidden="true" className={`h-2 w-2 rounded-full ${meta.dot}`} />
       {meta.label}
     </span>
+  );
+}
+
+const WARMUP_LINKS = [
+  { label: 'Live', description: 'Quiz ao vivo', href: '/host', Icon: Radio },
+  { label: 'Competição', description: 'Torneio da turma', href: '/?screen=competition', Icon: Trophy },
+  { label: 'D20', description: 'Dado de perguntas', href: '/?screen=d20', Icon: Dices },
+] as const;
+
+/**
+ * Quick warm-up shortcuts for the teacher. They live outside the lesson flow
+ * and always open in a new tab, so the current session is never left behind.
+ */
+function WarmupBar() {
+  return (
+    <section
+      aria-label="Warm-up rápido"
+      className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] px-4 py-3"
+    >
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--accent)]">
+          Warm-up rápido
+        </p>
+        <p className="text-[11px] font-semibold text-[var(--muted)]">
+          Abre em nova aba, fora do fluxo da aula.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {WARMUP_LINKS.map((item) => (
+          <a
+            key={item.label}
+            href={item.href}
+            target="_blank"
+            rel="noreferrer"
+            title={`${item.label} — ${item.description}`}
+            className="flex items-center gap-2 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            <item.Icon className="h-4 w-4" aria-hidden="true" />
+            {item.label}
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -929,6 +975,8 @@ export default function AulaPage() {
             </div>
           </header>
 
+          <WarmupBar />
+
           <section className="rounded-3xl border-2 border-[var(--line)] bg-[var(--surface)] p-6 shadow-[var(--card-shadow)] sm:p-10">
             <div className="text-center">
               <h2 className="text-[clamp(2.6rem,7vw,5rem)] font-black leading-none">
@@ -1058,6 +1106,8 @@ export default function AulaPage() {
         <p className="mt-1 text-xs font-bold text-[var(--muted)]">
           {activeLesson.turma} · {formatLessonDate(activeLesson.date)}
         </p>
+
+        <WarmupBar />
 
         {connection === 'offline' ? (
           <p className="mt-3 rounded-xl border-2 border-amber-500/60 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300">
@@ -1350,19 +1400,17 @@ export default function AulaPage() {
                   </section>
                 ) : null}
 
-                <div className="max-h-[clamp(18rem,72vh,46rem)] w-full overflow-y-auto rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)]">
+                <div className="w-full overflow-hidden rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)]">
                   {currentSlide ? (
-                    <SlideView
+                    <SlideStage
                       slide={currentSlide}
-                      variant="preview"
                       imageUrl={mode === 'lesson' ? imageUrls[beatIndex] : undefined}
-                      className="min-h-[clamp(14rem,40vh,28rem)]"
                     />
                   ) : null}
                 </div>
                 <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--muted)]">
                   <MonitorPlay className="h-3.5 w-3.5" aria-hidden="true" />
-                  Prévia do telão — é este slide que os alunos veem em /tv.
+                  Prévia do telão — mesmo palco 16:9 do /tv, só reduzido para caber aqui.
                 </p>
               </div>
             </div>

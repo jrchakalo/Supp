@@ -105,18 +105,28 @@ export type PreparedLiveQuestion = {
   options: string[];
   /** Index of the correct option among the shuffled `options`. */
   correctIndex: number;
+  /** Portuguese translation, when the deck provides one. */
+  textPt?: string;
+  /** Portuguese options reordered to match the shuffled `options`. */
+  optionsPt?: string[];
 };
 
 /** Shuffles the four options so the correct answer is never the same slot. */
 export function prepareQuestion(question: LiveQuestion): PreparedLiveQuestion {
-  const correct = question.options[question.correctIndex];
-  const options = shuffle(question.options);
+  // Shuffle indexes (not just values) so the translation keeps the same
+  // alignment as the displayed options.
+  const order = shuffle([0, 1, 2, 3] as const);
+  const options = order.map((index) => question.options[index]);
+  const sourcePt = question.optionsPt;
+  const optionsPt = sourcePt ? order.map((index) => sourcePt[index]) : undefined;
 
   return {
     id: question.id,
     text: question.text,
     options,
-    correctIndex: options.indexOf(correct) as LiveOptionIndex,
+    correctIndex: order.indexOf(question.correctIndex) as LiveOptionIndex,
+    textPt: question.textPt,
+    optionsPt,
   };
 }
 

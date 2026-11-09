@@ -368,6 +368,19 @@
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Slides                                                              */
+/* ------------------------------------------------------------------ */
+
+/*
+ * The slide is a size container: every `cqw` inside it is relative to the
+ * slide width. The TV (fluid 16:9) and the teacher preview (960×540 stage
+ * scaled with transform) therefore share the exact same composition.
+ */
+.slide-stage {
+  container-type: inline-size;
+}
+
 /* Aula / TV: every slide (and the welcome screen) fades in with a soft scale. */
 @keyframes aula-enter {
   from {
