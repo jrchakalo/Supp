@@ -129,6 +129,9 @@ com **24 perguntas por tema** e o **Anime ampliado para 42**:
 | **Lógica e enigmas** | Sequências, charadas, padrões e desafios de matemática |
 
 - **Fácil (80 perguntas)**, **Médio (85)** e **Difícil (93)**.
+- O baralho de verdadeiro/falso é balanceado por tema e dificuldade: os temas
+  de 8 perguntas têm **4 verdadeiras e 4 falsas**, e o Anime tem 7/6 e 11/10.
+  No total, são **130 verdadeiras e 128 falsas**.
 - Cada pergunta tem tema, dificuldade e tier, usados pela competição.
 - O Live do modo padrão usa um baralho próprio de **344 perguntas de múltipla
   escolha** (33 por tema, com o Anime em 47), com opções e explicações em

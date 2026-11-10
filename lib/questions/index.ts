@@ -13,6 +13,7 @@ import * as logic from './classic-logic';
 import * as liveExtra from './classic-live-extra';
 import * as animeTeen from './classic-anime-teen';
 import * as animeLegacy from './classic-anime-legacy';
+import { TF_OVERRIDES } from './tf-overrides';
 
 /** Order used by the topic pickers and by the combined deck. */
 export const CLASSIC_THEME_ORDER: ClassicCategoryId[] = [
@@ -45,7 +46,11 @@ export const CLASSIC_TF_SEEDS: ClassicTfSeed[] = [
   ...MODULES.flatMap((module) => module.TF),
   ...animeTeen.TF,
   ...animeLegacy.TF,
-];
+].map((seed) => {
+  const override = TF_OVERRIDES[seed.id];
+  if (!override) return seed;
+  return { ...seed, ...override, answer: false };
+});
 
 export const CLASSIC_LIVE_SEEDS: ClassicLiveSeed[] = [
   ...MODULES.flatMap((module) => module.LIVE),
