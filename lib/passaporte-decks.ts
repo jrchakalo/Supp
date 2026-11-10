@@ -356,4 +356,40 @@ export const PASSAPORTE_DECKS: Record<string, PassaporteDeck> = {
       { id: 'p2a4-12', tier: 3, text: 'Antes de escolher a ideia, avaliamos...', options: ['Critérios de sucesso e complexidade', 'A cor do cenário', 'O nome do aluno', 'A nota'], correctIndex: 0, explanation: 'Critérios de sucesso + complexidade definem a vencedora.' },
     ],
   },
+  'teens-a1': {
+    id: 'teens-a1',
+    title: 'PSE Teens — Class 1: Welcome to English',
+    questions: [
+      { id: 't1-01', tier: 1, text: 'What does "football" mean?', options: ['A sport with a ball', 'A food', 'A color', 'A place'], correctIndex: 0, explanation: 'Football is a sport.' },
+      { id: 't1-02', tier: 1, text: '"Hello" is used to...', options: ['greet someone', 'say goodbye', 'ask a question', 'say thank you'], correctIndex: 0, explanation: 'Hello = a greeting.' },
+      { id: 't1-03', tier: 1, text: 'How do you answer "What\'s your name?"', options: ['I\'m Lucas.', 'I\'m fine.', 'Goodbye.', 'Thank you.'], correctIndex: 0, explanation: 'I am + name.' },
+      { id: 't1-04', tier: 1, text: '"Goodbye" means...', options: ['Bye', 'Hi', 'Please', 'Yes'], correctIndex: 0, explanation: 'Goodbye = Bye.' },
+      { id: 't1-05', tier: 2, text: 'Which word is international?', options: ['sandwich', 'chair', 'door', 'wall'], correctIndex: 0, explanation: 'Sandwich é usado em inglês no mundo todo.' },
+      { id: 't1-06', tier: 1, text: '"Nice to meet you" is said when...', options: ['meeting someone', 'leaving', 'eating', 'sleeping'], correctIndex: 0, explanation: 'Usado ao conhecer alguém.' },
+      { id: 't1-07', tier: 1, text: 'What does "computer" mean?', options: ['A machine to work and play', 'A drink', 'A game', 'A place'], correctIndex: 0, explanation: 'Computer = computador.' },
+      { id: 't1-08', tier: 1, text: '"Hi" is...', options: ['a greeting', 'a number', 'a food', 'a color'], correctIndex: 0, explanation: 'Hi = Hello.' },
+      { id: 't1-09', tier: 1, text: 'Which one is a drink?', options: ['milkshake', 'jeans', 'airport', 'football'], correctIndex: 0, explanation: 'Milkshake é uma bebida.' },
+      { id: 't1-10', tier: 2, text: '"Instagram" is...', options: ['an app', 'a food', 'a sport', 'a country'], correctIndex: 0, explanation: 'Instagram é um aplicativo.' },
+      { id: 't1-11', tier: 2, text: '"Airport" is a place to...', options: ['travel by plane', 'eat pizza', 'play football', 'study'], correctIndex: 0, explanation: 'Airport = aeroporto.' },
+      { id: 't1-12', tier: 1, text: 'Which is a greeting?', options: ['Hello', 'Seventeen', 'Sandwich', 'Blue'], correctIndex: 0, explanation: 'Hello é um cumprimento.' }
+    ]
+  },
+  'teens-a2': {
+    id: 'teens-a2',
+    title: 'PSE Teens — Class 2: The Number Code Challenge',
+    questions: [
+      { id: 't2-01', tier: 1, text: 'Which number is "twelve"?', options: ['12', '20', '2', '22'], correctIndex: 0, explanation: 'Twelve = 12.' },
+      { id: 't2-02', tier: 1, text: '"Twenty" is...', options: ['20', '12', '2', '10'], correctIndex: 0, explanation: 'Twenty = 20.' },
+      { id: 't2-03', tier: 1, text: 'Which number is "thirteen"?', options: ['13', '30', '3', '23'], correctIndex: 0, explanation: 'Thirteen = 13.' },
+      { id: 't2-04', tier: 1, text: '15 in English is...', options: ['fifteen', 'fifty', 'five', 'fourteen'], correctIndex: 0, explanation: 'Fifteen = 15.' },
+      { id: 't2-05', tier: 1, text: '18 in English is...', options: ['eighteen', 'eighty', 'eight', 'seventeen'], correctIndex: 0, explanation: 'Eighteen = 18.' },
+      { id: 't2-06', tier: 1, text: '14 in English is...', options: ['fourteen', 'forty', 'four', 'fifteen'], correctIndex: 0, explanation: 'Fourteen = 14.' },
+      { id: 't2-07', tier: 1, text: '"Three" is...', options: ['3', '13', '30', '33'], correctIndex: 0, explanation: 'Three = 3.' },
+      { id: 't2-08', tier: 1, text: '"Eight" is...', options: ['8', '18', '80', '6'], correctIndex: 0, explanation: 'Eight = 8.' },
+      { id: 't2-09', tier: 1, text: '11 in English is...', options: ['eleven', 'seven', 'twelve', 'ten'], correctIndex: 0, explanation: 'Eleven = 11.' },
+      { id: 't2-10', tier: 1, text: '"Seventeen" is...', options: ['17', '70', '7', '27'], correctIndex: 0, explanation: 'Seventeen = 17.' },
+      { id: 't2-11', tier: 2, text: 'Which pair sounds similar?', options: ['twelve / twenty', 'one / two', 'three / five', 'six / ten'], correctIndex: 0, explanation: 'Twelve (12) e twenty (20) são parecidos.' },
+      { id: 't2-12', tier: 2, text: '20 in English is...', options: ['twenty', 'twelve', 'two', 'ten'], correctIndex: 0, explanation: 'Twenty = 20.' }
+    ]
+  },
 };
