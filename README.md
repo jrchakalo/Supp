@@ -112,8 +112,8 @@ Os cartões já estão reservados na área de eventos. A arquitetura de baralhos
 
 ## Temas e dificuldades
 
-O baralho padrão tem **258 perguntas de verdadeiro ou falso** em dez temas,
-com **24 perguntas por tema** e o **Anime ampliado para 42**:
+O baralho padrão tem **552 perguntas de verdadeiro ou falso** em dez temas,
+com **52 perguntas por tema padrão** e o **Anime com 84**:
 
 | Tema | Conteúdo |
 | --- | --- |
@@ -128,10 +128,11 @@ com **24 perguntas por tema** e o **Anime ampliado para 42**:
 | **Esportes** | Regras, recordes, Olimpíadas e atletas brasileiros |
 | **Lógica e enigmas** | Sequências, charadas, padrões e desafios de matemática |
 
-- **Fácil (80 perguntas)**, **Médio (85)** e **Difícil (93)**.
+- **Fácil (178 perguntas)**, **Médio (188)** e **Difícil (186)**.
 - O baralho de verdadeiro/falso é balanceado por tema e dificuldade: os temas
-  de 8 perguntas têm **4 verdadeiras e 4 falsas**, e o Anime tem 7/6 e 11/10.
-  No total, são **130 verdadeiras e 128 falsas**.
+  padrão têm **9V/9F** no fácil, **9V/9F** no médio e **8V/8F** no difícil; o
+  Anime tem **8V/8F**, **13V/13F** e **21V/21F**. No total, são **276
+  verdadeiras e 276 falsas**.
 - Cada pergunta tem tema, dificuldade e tier, usados pela competição.
 - O Live do modo padrão usa um baralho próprio de **344 perguntas de múltipla
   escolha** (33 por tema, com o Anime em 47), com opções e explicações em
