@@ -23,7 +23,7 @@ import {
   X,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { SlideStage } from '@/components/aula/SlideView';
+import { FLASH_DEFAULT_SECONDS, SlideStage } from '@/components/aula/SlideView';
 import { QUIZ_LESSON_ID, buildQuizSlides } from '@/components/aula/quizSlides';
 import { flattenBeats, type Lesson, type Slide } from '@/lib/passaporte-lessons';
 import { fetchLessons } from '@/lib/aula/lessons';
@@ -594,6 +594,18 @@ export default function AulaPage() {
   const totalItems = mode === 'quiz' ? quizSlides.length : beats.length;
   const currentIndex = mode === 'quiz' ? quizIndex : beatIndex;
   const deck = activeLesson ? PASSAPORTE_DECKS[activeLesson.deckId] : undefined;
+
+  /**
+   * Link-only image control: the "cena" segment already exposes it, and a
+   * `flash` slide needs exactly the same input (URL per beat, no upload).
+   */
+  const isFlashSlide = lessonSlide?.kind === 'flash';
+  const flashSlideSeconds =
+    lessonSlide?.kind === 'flash'
+      ? Math.min(Math.max(Math.round(lessonSlide.seconds ?? FLASH_DEFAULT_SECONDS), 1), 120)
+      : FLASH_DEFAULT_SECONDS;
+  const showImageControl =
+    mode === 'lesson' && (segment?.id === 'cena' || isFlashSlide === true);
 
   /* ------------------------------------------------------------------ */
   /* Navigation                                                          */
@@ -2256,15 +2268,16 @@ export default function AulaPage() {
 
               {/* Scene image + slide preview */}
               <div className="min-w-0 space-y-3">
-                {mode === 'lesson' && segment?.id === 'cena' ? (
+                {showImageControl ? (
                   <section className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)]/70 p-3">
                     <h3 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
                       <ImageIcon className="h-4 w-4" aria-hidden="true" />
-                      Imagem da cena
+                      {isFlashSlide ? 'Imagem do slide' : 'Imagem da cena'}
                     </h3>
                     <p className="mt-1 text-[11px] font-semibold text-[var(--muted)]">
-                      Cole o link de uma imagem (ex.: do Google Imagens). O telão só renderiza o
-                      link — nada é enviado ao servidor.
+                      {isFlashSlide
+                        ? `Cole o link de uma imagem (ex.: do Google Imagens). O telão mostra por ${flashSlideSeconds}s e esconde até você avançar — nada é enviado ao servidor.`
+                        : 'Cole o link de uma imagem (ex.: do Google Imagens). O telão só renderiza o link — nada é enviado ao servidor.'}
                     </p>
                     <form
                       onSubmit={(event) => {
@@ -2278,7 +2291,9 @@ export default function AulaPage() {
                         value={imageInput}
                         onChange={(event) => setImageInput(event.target.value)}
                         placeholder="https://…"
-                        aria-label="URL da imagem da cena"
+                        aria-label={
+                          isFlashSlide ? 'URL da imagem do slide' : 'URL da imagem da cena'
+                        }
                         className="min-w-0 flex-1 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
                       />
                       <div className="flex gap-2">
@@ -2299,7 +2314,9 @@ export default function AulaPage() {
                     </form>
                     <p className="mt-2 text-[11px] font-semibold text-[var(--muted)]">
                       {imageUrls[beatIndex]
-                        ? 'Imagem ativa neste beat. Ela acompanha o slide ao navegar.'
+                        ? isFlashSlide
+                          ? `Imagem ativa neste beat: o telão mostra por ${flashSlideSeconds}s a cada vez que o slide entra.`
+                          : 'Imagem ativa neste beat. Ela acompanha o slide ao navegar.'
                         : 'Nenhuma imagem neste beat.'}
                     </p>
                   </section>

@@ -47,6 +47,22 @@ export type Slide =
       teacherNote?: string;
     }
   | { kind: 'table'; title: string; subtitle?: string; head: string[]; rows: string[][]; teacherNote?: string }
+  /**
+   * Link-only image slide: the teacher pastes an image URL on the notebook and
+   * the TV renders it for `seconds` (default 3) before hiding it. Nothing is
+   * uploaded — the TV only loads the link.
+   */
+  | {
+      kind: 'flash';
+      title?: string;
+      subtitle?: string;
+      imageUrl?: string;
+      /** How long the image stays on the TV. Defaults to 3 seconds. */
+      seconds?: number;
+      /** Anotação do professor — nunca aparece no telão. */
+      note?: string;
+      teacherNote?: string;
+    }
   | { kind: 'big'; title: string; subtitle?: string; lines: string[]; teacherNote?: string }
   | { kind: 'quiz'; title: string; subtitle?: string; bullets: string[]; teacherNote?: string }
   | { kind: 'question'; title: string; subtitle?: string; question: string; options: string[]; teacherNote?: string }

@@ -15,6 +15,8 @@ import { ANSWER_BUTTONS } from '@/lib/live/room';
 export const SLIDE_STAGE_WIDTH = 960;
 export const SLIDE_STAGE_HEIGHT = 540;
 
+type SlideVariant = 'tv' | 'preview';
+
 type SlideViewProps = {
   slide: Slide;
   className?: string;
@@ -25,6 +27,11 @@ type SlideViewProps = {
    * The TV (default) still shows the `case` note on reveal.
    */
   showNotes?: boolean;
+  /**
+   * Where the slide is being rendered. `flash` slides auto-hide on the TV after
+   * their `seconds`, while the teacher preview keeps the image visible.
+   */
+  variant?: SlideVariant;
 };
 
 /** Tiny Lua tokenizer: enough color to separate keywords, strings and numbers. */
@@ -111,7 +118,7 @@ function SlideHeader({
  * Scene image, rendered between the title and the bullets. A broken link shows
  * a discreet placeholder instead of a broken-image icon on the projector.
  */
-function SceneImage({ src }: { src: string }) {
+function SceneImage({ src, alt = 'Imagem da cena' }: { src: string; alt?: string }) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {
@@ -126,7 +133,7 @@ function SceneImage({ src }: { src: string }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
-      alt="Imagem da cena"
+      alt={alt}
       onError={() => setFailed(true)}
       className="h-full w-full rounded-[1.2cqw] object-contain shadow-2xl"
     />
@@ -137,6 +144,90 @@ function SceneImageFrame({ src }: { src: string }) {
   return (
     <div className="mt-[1.2cqw] flex min-h-0 flex-1 items-center justify-center overflow-hidden">
       <SceneImage key={src} src={src} />
+    </div>
+  );
+}
+
+/** Default time a `flash` image stays on the TV, in seconds. */
+export const FLASH_DEFAULT_SECONDS = 3;
+
+/** Clamps the authored `seconds` to a sane range (1–120), defaulting to 3. */
+function flashSeconds(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return FLASH_DEFAULT_SECONDS;
+  }
+  return Math.min(Math.max(Math.round(value), 1), 120);
+}
+
+/**
+ * `flash` slide: a link-only image that the teacher pastes on the notebook.
+ *
+ * On the TV the image shows for `seconds` and is then replaced by a neutral
+ * "Tempo esgotado" placeholder until the teacher advances — the timer restarts
+ * whenever the slide (or its link) changes and is cleared on unmount. The
+ * teacher preview keeps the image visible and adds a discreet "Ns na TV"
+ * caption, so the teacher always knows what the class is seeing.
+ */
+function FlashSlide({
+  slide,
+  imageUrl,
+  variant,
+}: {
+  slide: Extract<Slide, { kind: 'flash' }>;
+  imageUrl?: string;
+  variant: SlideVariant;
+}) {
+  const seconds = flashSeconds(slide.seconds);
+  const src = (imageUrl || slide.imageUrl || '').trim();
+  const isTv = variant === 'tv';
+  /* Stores the link whose countdown already finished; a new link is a new
+     countdown automatically, with no `setState` inside the effect body. */
+  const [expiredSrc, setExpiredSrc] = useState<string | null>(null);
+  const expired = src !== '' && expiredSrc === src;
+
+  useEffect(() => {
+    if (!isTv || !src) return;
+
+    const timer = window.setTimeout(() => setExpiredSrc(src), seconds * 1000);
+    return () => window.clearTimeout(timer);
+  }, [isTv, seconds, src]);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {slide.title ? (
+        <SlideHeader title={slide.title} subtitle={slide.subtitle} />
+      ) : slide.subtitle ? (
+        <p className={clsx('shrink-0', SUBTITLE_CLS)}>{slide.subtitle}</p>
+      ) : null}
+
+      <div className="mt-[1.2cqw] flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+        {!src ? (
+          <div className="flex h-full w-full items-center justify-center rounded-[1.2cqw] border-2 border-dashed border-[var(--line-soft)] bg-[var(--surface-2)] px-[2cqw] text-center text-[1.5cqw] font-semibold text-[var(--muted)]">
+            Cole o link da imagem no notebook
+          </div>
+        ) : isTv && expired ? (
+          <div
+            role="status"
+            className="flex h-full w-full flex-col items-center justify-center gap-[0.6cqw] rounded-[1.2cqw] border-2 border-dashed border-[var(--line-soft)] bg-[var(--surface-2)] text-center"
+          >
+            <span aria-hidden="true" className="text-[3.4cqw] leading-none">
+              ⏱
+            </span>
+            <p className="text-[1.8cqw] font-black uppercase tracking-[0.2em] text-[var(--muted)]">
+              Tempo esgotado
+            </p>
+          </div>
+        ) : (
+          <div className="relative flex h-full w-full items-center justify-center">
+            <SceneImage key={src} src={src} alt={slide.title ? `Imagem: ${slide.title}` : 'Imagem do slide'} />
+            {isTv ? null : (
+              <span className="absolute bottom-[0.8cqw] right-[0.8cqw] rounded-full bg-black/70 px-[1cqw] py-[0.35cqw] text-[1.05cqw] font-black uppercase tracking-[0.16em] text-white">
+                {seconds}s na TV
+              </span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -162,10 +253,12 @@ function SlideBody({
   slide,
   imageUrl,
   showNotes,
+  variant,
 }: {
   slide: Slide;
   imageUrl?: string;
   showNotes: boolean;
+  variant: SlideVariant;
 }) {
   switch (slide.kind) {
     case 'cover':
@@ -382,6 +475,9 @@ function SlideBody({
       );
     }
 
+    case 'flash':
+      return <FlashSlide slide={slide} imageUrl={imageUrl} variant={variant} />;
+
     case 'big':
       return (
         <div className="flex h-full min-h-0 flex-col items-center justify-center gap-[1.2cqw] overflow-hidden text-center">
@@ -518,6 +614,7 @@ export default function SlideView({
   className,
   imageUrl,
   showNotes = true,
+  variant = 'tv',
 }: SlideViewProps) {
   return (
     <section
@@ -528,7 +625,12 @@ export default function SlideView({
     >
       <div className="flex h-full w-full min-h-0 flex-col p-[4.2cqw]">
         <div className="flex min-h-0 w-full flex-1 flex-col">
-          <SlideBody slide={slide} imageUrl={imageUrl} showNotes={showNotes} />
+          <SlideBody
+            slide={slide}
+            imageUrl={imageUrl}
+            showNotes={showNotes}
+            variant={variant}
+          />
         </div>
       </div>
     </section>
@@ -589,7 +691,7 @@ export function SlideStage({
           visibility: scale > 0 ? 'visible' : 'hidden',
         }}
       >
-        <SlideView slide={slide} imageUrl={imageUrl} showNotes={false} />
+        <SlideView slide={slide} imageUrl={imageUrl} showNotes={false} variant="preview" />
       </div>
     </div>
   );

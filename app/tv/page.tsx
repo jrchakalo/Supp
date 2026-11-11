@@ -1284,13 +1284,15 @@ export default function TvPage() {
         ) : slide ? (
           <div className="flex h-full w-full items-center justify-center p-3 sm:p-5">
             <div
+              /* The key remounts SlideView on every slide/image change, which
+                 restarts the `flash` countdown on the TV. */
               key={slideKey}
               className={`${
                 longEnter ? 'aula-enter-long' : 'aula-enter'
               } aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-[var(--surface)] shadow-2xl`}
               style={{ maxWidth: 'min(100%, calc(177.78dvh - 9.4rem))' }}
             >
-              <SlideView slide={slide} imageUrl={slideImage} />
+              <SlideView slide={slide} imageUrl={slideImage} variant="tv" />
             </div>
           </div>
         ) : (
