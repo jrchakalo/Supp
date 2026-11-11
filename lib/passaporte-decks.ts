@@ -408,4 +408,20 @@ export const PASSAPORTE_DECKS: Record<string, PassaporteDeck> = {
       { id: 'p5a3-10', tier: 1, text: 'O jogo é sobre...', options: ['Desperdício de alimentos', 'Futebol', 'Moda', 'Música'], correctIndex: 0, explanation: 'O tema do projeto é o desperdício.' },
     ],
   },
+  'm4c2-p4-a1': {
+    id: 'm4c2-p4-a1',
+    title: 'P4 · Aula 1 — O Desafio Começa! (Energia + Roblox)',
+    questions: [
+      { id: 'p4a1-01', tier: 1, text: 'Energia renovável é...', options: ['Sol, vento e água', 'Petróleo e carvão', 'Fumaça', 'Plástico'], correctIndex: 0, explanation: 'Renováveis vêm da natureza e não se esgotam fácil.' },
+      { id: 'p4a1-02', tier: 1, text: 'Energia não renovável é...', options: ['Petróleo, gás e carvão', 'Sol e vento', 'Água', 'Luz do dia'], correctIndex: 0, explanation: 'Não renováveis um dia acabam e poluem.' },
+      { id: 'p4a1-03', tier: 1, text: 'O tema do nosso projeto é...', options: ['Energia', 'Futebol', 'Moda', 'Comida'], correctIndex: 0, explanation: 'O projeto é sobre energia e consumo.' },
+      { id: 'p4a1-04', tier: 1, text: 'O projeto fecha com...', options: ['2 fontes limpas + 5 consumidores', '1 fonte + 1 consumidor', 'Só um cenário', '10 fontes'], correctIndex: 0, explanation: '2 fontes de energia limpa e 5 coisas que consomem energia.' },
+      { id: 'p4a1-05', tier: 2, text: 'Empatia é...', options: ['Entender o sentimento do outro', 'Fazer só o que eu quero', 'Ganhar o jogo', 'Copiar o colega'], correctIndex: 0, explanation: 'Empatia = se colocar no lugar do outro.' },
+      { id: 'p4a1-06', tier: 1, text: 'Para criar um projeto novo no Roblox usamos...', options: ['Novo → Baseplate', 'Play', 'Propriedades', 'Sair'], correctIndex: 0, explanation: 'Novo → Baseplate cria o cenário.' },
+      { id: 'p4a1-07', tier: 1, text: 'A Caixa de Ferramentas serve para...', options: ['Buscar objetos', 'Salvar', 'Testar', 'Fechar'], correctIndex: 0, explanation: 'Toolbox = objetos prontos.' },
+      { id: 'p4a1-08', tier: 1, text: 'As Propriedades servem para...', options: ['Mudar cor, tamanho e posição', 'Apagar o jogo', 'Imprimir', 'Desligar o PC'], correctIndex: 0, explanation: 'Propriedades ajustam cada objeto.' },
+      { id: 'p4a1-09', tier: 1, text: 'Por que testar no Play?', options: ['Para ver se funciona', 'Para apagar tudo', 'Para imprimir', 'Para desligar'], correctIndex: 0, explanation: 'Testar mostra o que precisa corrigir.' },
+      { id: 'p4a1-10', tier: 2, text: 'Consumir menos energia ajuda a...', options: ['Reduzir o impacto ambiental', 'Aumentar a poluição', 'Gastar mais', 'Nada'], correctIndex: 0, explanation: 'Menos consumo = menos impacto.' },
+    ],
+  },
 };
