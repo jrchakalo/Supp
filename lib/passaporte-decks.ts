@@ -392,4 +392,20 @@ export const PASSAPORTE_DECKS: Record<string, PassaporteDeck> = {
       { id: 't2-12', tier: 2, text: '20 in English is...', options: ['twenty', 'twelve', 'two', 'ten'], correctIndex: 0, explanation: 'Twenty = 20.' }
     ]
   },
+  'm5c2-p5-a3': {
+    id: 'm5c2-p5-a3',
+    title: 'P5 · Aula 3 — Investigar: Círculo Dourado + Pontos',
+    questions: [
+      { id: 'p5a3-01', tier: 1, text: 'O Círculo Dourado começa pelo...', options: ['Por quê (centro)', 'O quê (externo)', 'Como (meio)', 'Nome do jogo'], correctIndex: 0, explanation: 'Comece pelo propósito: o porquê.' },
+      { id: 'p5a3-02', tier: 1, text: 'O "Como" representa...', options: ['O processo', 'O produto', 'O lucro', 'O nome'], correctIndex: 0, explanation: 'Como = o jeito/processo.' },
+      { id: 'p5a3-03', tier: 1, text: 'O "O quê" é...', options: ['O produto/o que fazemos', 'O propósito', 'O processo', 'A equipe'], correctIndex: 0, explanation: 'O quê = o que entregamos.' },
+      { id: 'p5a3-04', tier: 2, text: 'Por que começar pelo "Por quê"?', options: ['Cria conexão e propósito', 'É mais rápido', 'É obrigatório', 'Porque é o mais fácil'], correctIndex: 0, explanation: 'O propósito conecta as pessoas.' },
+      { id: 'p5a3-05', tier: 1, text: 'O desafio de hoje é criar...', options: ['Um sistema de pontos', 'Um novo cenário', 'Um vídeo', 'Uma prova'], correctIndex: 0, explanation: 'Cada desperdício eliminado vale ponto.' },
+      { id: 'p5a3-06', tier: 1, text: 'O TextLabel serve para...', options: ['Mostrar texto na tela', 'Mover o personagem', 'Tocar som', 'Salvar o jogo'], correctIndex: 0, explanation: 'TextLabel mostra o texto dos pontos.' },
+      { id: 'p5a3-07', tier: 2, text: 'O script fica...', options: ['Dentro da parte', 'No navegador', 'Na lixeira', 'No teclado'], correctIndex: 0, explanation: 'script.Parent aponta para a parte.' },
+      { id: 'p5a3-08', tier: 2, text: 'Ao tocar a parte, o que acontece?', options: ['Ganha 1 ponto', 'Fecha o jogo', 'O jogo reinicia', 'Nada'], correctIndex: 0, explanation: 'O Touched chama a função e soma 1.' },
+      { id: 'p5a3-09', tier: 1, text: 'A pesquisa serve para...', options: ['Buscar informação em fontes', 'Encher o tempo', 'Copiar o colega', 'Apagar o jogo'], correctIndex: 0, explanation: 'Pesquisar dá base para o projeto.' },
+      { id: 'p5a3-10', tier: 1, text: 'O jogo é sobre...', options: ['Desperdício de alimentos', 'Futebol', 'Moda', 'Música'], correctIndex: 0, explanation: 'O tema do projeto é o desperdício.' },
+    ],
+  },
 };
