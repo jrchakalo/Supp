@@ -2213,12 +2213,23 @@ export default function AulaPage() {
                             </p>
                           ) : null}
                           {lessonSlide.teacherNote ? (
-                            <p className="rounded-xl border-l-4 border-[var(--accent-2)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold leading-snug text-[var(--ink)]">
-                              <span className="mr-2 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--accent-2)]">
-                                Só para você
-                              </span>
-                              {lessonSlide.teacherNote}
-                            </p>
+                            lessonSlide.teacherNote.length > 280 ? (
+                              <details className="rounded-xl border-l-4 border-[var(--accent-2)] bg-[var(--surface)] px-3 py-2">
+                                <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.14em] text-[var(--accent-2)]">
+                                  Texto para ler — clique para abrir/fechar
+                                </summary>
+                                <div className="mt-2 max-h-56 overflow-y-auto whitespace-pre-line text-sm font-semibold leading-snug text-[var(--ink)]">
+                                  {lessonSlide.teacherNote}
+                                </div>
+                              </details>
+                            ) : (
+                              <p className="rounded-xl border-l-4 border-[var(--accent-2)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold leading-snug text-[var(--ink)]">
+                                <span className="mr-2 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--accent-2)]">
+                                  Só para você
+                                </span>
+                                {lessonSlide.teacherNote}
+                              </p>
+                            )
                           ) : null}
                         </div>
                       </section>
