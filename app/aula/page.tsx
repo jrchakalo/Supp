@@ -111,6 +111,13 @@ function lessonDayBadge(iso: string, today: string): string {
   return '';
 }
 
+/** Minutes since midnight extracted from "C2-08 · Quinta 15:30–18:00". */
+function lessonStartMinutes(turma: string): number {
+  const match = turma.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return Number.MAX_SAFE_INTEGER;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -273,7 +280,9 @@ export default function AulaPage() {
   const lessonGroups = useMemo(() => {
     const sorted = [...(lessons ?? [])].sort(
       (a, b) =>
-        (a.date || '').localeCompare(b.date || '') || a.turma.localeCompare(b.turma)
+        (a.date || '').localeCompare(b.date || '') ||
+        lessonStartMinutes(a.turma) - lessonStartMinutes(b.turma) ||
+        a.turma.localeCompare(b.turma)
     );
     const byDay = new Map<string, Lesson[]>();
     for (const lesson of sorted) {
