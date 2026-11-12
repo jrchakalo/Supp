@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import clsx from 'clsx';
 import {
   ArrowLeft,
   Check,
@@ -76,6 +77,38 @@ function formatLessonDate(iso: string): string {
   const parts = iso.split('-');
   if (parts.length !== 3) return iso;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const parts = iso.split('-').map(Number);
+  if (parts.length !== 3 || parts.some((value) => !Number.isFinite(value))) return iso;
+  const date = new Date(parts[0], parts[1] - 1, parts[2], 12);
+  date.setDate(date.getDate() + days);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/** "quinta-feira, 12 de novembro" (weekday + day + month). */
+function formatLessonDay(iso: string): string {
+  const parts = iso.split('-').map(Number);
+  if (parts.length !== 3 || parts.some((value) => !Number.isFinite(value))) return iso;
+  const date = new Date(parts[0], parts[1] - 1, parts[2], 12);
+  const label = date.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/** "Hoje"/"Amanhã" badge for a lesson day. */
+function lessonDayBadge(iso: string, today: string): string {
+  if (!iso) return 'Sem data';
+  if (!today) return '';
+  if (iso === today) return 'Hoje';
+  if (iso === addDaysIso(today, 1)) return 'Amanhã';
+  return '';
 }
 
 async function copyToClipboard(text: string): Promise<boolean> {
@@ -234,6 +267,28 @@ export default function AulaPage() {
   const [lessonsLoading, setLessonsLoading] = useState(false);
   const [lessonsError, setLessonsError] = useState(false);
   const [lessonsNonce, setLessonsNonce] = useState(0);
+
+  /* Group the lesson bank by day: upcoming (today first, ascending) and past
+     (most recent first). This keeps the picker navigable as the bank grows. */
+  const lessonGroups = useMemo(() => {
+    const sorted = [...(lessons ?? [])].sort(
+      (a, b) =>
+        (a.date || '').localeCompare(b.date || '') || a.turma.localeCompare(b.turma)
+    );
+    const byDay = new Map<string, Lesson[]>();
+    for (const lesson of sorted) {
+      const key = lesson.date || '';
+      const list = byDay.get(key);
+      if (list) list.push(lesson);
+      else byDay.set(key, [lesson]);
+    }
+    const groups = Array.from(byDay, ([date, items]) => ({ date, items }));
+    const upcoming = groups.filter((group) => !today || group.date >= today);
+    const past = groups
+      .filter((group) => today !== '' && group.date < today)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    return { upcoming, past };
+  }, [lessons, today]);
 
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [sessionCode, setSessionCode] = useState('');
@@ -1507,6 +1562,72 @@ export default function AulaPage() {
   /* ------------------------------------------------------------------ */
 
   if (!activeLesson) {
+    const renderLessonGroup = (group: { date: string; items: Lesson[] }) => {
+      const badge = lessonDayBadge(group.date, today);
+      return (
+        <section key={group.date || 'sem-data'}>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2 border-b border-[var(--line-soft)] pb-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {badge ? (
+                <span
+                  className={clsx(
+                    'rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em]',
+                    badge === 'Hoje'
+                      ? 'bg-[var(--accent)] text-[#071018]'
+                      : 'border border-[var(--line-soft)] bg-[var(--surface)] text-[var(--accent)]'
+                  )}
+                >
+                  {badge}
+                </span>
+              ) : null}
+              <h2 className="text-lg font-black leading-tight">
+                {formatLessonDay(group.date)}
+              </h2>
+            </div>
+            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">
+              {group.items.length} {group.items.length === 1 ? 'aula' : 'aulas'}
+            </span>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {group.items.map((lesson) => {
+              const isToday = today !== '' && lesson.date === today;
+              return (
+                <article
+                  key={lesson.id}
+                  className="flex flex-col rounded-3xl border-2 border-[var(--line)] bg-[var(--surface)] p-5 shadow-[var(--panel-shadow)]"
+                >
+                  {isToday ? (
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-[var(--accent)] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#071018]">
+                        Aula de hoje
+                      </span>
+                    </div>
+                  ) : null}
+
+                  <h3 className="text-xl font-black leading-tight">{lesson.title}</h3>
+                  <p className="mt-2 text-sm font-bold text-[var(--muted)]">{lesson.turma}</p>
+                  <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
+                    {lesson.totalMin} min · {lesson.segments.length} blocos ·{' '}
+                    {flattenBeats(lesson).length} beats
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => startLesson(lesson)}
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-4 py-3 text-sm font-black uppercase tracking-wide text-[var(--cta-text)]"
+                  >
+                    <MonitorPlay className="h-4 w-4" aria-hidden="true" />
+                    Iniciar aula
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      );
+    };
+
     return (
       <main className="theme-dark game-shell min-h-dvh px-4 py-6 text-[var(--ink)] sm:px-8">
         <div className="mx-auto w-full max-w-5xl">
@@ -1516,8 +1637,11 @@ export default function AulaPage() {
                 Supp · Aulas
               </p>
               <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">
-                Escolha a aula de hoje
+                Aulas por dia
               </h1>
+              <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
+                Hoje e próximas primeiro; as anteriores ficam no fim.
+              </p>
             </div>
             <button
               type="button"
@@ -1553,44 +1677,17 @@ export default function AulaPage() {
               </button>
             </div>
           ) : (
-            <section className="mt-6 grid gap-4 sm:grid-cols-2">
-              {(lessons ?? []).map((lesson) => {
-                const isToday = today !== '' && lesson.date === today;
-                return (
-                  <article
-                    key={lesson.id}
-                    className="flex flex-col rounded-3xl border-2 border-[var(--line)] bg-[var(--surface)] p-5 shadow-[var(--panel-shadow)]"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      {isToday ? (
-                        <span className="rounded-full bg-[var(--accent)] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#071018]">
-                          Aula de hoje
-                        </span>
-                      ) : null}
-                      <span className="rounded-full border border-[var(--line-soft)] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--muted)]">
-                        {formatLessonDate(lesson.date)}
-                      </span>
-                    </div>
-
-                    <h2 className="mt-3 text-xl font-black leading-tight">{lesson.title}</h2>
-                    <p className="mt-2 text-sm font-bold text-[var(--muted)]">{lesson.turma}</p>
-                    <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
-                      {lesson.totalMin} min · {lesson.segments.length} blocos ·{' '}
-                      {flattenBeats(lesson).length} beats
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => startLesson(lesson)}
-                      className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-4 py-3 text-sm font-black uppercase tracking-wide text-[var(--cta-text)]"
-                    >
-                      <MonitorPlay className="h-4 w-4" aria-hidden="true" />
-                      Iniciar aula
-                    </button>
-                  </article>
-                );
-              })}
-            </section>
+            <div className="mt-8 space-y-10">
+              {lessonGroups.upcoming.map(renderLessonGroup)}
+              {lessonGroups.past.length ? (
+                <div className="space-y-8">
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted)]">
+                    Aulas anteriores
+                  </p>
+                  {lessonGroups.past.map(renderLessonGroup)}
+                </div>
+              ) : null}
+            </div>
           )}
 
           <p className="mt-6 text-xs font-semibold text-[var(--muted)]">

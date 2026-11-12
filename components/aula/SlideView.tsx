@@ -424,57 +424,69 @@ function SlideBody({
       const cellCls = tableTextClass(rowCount);
       const headCls =
         rowCount > 9 ? 'text-[1.05cqw]' : rowCount > 6 ? 'text-[1.2cqw]' : 'text-[1.35cqw]';
+      const columnCount = slide.head.length;
+      /* The table is a CSS grid: every line is a real flex/grid child, so no
+         browser can collapse or hide a row (the old <table> layout could). */
+      const gridTemplateColumns =
+        columnCount > 1
+          ? `28% repeat(${columnCount - 1}, minmax(0, 1fr))`
+          : 'minmax(0, 1fr)';
 
       return (
         <div className="flex h-full min-h-0 flex-col">
           <SlideHeader title={slide.title} subtitle={slide.subtitle} />
           <div className="mt-[1.4cqw] min-h-0 flex-1 overflow-auto">
-            {/* The bordered box hugs the table: it must end on the last row,
-                never stretch to the bottom of the slide. */}
-            <div className="overflow-hidden rounded-[1.2cqw] border-2 border-[var(--line)]">
-              <table className="w-full table-fixed border-collapse text-left">
-                <thead className="bg-[var(--surface-2)]">
-                  <tr>
-                    {slide.head.map((cell, index) => (
-                      <th
-                        key={`${cell}-${index}`}
-                        className={clsx(
-                          'border-b-2 border-[var(--line)] px-[1.2cqw] py-[0.8cqw] font-black uppercase tracking-wide text-[var(--accent)]',
-                          headCls,
-                          index === 0 ? 'w-[28%]' : 'w-auto'
-                        )}
-                      >
-                        {cell}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {slide.rows.map((row, rowIndex) => (
-                    <tr
-                      key={`row-${rowIndex}`}
-                      className="border-b border-[var(--line-soft)] last:border-b-0"
+            {/* The bordered box hugs the content: it ends on the last row and
+                never stretches to the bottom of the slide. */}
+            <div
+              role="table"
+              className="overflow-hidden rounded-[1.2cqw] border-2 border-[var(--line)]"
+            >
+              <div
+                role="row"
+                className="grid bg-[var(--surface-2)]"
+                style={{ gridTemplateColumns }}
+              >
+                {slide.head.map((cell, index) => (
+                  <div
+                    role="columnheader"
+                    key={`${cell}-${index}`}
+                    className={clsx(
+                      'border-b-2 border-[var(--line)] px-[1.2cqw] py-[0.8cqw] font-black uppercase tracking-wide text-[var(--accent)]',
+                      headCls
+                    )}
+                  >
+                    {cell}
+                  </div>
+                ))}
+              </div>
+              {slide.rows.map((row, rowIndex) => (
+                <div
+                  role="row"
+                  key={`row-${rowIndex}`}
+                  className={clsx(
+                    'grid',
+                    rowIndex > 0 && 'border-t border-[var(--line-soft)]'
+                  )}
+                  style={{ gridTemplateColumns }}
+                >
+                  {row.map((cell, cellIndex) => (
+                    <div
+                      role="cell"
+                      key={`cell-${rowIndex}-${cellIndex}`}
+                      className={clsx(
+                        'flex min-h-[3.2cqw] min-w-0 items-center break-words px-[1.2cqw] py-[0.6cqw]',
+                        cellIndex === 0
+                          ? 'font-black text-[var(--ink)]'
+                          : 'font-semibold text-[var(--muted)]',
+                        cellCls
+                      )}
                     >
-                      {row.map((cell, cellIndex) => (
-                        <td
-                          key={`cell-${rowIndex}-${cellIndex}`}
-                          className={clsx(
-                            /* `h` acts as a minimum on table cells: empty
-                               rows stay visible without stretching. */
-                            'h-[3.2cqw] break-words px-[1.2cqw] py-[0.6cqw] align-middle',
-                            cellIndex === 0
-                              ? 'font-black text-[var(--ink)]'
-                              : 'font-semibold text-[var(--muted)]',
-                            cellCls
-                          )}
-                        >
-                          {cell}
-                        </td>
-                      ))}
-                    </tr>
+                      {cell}
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              ))}
             </div>
           </div>
         </div>
