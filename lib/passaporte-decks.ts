@@ -462,7 +462,7 @@ export const PASSAPORTE_DECKS: Record<string, PassaporteDeck> = {
     questions: [
       { id: 'pse1-01', tier: 1, text: 'Qual destes é reciclável?', options: ['Garrafa PET', 'Casca de banana', 'Papel higiênico usado', 'Pilha'], correctIndex: 0, explanation: 'Plástico, papel, vidro e metal são recicláveis.' },
       { id: 'pse1-02', tier: 1, text: 'Casca de fruta é um resíduo...', options: ['Orgânico', 'Reciclável', 'Especial', 'Rejeito'], correctIndex: 0, explanation: 'Orgânicos vão para compostagem.' },
-      { id: 'pse1-03', tier: 1, text: 'Pilhas e eletrônicos são...', options: ['Resíduos especiais', 'Orgânicos', 'Recicláveis comuns', 'Rejeitos'], correctIndex: 0, explanation: 'Precisam de coleta especial.' },
+      { id: 'pse1-03', tier: 1, text: 'Pilhas e remédios são...', options: ['Resíduos tóxicos', 'Orgânicos', 'Recicláveis comuns', 'Rejeitos'], correctIndex: 0, explanation: 'Tóxicos exigem coleta especial e nunca vão no lixo comum.' },
       { id: 'pse1-04', tier: 1, text: 'Papel higiênico usado é...', options: ['Rejeito', 'Reciclável', 'Orgânico', 'Especial'], correctIndex: 0, explanation: 'Rejeito: não é reciclável nem compostável.' },
       { id: 'pse1-05', tier: 1, text: 'A lixeira do plástico é...', options: ['Vermelha', 'Azul', 'Verde', 'Marrom'], correctIndex: 0, explanation: 'Plástico = vermelho.' },
       { id: 'pse1-06', tier: 1, text: 'Reduzir significa...', options: ['Consumir menos e evitar desperdício', 'Reciclar tudo', 'Jogar fora', 'Comprar mais'], correctIndex: 0, explanation: 'Reduzir é o primeiro R.' },

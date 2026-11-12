@@ -428,48 +428,54 @@ function SlideBody({
       return (
         <div className="flex h-full min-h-0 flex-col">
           <SlideHeader title={slide.title} subtitle={slide.subtitle} />
-          <div className="mt-[1.4cqw] min-h-0 flex-1 overflow-auto rounded-[1.2cqw] border-2 border-[var(--line)]">
-            <table className="w-full table-fixed border-collapse text-left">
-              <thead className="sticky top-0 z-10 bg-[var(--surface-2)]">
-                <tr>
-                  {slide.head.map((cell, index) => (
-                    <th
-                      key={`${cell}-${index}`}
-                      className={clsx(
-                        'border-b-2 border-[var(--line)] px-[1.2cqw] py-[0.8cqw] font-black uppercase tracking-wide text-[var(--accent)]',
-                        headCls,
-                        index === 0 ? 'w-[28%]' : 'w-auto'
-                      )}
-                    >
-                      {cell}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {slide.rows.map((row, rowIndex) => (
-                  <tr
-                    key={`row-${rowIndex}`}
-                    className="border-b border-[var(--line-soft)] last:border-b-0"
-                  >
-                    {row.map((cell, cellIndex) => (
-                      <td
-                        key={`cell-${rowIndex}-${cellIndex}`}
+          <div className="mt-[1.4cqw] min-h-0 flex-1 overflow-auto">
+            {/* The bordered box hugs the table: it must end on the last row,
+                never stretch to the bottom of the slide. */}
+            <div className="overflow-hidden rounded-[1.2cqw] border-2 border-[var(--line)]">
+              <table className="w-full table-fixed border-collapse text-left">
+                <thead className="bg-[var(--surface-2)]">
+                  <tr>
+                    {slide.head.map((cell, index) => (
+                      <th
+                        key={`${cell}-${index}`}
                         className={clsx(
-                          'break-words px-[1.2cqw] py-[0.7cqw] align-top',
-                          cellIndex === 0
-                            ? 'font-black text-[var(--ink)]'
-                            : 'font-semibold text-[var(--muted)]',
-                          cellCls
+                          'border-b-2 border-[var(--line)] px-[1.2cqw] py-[0.8cqw] font-black uppercase tracking-wide text-[var(--accent)]',
+                          headCls,
+                          index === 0 ? 'w-[28%]' : 'w-auto'
                         )}
                       >
                         {cell}
-                      </td>
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {slide.rows.map((row, rowIndex) => (
+                    <tr
+                      key={`row-${rowIndex}`}
+                      className="border-b border-[var(--line-soft)] last:border-b-0"
+                    >
+                      {row.map((cell, cellIndex) => (
+                        <td
+                          key={`cell-${rowIndex}-${cellIndex}`}
+                          className={clsx(
+                            /* `h` acts as a minimum on table cells: empty
+                               rows stay visible without stretching. */
+                            'h-[3.2cqw] break-words px-[1.2cqw] py-[0.6cqw] align-middle',
+                            cellIndex === 0
+                              ? 'font-black text-[var(--ink)]'
+                              : 'font-semibold text-[var(--muted)]',
+                            cellCls
+                          )}
+                        >
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       );
