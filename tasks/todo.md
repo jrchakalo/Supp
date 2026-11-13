@@ -4,12 +4,12 @@
 > `projetos-pasaporte/docs/planejamento-2026-11/03-PLANO-E-BACKLOG.md`.
 
 ## F0 — Preparação
-- [ ] F0-01 Backup e baseline
-- [ ] F0-02 AGENTS.md e regras
-- [ ] F0-03 Feature flags
-- [ ] F0-04 Seeds de teste
-- [ ] F0-05 Inventário e mapa da documentação
-- [ ] F0-06 Git, branches, commits e CI
+- [x] F0-01 Backup e baseline
+- [x] F0-02 AGENTS.md e regras
+- [x] F0-03 Feature flags
+- [ ] F0-04 Seeds de teste (depende do schema v2 — F3)
+- [x] F0-05 Inventário e mapa da documentação
+- [x] F0-06 Git, branches, commits e CI
 
 ## F1 — Shell
 - [ ] F1-01 Mover rotas + redirects
