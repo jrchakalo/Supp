@@ -49,11 +49,11 @@
 - [ ] F5-04 Favoritos/recentes (depois)
 
 ## F6 — Editor
-- [ ] F6-01 Editor de slide
-- [ ] F6-02 Estrutura de blocos/slides
-- [ ] F6-03 Modal local/global
-- [ ] F6-04 Versões e restauração
-- [ ] F6-05 Aula dada somente leitura
+- [x] F6-01 Editor de slide
+- [x] F6-02 Estrutura de blocos/slides
+- [x] F6-03 Modal local/global
+- [x] F6-04 Versões e restauração (versão global + snapshot local)
+- [x] F6-05 Aula dada somente leitura
 
 ## F7 — Jogos
 - [ ] F7-01 Protocolo + GameStage

@@ -15,6 +15,7 @@ import {
   KeyRound,
   LogOut,
   MonitorPlay,
+  Pencil,
   Plus,
   Presentation,
   Radio,
@@ -1934,6 +1935,17 @@ export default function AulaPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {activeLesson.contentId ? (
+                <a
+                  href={`/professor/editor/${activeLesson.contentId}?occurrence=${activeLesson.occurrenceId ?? ''}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
+                >
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                  Editar
+                </a>
+              ) : null}
               <ConnectionPill status={connection} tvOnline={tvOnline} />
               <button
                 type="button"
@@ -2179,6 +2191,17 @@ export default function AulaPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {activeLesson.contentId ? (
+              <a
+                href={`/professor/editor/${activeLesson.contentId}?occurrence=${activeLesson.occurrenceId ?? ''}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+                Editar
+              </a>
+            ) : null}
             <button
               type="button"
               onClick={() => void copyValue(sessionCode, 'code')}
