@@ -1,0 +1,69 @@
+# TODO — cockpit do professor
+
+> Marcar `[x]` só com aceite + verificação. Detalhes locais em
+> `projetos-pasaporte/docs/planejamento-2026-11/03-PLANO-E-BACKLOG.md`.
+
+## F0 — Preparação
+- [ ] F0-01 Backup e baseline
+- [ ] F0-02 AGENTS.md e regras
+- [ ] F0-03 Feature flags
+- [ ] F0-04 Seeds de teste
+
+## F1 — Shell
+- [ ] F1-01 Mover rotas + redirects
+- [ ] F1-02 Atualizar links/QR/textos/robots
+- [ ] F1-03 Saudação por hora
+- [ ] F1-04 Cursor global + toggle
+- [ ] F1-05 Navegação e layout
+
+## F2 — Session
+- [ ] F2-01 Código sempre visível
+- [ ] F2-02 Heartbeat e presença
+- [ ] F2-03 Reconexão automática da TV
+- [ ] F2-04 Snapshot de estado da TV
+- [ ] F2-05 Fim de aula explícito
+
+## F3 — Dados
+- [ ] F3-01 SQL e RLS
+- [ ] F3-02 Sync Passaporte
+- [ ] F3-03 Migração dos 15 JSONs
+- [ ] F3-04 Resolver + overrides
+- [ ] F3-05 Correção P1 A2 (recap local)
+- [ ] F3-06 Leitura v2 no app
+
+## F4 — Agenda e dashboard
+- [ ] F4-01 WeekAgenda
+- [ ] F4-02 Dados da agenda (seg–dom, dia 1, folgas)
+- [ ] F4-03 Próxima/aula agora
+- [ ] F4-04 Aulas de hoje com tag Dada
+- [ ] F4-05 Histórico
+
+## F5 — Biblioteca
+- [ ] F5-01 Listagem e filtros
+- [ ] F5-02 Prévia e “dar aula”
+- [ ] F5-03 Duplicar/clonar
+- [ ] F5-04 Favoritos/recentes
+
+## F6 — Editor
+- [ ] F6-01 Editor de slide
+- [ ] F6-02 Estrutura de blocos/slides
+- [ ] F6-03 Modal local/global
+- [ ] F6-04 Versões e restauração
+- [ ] F6-05 Aula dada somente leitura
+
+## F7 — Jogos
+- [ ] F7-01 Protocolo + GameStage
+- [ ] F7-02 Roleta (clique na /tela, rodadas)
+- [ ] F7-03 Passa Repassa
+- [ ] F7-04 D20 completo
+- [ ] F7-05 Competição completa
+- [ ] F7-06 Live embutido
+- [ ] F7-07 Polimento de animações
+
+## F8 — QA e release
+- [ ] F8-01 E2E Playwright
+- [ ] F8-02 Unitários
+- [ ] F8-03 Performance
+- [ ] F8-04 Segurança
+- [ ] F8-05 Ensaio real
+- [ ] F8-06 Release
