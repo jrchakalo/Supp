@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Copy,
   Dices,
-  ExternalLink,
   Gamepad2,
   Image as ImageIcon,
   KeyRound,
@@ -46,6 +45,8 @@ import { CLASSIC_ALL_CATEGORIES, getClassicDeck } from '@/lib/classic-questions'
 import type { ClassicCategoryId, DifficultyId } from '@/lib/types';
 import type { WheelGameState } from '@/lib/aula/games';
 import WheelControl from '@/components/game/WheelControl';
+import LiveHostPanel from '@/components/live/LiveHostPanel';
+import { useLiveHost } from '@/lib/live/useLiveHost';
 import { getLiveDeck, prepareQuestion, randomRoomCode, sanitizeRoomCode } from '@/lib/live/room';
 import type { PassaGameState, PassaQuestion, D20GameState } from '@/lib/aula/games';
 import PassaControl from '@/components/game/PassaControl';
@@ -388,7 +389,6 @@ export default function AulaPage() {
   const [tvOnline, setTvOnline] = useState(false);
   const [copied, setCopied] = useState<'code' | 'url' | null>(null);
   const [liveQuizCode, setLiveQuizCode] = useState<string | null>(null);
-  const [hostUrl, setHostUrl] = useState('');
 
   const [quizModalOpen, setQuizModalOpen] = useState(false);
   const [seconds, setSeconds] = useState<QuizSeconds>(20);
@@ -401,6 +401,11 @@ export default function AulaPage() {
   const [liveCount, setLiveCount] = useState<8 | 12 | 16>(12);
   const [liveSeconds, setLiveSeconds] = useState<QuizSeconds>(20);
   const [liveTheme, setLiveTheme] = useState<ClassicCategoryId | 'all'>('all');
+  const liveHost = useLiveHost({
+    questionCount: liveCount,
+    seconds: liveSeconds,
+    categories: liveTheme === 'all' ? undefined : [liveTheme],
+  });
   const [d20, setD20] = useState<AulaD20Message | null>(null);
   const [d20Revealed, setD20Revealed] = useState(false);
   const [compNames, setCompNames] = useState<string[]>([]);
@@ -544,7 +549,6 @@ export default function AulaPage() {
         index?: unknown;
         quiz?: unknown;
         warmup?: unknown;
-        hostUrl?: unknown;
         phase?: unknown;
         images?: unknown;
         wheel?: unknown;
@@ -598,8 +602,6 @@ export default function AulaPage() {
                 : parsed.warmup === 'live' && savedQuiz
                   ? 'live'
                   : 'none';
-      const savedHostUrl = typeof parsed.hostUrl === 'string' ? parsed.hostUrl : '';
-      /* Sessions saved before the welcome screen existed default to live. */
       const savedPhase: AulaPhase = parsed.phase === 'welcome' ? 'welcome' : 'live';
       const savedImages: Record<number, string> = {};
       if (parsed.images && typeof parsed.images === 'object') {
@@ -669,10 +671,6 @@ export default function AulaPage() {
       }
       if (savedQuiz) {
         setLiveQuizCode(savedQuiz);
-        setHostUrl(
-          savedHostUrl ||
-            `${window.location.origin}/host?deck=${encodeURIComponent(lesson.deckId)}&room=${savedQuiz}&lang=pt&start=1`
-        );
       }
 
       activeLessonRef.current = lesson;
@@ -707,7 +705,6 @@ export default function AulaPage() {
         index: beatIndex,
         quiz: liveQuizCode,
         warmup,
-        hostUrl,
         phase,
         images: imageUrls,
         wheel: wheelGame,
@@ -723,7 +720,6 @@ export default function AulaPage() {
     beatIndex,
     liveQuizCode,
     warmup,
-    hostUrl,
     phase,
     imageUrls,
     wheelGame,
@@ -748,6 +744,10 @@ export default function AulaPage() {
 
       /* A warm-up/game owns the projector even during the welcome screen: a
          TV that just reconnected must land on the game, not on welcome. */
+      if (warmupRef.current === 'live' && liveQuizRef.current) {
+        channelRef.current?.send({ type: 'quiz', code: liveQuizRef.current, active: true });
+        return;
+      }
       if (warmupRef.current === 'passa') {
         const game = passaGameRef.current;
         if (game) {
@@ -959,7 +959,6 @@ export default function AulaPage() {
     setD20Game(null);
     liveQuizRef.current = null;
     setLiveQuizCode(null);
-    setHostUrl('');
     setWarmupModal('none');
   }, []);
 
@@ -981,7 +980,6 @@ export default function AulaPage() {
       beatIndexRef.current = next;
       setMode('lesson');
       setLiveQuizCode(null);
-      setHostUrl('');
       setBeatIndex(next);
       setImageInput(imageUrlsRef.current[next] ?? '');
       resetWarmupState();
@@ -1074,6 +1072,18 @@ export default function AulaPage() {
     }
   }, [broadcast, resetWarmupState]);
 
+  /** Closes the embedded Live room and returns the projector to the lesson. */
+  const endLiveHost = useCallback(() => {
+    liveHost.closeRoom();
+    backToLessonSlides();
+  }, [backToLessonSlides, liveHost.closeRoom]);
+
+  useEffect(() => {
+    if (warmup !== 'live' || !liveQuizCode) return;
+    if (liveHost.status !== 'idle') return;
+    liveHost.openRoom(liveQuizCode);
+  }, [warmup, liveQuizCode, liveHost.status, liveHost.openRoom]);
+
   useEffect(() => {
     if (!activeLesson || quizModalOpen || warmupModal !== 'none') return;
 
@@ -1121,7 +1131,6 @@ export default function AulaPage() {
     setImageUrls({});
     setImageInput('');
     setLiveQuizCode(null);
-    setHostUrl('');
     setConnection('connecting');
     setTvOnline(false);
     setTvUrl(`${window.location.origin}/tela?c=${code}`);
@@ -1179,7 +1188,6 @@ export default function AulaPage() {
     setImageUrls({});
     setImageInput('');
     setLiveQuizCode(null);
-    setHostUrl('');
     setQuizModalOpen(false);
     setConnection('idle');
     setTvOnline(false);
@@ -1258,6 +1266,10 @@ export default function AulaPage() {
     const lesson = activeLessonRef.current;
     if (!lesson) return;
     setQuizModalOpen(false);
+    if (liveHost.status !== 'idle') {
+      liveHost.closeRoom();
+      broadcast({ type: 'quizEnd' });
+    }
 
     if (warmupRef.current === 'd20' || warmupRef.current === 'comp') {
       broadcast({ type: 'warmupEnd' });
@@ -1265,15 +1277,6 @@ export default function AulaPage() {
     resetWarmupState();
 
     if (usePhones) {
-      const params = new URLSearchParams({
-        deck: lesson.deckId,
-        room: sessionCode,
-        seconds: String(seconds),
-        auto: autoAdvance ? '1' : '0',
-        lang: 'pt',
-        start: '1',
-      });
-      const url = `${window.location.origin}/host?${params.toString()}`;
       liveQuizRef.current = sessionCode;
       warmupRef.current = 'live';
       modeRef.current = 'lesson';
@@ -1282,9 +1285,8 @@ export default function AulaPage() {
       setQuizIndex(0);
       setWarmup('live');
       setLiveQuizCode(sessionCode);
-      window.open(url, '_blank', 'noopener,noreferrer');
-      setHostUrl(url);
       broadcast({ type: 'quiz', code: sessionCode, active: true });
+      liveHost.openRoom(sessionCode);
       return;
     }
 
@@ -1292,7 +1294,6 @@ export default function AulaPage() {
     modeRef.current = 'quiz';
     quizIndexRef.current = 0;
     setLiveQuizCode(null);
-    setHostUrl('');
     setMode('quiz');
     setQuizIndex(0);
 
@@ -1300,18 +1301,22 @@ export default function AulaPage() {
     if (slide) {
       broadcast({ type: 'slide', lessonId: QUIZ_LESSON_ID, index: 0, slide });
     }
-  }, [autoAdvance, broadcast, resetWarmupState, seconds, sessionCode, usePhones]);
+  }, [autoAdvance, broadcast, liveHost, resetWarmupState, seconds, sessionCode, usePhones]);
 
   /* ------------------------------------------------------------------ */
   /* Warm-ups (Live / D20 / competition) — configured here, run on /tela  */
   /* ------------------------------------------------------------------ */
 
-  const openWarmup = useCallback((kind: Exclude<WarmupKind, 'none'>) => {
-    setQuizModalOpen(false);
-    setWarmupModal(kind);
-  }, []);
+  const openWarmup = useCallback(
+    (kind: Exclude<WarmupKind, 'none'>) => {
+      setQuizModalOpen(false);
+      setWarmupModal(kind);
+      if (kind !== 'live' && liveHost.status !== 'idle') endLiveHost();
+    },
+    [endLiveHost, liveHost.status]
+  );
 
-  /** LIVE avulso: opens /host in a new tab and puts the TV in spectator mode. */
+  /** LIVE avulso: abre a sala no próprio cockpit e coloca a TV em espectadora. */
   const startLiveWarmup = useCallback(() => {
     const lesson = activeLessonRef.current;
     if (!lesson) return;
@@ -1319,34 +1324,18 @@ export default function AulaPage() {
     if (warmupRef.current === 'd20' || warmupRef.current === 'comp') {
       broadcast({ type: 'warmupEnd' });
     }
-    if (warmupRef.current === 'live' && liveQuizRef.current) {
-      broadcast({ type: 'quizEnd' });
-    }
+    if (liveHost.status !== 'idle') liveHost.closeRoom();
 
     const code = randomRoomCode();
-    const params = new URLSearchParams({
-      mode: 'classic',
-      difficulty: 'medium',
-      room: code,
-      seconds: String(liveSeconds),
-      count: String(liveCount),
-      auto: '1',
-      lang: 'pt',
-      start: '1',
-    });
-    if (liveTheme !== 'all') params.set('categories', liveTheme);
-    const url = `${window.location.origin}/host?${params.toString()}`;
-
     resetWarmupState();
-    window.open(url, '_blank', 'noopener,noreferrer');
     warmupRef.current = 'live';
     liveQuizRef.current = code;
     modeRef.current = 'lesson';
     setWarmup('live');
     setLiveQuizCode(code);
-    setHostUrl(url);
     broadcast({ type: 'quiz', code, active: true });
-  }, [broadcast, liveCount, liveSeconds, liveTheme, resetWarmupState]);
+    liveHost.openRoom(code);
+  }, [broadcast, liveHost, resetWarmupState]);
 
   const broadcastD20Game = useCallback(
     (state: D20GameState) => {
@@ -2040,8 +2029,8 @@ export default function AulaPage() {
           {warmupModal === 'live' ? (
             <>
               <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
-                Quiz ao vivo com celulares. O telão entra em modo espectador e o /host abre em
-                nova aba para você controlar.
+                Quiz ao vivo com celulares. O telão entra em modo espectador e o controle da sala
+                fica aqui no cockpit, sem abrir outra aba.
               </p>
 
               <fieldset className="mt-5">
@@ -2770,33 +2759,8 @@ export default function AulaPage() {
 
           <WarmupBar active={warmup} onOpen={openWarmup} />
 
-          {warmup === 'live' ? (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--accent-2)] bg-[var(--surface)] px-4 py-3 text-sm font-black">
-              <span className="flex items-center gap-2">
-                <Radio className="h-4 w-4 text-[var(--accent-2)]" aria-hidden="true" />
-                Live ativo na sala {liveQuizCode}
-              </span>
-              <span className="flex flex-wrap items-center gap-2">
-                {hostUrl ? (
-                  <a
-                    href={hostUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                    Abrir /host
-                  </a>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={backToLessonSlides}
-                  className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
-                >
-                  Voltar aos slides
-                </button>
-              </span>
-            </div>
+          {warmup === 'live' && liveQuizCode ? (
+            <LiveHostPanel host={liveHost} onExit={endLiveHost} />
           ) : null}
 
           {warmup === 'd20' && d20Game ? (
@@ -3078,37 +3042,7 @@ export default function AulaPage() {
           </div>
         ) : null}
 
-        {liveQuizCode ? (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-[var(--accent-2)] bg-[var(--surface)] px-4 py-3">
-            <div className="flex items-center gap-2 text-sm font-black">
-              <Radio className="h-4 w-4 text-[var(--accent-2)]" aria-hidden="true" />
-              Quiz ao vivo na sala {liveQuizCode}
-              <span className="text-xs font-semibold text-[var(--muted)]">
-                alunos entram em supp.lol/join
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {hostUrl ? (
-                <a
-                  href={hostUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                  Abrir /host
-                </a>
-              ) : null}
-              <button
-                type="button"
-                onClick={backToLessonSlides}
-                className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
-              >
-                Voltar aos slides
-              </button>
-            </div>
-          </div>
-        ) : null}
+        {liveQuizCode ? <LiveHostPanel host={liveHost} onExit={endLiveHost} /> : null}
 
         {warmup === 'd20' && d20Game ? (
           <D20Control
@@ -3626,7 +3560,7 @@ export default function AulaPage() {
                 <p className="text-sm font-black">Celulares dos alunos</p>
                 <p className="text-[11px] font-semibold text-[var(--muted)]">
                   {usePhones
-                    ? 'Abre o /host e os alunos respondem em supp.lol/join.'
+                    ? 'A sala do quiz abre aqui no cockpit; os alunos respondem em supp.lol/join.'
                     : 'Quiz conduzido no telão, sem celulares (pergunta + resposta).'}
                 </p>
               </div>
@@ -3656,7 +3590,7 @@ export default function AulaPage() {
               ) : (
                 <Presentation className="h-5 w-5" aria-hidden="true" />
               )}
-              {usePhones ? 'Abrir sala no /host' : 'Iniciar quiz na apresentação'}
+              {usePhones ? 'Abrir sala do Live' : 'Iniciar quiz na apresentação'}
             </button>
 
             <p className="mt-3 text-[11px] font-semibold text-[var(--muted)]">

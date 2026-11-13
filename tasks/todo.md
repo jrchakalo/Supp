@@ -61,7 +61,7 @@
 - [x] F7-03 Passa Repassa
 - [x] F7-04 D20 completo
 - [x] F7-05 Competição completa
-- [ ] F7-06 Live embutido
+- [x] F7-06 Live embutido
 - [ ] F7-07 Polimento de animações
 - [ ] F7-08 Documentação dos jogos
 
