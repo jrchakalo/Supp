@@ -28,7 +28,7 @@
 
 ## F3 — Dados
 - [ ] F3-01 SQL e RLS (SQL pronto em `supabase/migrations/`; aplicar no Supabase)
-- [ ] F3-02 Sync Passaporte
+- [ ] F3-02 Sync Passaporte (rota pronta; teste completo após aplicar SQL)
 - [ ] F3-03 Migração dos 15 JSONs
 - [ ] F3-04 Resolver + overrides
 - [ ] F3-05 Correção P1 A2 (recap local)
