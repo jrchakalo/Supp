@@ -28,6 +28,13 @@ import { FLASH_DEFAULT_SECONDS, SlideStage } from '@/components/aula/SlideView';
 import { QUIZ_LESSON_ID, buildQuizSlides } from '@/components/aula/quizSlides';
 import Greeting from '@/components/professor/Greeting';
 import CursorToggle from '@/components/professor/CursorToggle';
+import ProfessorNav from '@/components/professor/ProfessorNav';
+import WeekAgenda from '@/components/professor/WeekAgenda';
+import NextClassCard from '@/components/professor/NextClassCard';
+import TodayClasses from '@/components/professor/TodayClasses';
+import { fetchAgendaData } from '@/lib/agenda/data';
+import type { AgendaData } from '@/lib/agenda/types';
+import { findNext, findOngoing, occurrencesForDate } from '@/lib/agenda/dashboard';
 import { flattenBeats, type Lesson, type Slide } from '@/lib/passaporte-lessons';
 import { fetchLessons } from '@/lib/aula/lessons';
 import { PASSAPORTE_DECKS } from '@/lib/passaporte-decks';
@@ -317,16 +324,67 @@ export default function AulaPage() {
   /* The greeting says "Boa aula" when a lesson is happening now. */
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
-    const timer = window.setInterval(() => setNowTick(Date.now()), 30_000);
+    const tick = () => {
+      setNowTick(Date.now());
+      setToday(todayIso());
+    };
+    const timer = window.setInterval(tick, 30_000);
     return () => window.clearInterval(timer);
   }, []);
+  const now = useMemo(() => new Date(nowTick), [nowTick]);
   const currentLesson = useMemo(() => {
     if (!today || !lessons || lessons.length === 0) return null;
-    const now = new Date(nowTick);
     return lessons.find((lesson) => lesson.date === today && isLessonNow(lesson, now)) ?? null;
-  }, [lessons, today, nowTick]);
+  }, [lessons, today, now]);
+
+  /* Agenda/occurrences (including unplanned slots) for the dashboard. */
+  const [agenda, setAgenda] = useState<AgendaData | null>(null);
+  const [agendaLoading, setAgendaLoading] = useState(false);
+  const [agendaNotice, setAgendaNotice] = useState('');
+
+  useEffect(() => {
+    if (!authed) return;
+    let active = true;
+    setAgendaLoading(true);
+    fetchAgendaData()
+      .then((data) => {
+        if (active) setAgenda(data);
+      })
+      .finally(() => {
+        if (active) setAgendaLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [authed, lessonsNonce]);
+
+  const ongoing = useMemo(
+    () => findOngoing(agenda?.occurrences ?? [], now),
+    [agenda, now]
+  );
+  const next = useMemo(() => findNext(agenda?.occurrences ?? [], now), [agenda, now]);
+  const featured = ongoing ?? next;
+  const todayOccurrences = useMemo(
+    () => occurrencesForDate(agenda?.occurrences ?? [], today),
+    [agenda, today]
+  );
+  const featuredClass = featured?.class_id
+    ? agenda?.classes.find((row) => row.id === featured.class_id)
+    : undefined;
+  const featuredLesson = featured
+    ? (lessons ?? []).find(
+        (lesson) => (lesson.occurrenceId ?? lesson.id) === featured.id
+      )
+    : undefined;
+  const featuredTitle =
+    featuredLesson?.title ??
+    (featured?.content_id
+      ? agenda?.contents.find((row) => row.id === featured.content_id)?.title
+      : null) ??
+    'Aula a planejar';
 
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const openedFromQueryRef = useRef(false);
   const [sessionCode, setSessionCode] = useState('');
   const [tvUrl, setTvUrl] = useState('');
   const [beatIndex, setBeatIndex] = useState(0);
@@ -915,6 +973,24 @@ export default function AulaPage() {
     setTvOnline(false);
     setTvUrl(`${window.location.origin}/tela?c=${code}`);
   }, [resetWarmupState]);
+
+  /* Deep link used by the agenda/history: /professor?aula=<occurrenceId>. */
+  useEffect(() => {
+    if (openedFromQueryRef.current || !lessons || lessons.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const occurrenceId = params.get('aula');
+    if (!occurrenceId) return;
+    const lesson = lessons.find(
+      (candidate) => (candidate.occurrenceId ?? candidate.id) === occurrenceId
+    );
+    if (!lesson) return;
+
+    openedFromQueryRef.current = true;
+    startLesson(lesson);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('aula');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+  }, [lessons, startLesson]);
 
   /** Leaves the welcome screen and broadcasts beat 0. */
   const startLive = useCallback(() => {
@@ -1608,6 +1684,30 @@ export default function AulaPage() {
   /* ------------------------------------------------------------------ */
 
   if (!activeLesson) {
+    const showAgendaNotice = (message: string) => {
+      setAgendaNotice(message);
+      window.setTimeout(() => setAgendaNotice(''), 4500);
+    };
+
+    const openOccurrence = (occurrenceId: string) => {
+      const lesson = (lessons ?? []).find(
+        (candidate) => (candidate.occurrenceId ?? candidate.id) === occurrenceId
+      );
+      if (lesson) {
+        startLesson(lesson);
+        return;
+      }
+      showAgendaNotice(
+        'Essa aula ainda não tem conteúdo planejado. A biblioteca para atribuir aulas chega na próxima fase.'
+      );
+    };
+
+    const planLesson = () => {
+      showAgendaNotice(
+        'A biblioteca para planejar/atribuir aulas será implementada na próxima fase.'
+      );
+    };
+
     const renderLessonGroup = (group: { date: string; items: Lesson[] }) => {
       const badge = lessonDayBadge(group.date, today);
       return (
@@ -1697,6 +1797,59 @@ export default function AulaPage() {
               </button>
             </div>
           </header>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <ProfessorNav />
+            <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+              {agendaLoading ? 'Atualizando agenda…' : agenda ? 'Agenda sincronizada' : ''}
+            </span>
+          </div>
+
+          {agendaNotice ? (
+            <div className="mt-3 rounded-2xl border-2 border-[var(--accent)]/50 bg-[var(--surface-2)] px-4 py-2.5 text-xs font-bold text-[var(--ink)]">
+              {agendaNotice}
+            </div>
+          ) : null}
+
+          {agenda ? (
+            <>
+              <div className="mt-4">
+                <WeekAgenda
+                  data={agenda}
+                  lessons={lessons ?? []}
+                  now={now}
+                  onOpenOccurrence={openOccurrence}
+                />
+              </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+                <NextClassCard
+                  occurrence={featured}
+                  classroom={featuredClass}
+                  title={featuredTitle}
+                  isNow={Boolean(ongoing)}
+                  now={now}
+                  today={today}
+                  hasLesson={Boolean(featuredLesson)}
+                  onOpen={() => featured && openOccurrence(featured.id)}
+                  onPlan={planLesson}
+                />
+                <TodayClasses
+                  occurrences={todayOccurrences}
+                  classes={agenda.classes}
+                  contents={agenda.contents}
+                  lessons={lessons ?? []}
+                  now={now}
+                  onOpen={openOccurrence}
+                  onPlan={planLesson}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="mt-4 rounded-3xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-6 text-sm font-bold text-[var(--muted)]">
+              Carregando agenda…
+            </div>
+          )}
 
           <div className="mt-8 flex flex-wrap items-end justify-between gap-2 border-b border-[var(--line-soft)] pb-2">
             <div>
