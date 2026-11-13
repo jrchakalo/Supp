@@ -86,10 +86,13 @@ function lessonMinutes(startAt: string, endAt: string): number {
   return Math.round((end - start) / 60_000);
 }
 
+function localHm(iso: string): string {
+  const date = new Date(iso);
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
 function formatTurma(occurrence: OccurrenceRow, classroom?: ClassRow): string {
-  const start = occurrence.start_at.slice(11, 16);
-  const end = occurrence.end_at.slice(11, 16);
-  if (!classroom) return `Avulsa · ${start}–${end}`;
+  if (!classroom) return `Avulsa · ${localHm(occurrence.start_at)}–${localHm(occurrence.end_at)}`;
   return `${classroom.short_code} · ${WEEKDAYS[classroom.weekday] ?? ''} ${classroom.start_time.slice(0, 5)}–${classroom.end_time.slice(0, 5)}`;
 }
 

@@ -43,10 +43,10 @@
 - [x] F4-05 Histórico (todos os reports)
 
 ## F5 — Biblioteca
-- [ ] F5-01 Listagem e filtros
-- [ ] F5-02 Prévia e “dar aula”
-- [ ] F5-03 Duplicar/clonar
-- [ ] F5-04 Favoritos/recentes
+- [x] F5-01 Listagem e filtros
+- [x] F5-02 Prévia e “dar aula”
+- [ ] F5-03 Duplicar/clonar (F6)
+- [ ] F5-04 Favoritos/recentes (depois)
 
 ## F6 — Editor
 - [ ] F6-01 Editor de slide
