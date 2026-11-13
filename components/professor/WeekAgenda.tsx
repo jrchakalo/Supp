@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
+import { RefreshCw } from 'lucide-react';
 import type { Lesson } from '@/lib/passaporte-lessons';
 import type { AgendaData, AgendaOccurrence } from '@/lib/agenda/types';
 import {
@@ -22,7 +23,19 @@ type WeekAgendaProps = {
   lessons: Lesson[];
   now: Date;
   onOpenOccurrence: (occurrenceId: string) => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  updatedAt?: number | null;
 };
+
+function updatedLabel(updatedAt: number | null | undefined): string {
+  if (!updatedAt) return 'Ainda não atualizado';
+  const minutes = Math.max(0, Math.round((Date.now() - updatedAt) / 60_000));
+  if (minutes < 1) return 'Atualizado agora';
+  if (minutes < 60) return `Atualizado há ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return `Atualizado há ${hours}h`;
+}
 
 const WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -68,6 +81,9 @@ export default function WeekAgenda({
   lessons,
   now,
   onOpenOccurrence,
+  onRefresh,
+  refreshing,
+  updatedAt,
 }: WeekAgendaProps) {
   const today = isoDate(now);
   const year = now.getFullYear();
@@ -115,9 +131,26 @@ export default function WeekAgenda({
           <h2 className="mt-1 text-2xl font-black">
             {monthLabel(year, month)}
           </h2>
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
+            {updatedLabel(updatedAt)}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {onRefresh ? (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)] disabled:opacity-50"
+            >
+              <RefreshCw
+                className={refreshing ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'}
+                aria-hidden="true"
+              />
+              {refreshing ? 'Atualizando' : 'Atualizar'}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setWeekIndex(weekIndexForDate(weeks, today))}

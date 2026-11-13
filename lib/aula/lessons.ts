@@ -1,5 +1,6 @@
 import type { Lesson, Segment } from '../passaporte-lessons';
 import { CONTENT_MODEL } from '../flags';
+import { resolveSegments, resolveTitle, resolveTotalMin } from '../content/resolve';
 
 /**
  * Loads the institutional lesson content of `/professor` at runtime from
@@ -29,6 +30,9 @@ type OccurrenceRow = {
   status: string;
   snapshot: Segment[] | null;
   content_version: number | null;
+  session_code: string | null;
+  started_at: string | null;
+  ended_at: string | null;
 };
 
 type ContentRow = {
@@ -37,6 +41,17 @@ type ContentRow = {
   total_min: number | null;
   deck_id: string | null;
   segments: Segment[];
+};
+
+type OverrideRow = {
+  content_id: string;
+  scope: 'global' | 'class' | 'occurrence';
+  scope_id: string | null;
+  patch: {
+    segments?: Segment[];
+    title?: string;
+    totalMin?: number | null;
+  } | null;
 };
 
 type ClassRow = {
@@ -97,42 +112,72 @@ function formatTurma(occurrence: OccurrenceRow, classroom?: ClassRow): string {
 }
 
 async function fetchV2Lessons(): Promise<Lesson[]> {
-  const [occurrences, contents, classes] = await Promise.all([
+  const [occurrences, contents, classes, overrides] = await Promise.all([
     supabaseGet<OccurrenceRow>(
-      'pp_occurrences?select=id,class_id,content_id,date,start_at,end_at,status,snapshot,content_version&content_id=not.is.null&order=date.asc'
+      'pp_occurrences?select=id,class_id,content_id,date,start_at,end_at,status,snapshot,content_version,session_code,started_at,ended_at&order=date.asc'
     ),
     supabaseGet<ContentRow>(
       'pp_content?select=id,title,total_min,deck_id,segments&status=eq.published'
     ),
     supabaseGet<ClassRow>('pp_classes?select=id,short_code,weekday,start_time,end_time'),
+    supabaseGet<OverrideRow>(
+      'pp_overrides?select=content_id,scope,scope_id,patch&slide_key=eq.__segments__&suppressed=eq.false&limit=1000'
+    ),
   ]);
 
   if (occurrences.length === 0 || contents.length === 0) return [];
 
   const contentById = new Map(contents.map((row) => [row.id, row]));
   const classById = new Map(classes.map((row) => [row.id, row]));
+  const classOverride = new Map<string, OverrideRow>();
+  const occurrenceOverride = new Map<string, OverrideRow>();
+  for (const row of overrides) {
+    if (row.scope === 'class' && row.scope_id) {
+      classOverride.set(`${row.content_id}:${row.scope_id}`, row);
+    }
+    if (row.scope === 'occurrence' && row.scope_id) {
+      occurrenceOverride.set(`${row.content_id}:${row.scope_id}`, row);
+    }
+  }
 
   const lessons: Lesson[] = [];
   for (const occurrence of occurrences) {
-    if (!occurrence.content_id) continue;
-    const content = contentById.get(occurrence.content_id);
-    if (!content) continue;
+    if (!Array.isArray(occurrence.snapshot) && !occurrence.content_id) continue;
+    const content = occurrence.content_id ? contentById.get(occurrence.content_id) : undefined;
+    if (!content && !Array.isArray(occurrence.snapshot)) continue;
     const classroom = occurrence.class_id ? classById.get(occurrence.class_id) : undefined;
-    const segments = Array.isArray(occurrence.snapshot)
-      ? occurrence.snapshot
-      : content.segments;
+    const frozenSegments = Array.isArray(occurrence.snapshot) ? occurrence.snapshot : null;
+    const override = frozenSegments
+      ? undefined
+      : occurrenceOverride.get(`${occurrence.content_id}:${occurrence.id}`) ??
+        (occurrence.class_id
+          ? classOverride.get(`${occurrence.content_id}:${occurrence.class_id}`)
+          : undefined);
+    const classPatch = occurrence.class_id
+      ? classOverride.get(`${occurrence.content_id}:${occurrence.class_id}`)?.patch
+      : undefined;
+    const patch = override?.patch;
+    const segments = resolveSegments({
+      snapshot: frozenSegments,
+      content: content?.segments ?? [],
+      classOverride: classPatch,
+      occurrenceOverride: patch,
+    });
+    const contentTotal =
+      content?.total_min ?? lessonMinutes(occurrence.start_at, occurrence.end_at);
 
     lessons.push({
       id: occurrence.id,
       occurrenceId: occurrence.id,
       classId: occurrence.class_id,
-      contentId: content.id,
+      contentId: content?.id ?? '',
       status: occurrence.status,
-      deckId: content.deck_id ?? '',
-      title: content.title,
+      sessionCode: occurrence.session_code,
+      deckId: content?.deck_id ?? '',
+      title: resolveTitle(content?.title ?? 'Aula arquivada', patch, classPatch),
       turma: formatTurma(occurrence, classroom),
       date: occurrence.date,
-      totalMin: content.total_min ?? lessonMinutes(occurrence.start_at, occurrence.end_at),
+      totalMin: resolveTotalMin(contentTotal, patch, classPatch),
       segments,
     });
   }

@@ -1,5 +1,7 @@
+import { timingSafeEqual } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchPassaporteSnapshot } from '@/lib/passaporte/client';
+import { isProfessorRequest } from '@/lib/auth/session';
 import {
   addDaysIso,
   localIso,
@@ -67,23 +69,19 @@ function isOff(date: string, rules: CalendarRule[]): boolean {
   });
 }
 
-function authorized(request: NextRequest, dry: boolean): boolean {  if (dry) return true;
+async function authorized(request: NextRequest): Promise<boolean> {
   const secret = process.env.CRON_SECRET;
   const header =
     request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
     request.headers.get('x-cron-secret');
-  if (secret && header === secret) return true;
 
-  const origin = request.headers.get('origin');
-  const host = request.headers.get('host');
-  if (origin && host) {
-    try {
-      return new URL(origin).host === host;
-    } catch {
-      return false;
-    }
+  if (secret && header) {
+    const given = Buffer.from(header);
+    const expected = Buffer.from(secret);
+    if (given.length === expected.length && timingSafeEqual(given, expected)) return true;
   }
-  return false;
+
+  return isProfessorRequest();
 }
 
 /* Best-effort in-memory guard: one real sync per 10 s per client. Vercel may
@@ -111,7 +109,7 @@ function rateLimited(request: NextRequest): boolean {
 async function runSync(request: NextRequest) {
   const url = new URL(request.url);
   const dry = url.searchParams.get('dry') === '1';
-  if (!authorized(request, dry)) {
+  if (!(await authorized(request))) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   if (!dry && rateLimited(request)) {
@@ -225,21 +223,15 @@ async function runSync(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     return await runSync(request);
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'sync failed' },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: 'internal' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     return await runSync(request);
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'sync failed' },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: 'internal' }, { status: 500 });
   }
 }

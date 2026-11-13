@@ -18,6 +18,7 @@ import {
   Plus,
   Presentation,
   Radio,
+  RefreshCw,
   Trash2,
   Trophy,
   Users,
@@ -33,7 +34,7 @@ import WeekAgenda from '@/components/professor/WeekAgenda';
 import NextClassCard from '@/components/professor/NextClassCard';
 import TodayClasses from '@/components/professor/TodayClasses';
 import { fetchAgendaData } from '@/lib/agenda/data';
-import type { AgendaData } from '@/lib/agenda/types';
+import type { AgendaData, AgendaOccurrence } from '@/lib/agenda/types';
 import { findNext, findOngoing, occurrencesForDate } from '@/lib/agenda/dashboard';
 import { flattenBeats, type Lesson, type Slide } from '@/lib/passaporte-lessons';
 import { fetchLessons } from '@/lib/aula/lessons';
@@ -41,6 +42,7 @@ import { PASSAPORTE_DECKS } from '@/lib/passaporte-decks';
 import { CLASSIC_CATEGORIES } from '@/lib/classic-questions';
 import { categoryCopy } from '@/lib/i18n/game-copy';
 import { getDeck } from '@/lib/game';
+import { GAMES_V2 } from '@/lib/flags';
 import { CLASSIC_ALL_CATEGORIES, getClassicDeck } from '@/lib/classic-questions';
 import type { ClassicCategoryId, DifficultyId } from '@/lib/types';
 import type { WheelGameState } from '@/lib/aula/games';
@@ -56,7 +58,6 @@ import {
   AULA_GATE_STORAGE,
   AULA_SESSION_STORAGE,
   AULA_WELCOME_FALLBACK,
-  PASSAPORTE_GATE_CODE,
   createAulaChannel,
   type AulaChannel,
   type AulaCompMessage,
@@ -172,9 +173,11 @@ async function copyToClipboard(text: string): Promise<boolean> {
 function ConnectionPill({
   status,
   tvOnline,
+  onReconnect,
 }: {
   status: AulaConnectionStatus;
   tvOnline: boolean;
+  onReconnect?: () => void;
 }) {
   const meta =
     status === 'offline'
@@ -188,9 +191,22 @@ function ConnectionPill({
             : { dot: 'bg-slate-500', label: 'Aguardando telão' };
 
   return (
-    <span className="flex items-center gap-2 rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--muted)]">
-      <span aria-hidden="true" className={`h-2 w-2 rounded-full ${meta.dot}`} />
-      {meta.label}
+    <span className="flex items-center gap-1.5">
+      <span className="flex items-center gap-2 rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--muted)]">
+        <span aria-hidden="true" className={`h-2 w-2 rounded-full ${meta.dot}`} />
+        {meta.label}
+      </span>
+      {onReconnect ? (
+        <button
+          type="button"
+          onClick={onReconnect}
+          aria-label="Reconectar telão"
+          title="Reconectar telão"
+          className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] p-1.5 text-[var(--muted)] transition hover:text-[var(--ink)]"
+        >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      ) : null}
     </span>
   );
 }
@@ -248,7 +264,12 @@ function WarmupBar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {WARMUP_ITEMS.map((item) => {
+        {!GAMES_V2 ? (
+          <span className="text-[11px] font-bold text-[var(--muted)]">
+            Jogos desativados por configuração.
+          </span>
+        ) : null}
+        {(GAMES_V2 ? WARMUP_ITEMS : []).map((item) => {
           const isActive = active === item.id;
           return (
             <button
@@ -278,8 +299,7 @@ export default function AulaPage() {
   const [mounted, setMounted] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [gateInput, setGateInput] = useState('');
-  const [gateError, setGateError] = useState('');
-  const [today, setToday] = useState('');
+  const [gateError, setGateError] = useState('');  const [today, setToday] = useState('');
 
   const [lessons, setLessons] = useState<Lesson[] | null>(null);
   const [lessonsLoading, setLessonsLoading] = useState(false);
@@ -330,6 +350,9 @@ export default function AulaPage() {
   const [agenda, setAgenda] = useState<AgendaData | null>(null);
   const [agendaLoading, setAgendaLoading] = useState(false);
   const [agendaNotice, setAgendaNotice] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+  const autoSyncRef = useRef(false);
 
   useEffect(() => {
     if (!authed) return;
@@ -346,6 +369,45 @@ export default function AulaPage() {
       active = false;
     };
   }, [authed, lessonsNonce]);
+
+  const syncNow = useCallback(async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const response = await fetch('/api/sync/passaporte', { method: 'POST' });
+      if (response.status === 429) {
+        setAgendaNotice('A agenda já foi atualizada há pouco.');
+        window.setTimeout(() => setAgendaNotice(''), 4500);
+        setLessonsNonce((value) => value + 1);
+        return;
+      }
+      if (!response.ok) {
+        setAgendaNotice('Não foi possível atualizar a agenda agora.');
+        window.setTimeout(() => setAgendaNotice(''), 4500);
+        return;
+      }
+      const now = Date.now();
+      writeStorage('last-sync', String(now));
+      setLastSyncAt(now);
+      setLessonsNonce((value) => value + 1);
+    } catch {
+      setAgendaNotice('Não foi possível atualizar a agenda agora.');
+      window.setTimeout(() => setAgendaNotice(''), 4500);
+    } finally {
+      setSyncing(false);
+    }
+  }, [syncing]);
+  const syncNowRef = useRef(syncNow);
+  syncNowRef.current = syncNow;
+
+  useEffect(() => {
+    if (!authed || autoSyncRef.current) return;
+    autoSyncRef.current = true;
+    const stored = Number(readStorage('last-sync') ?? 0);
+    const at = Number.isFinite(stored) && stored > 0 ? stored : null;
+    setLastSyncAt(at);
+    if (!at || Date.now() - at > 10 * 60_000) void syncNowRef.current();
+  }, [authed]);
 
   const ongoing = useMemo(
     () => findOngoing(agenda?.occurrences ?? [], now),
@@ -507,6 +569,22 @@ export default function AulaPage() {
   /* ------------------------------------------------------------------ */
   /* Lessons: loaded from Supabase at runtime (never bundled)            */
   /* ------------------------------------------------------------------ */
+
+  useEffect(() => {
+    if (!authed) return;
+    let active = true;
+    fetch('/api/auth')
+      .then((response) => response.json())
+      .then((data: { ok?: boolean }) => {
+        if (!active || data.ok) return;
+        removeStorage(AULA_GATE_STORAGE);
+        setAuthed(false);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [authed]);
 
   useEffect(() => {
     if (!authed) return;
@@ -933,6 +1011,14 @@ export default function AulaPage() {
     broadcast({ type: 'slide', lessonId, index, slide, imageUrl });
   }, [broadcast]);
 
+  const reconnectTv = useCallback(() => {
+    if (warmupRef.current === 'live' && liveQuizRef.current) {
+      broadcast({ type: 'quiz', code: liveQuizRef.current, active: true });
+      return;
+    }
+    sendCurrentSlide();
+  }, [broadcast, sendCurrentSlide]);
+
   /** Clears every warm-up overlay, locally and on the projector. */
   const resetWarmupState = useCallback(() => {
     warmupRef.current = 'none';
@@ -1113,7 +1199,7 @@ export default function AulaPage() {
   /* ------------------------------------------------------------------ */
 
   const startLesson = useCallback((lesson: Lesson) => {
-    const code = randomRoomCode();
+    const code = sanitizeRoomCode(lesson.sessionCode ?? '') ?? randomRoomCode();
     activeLessonRef.current = lesson;
     beatIndexRef.current = 0;
     quizIndexRef.current = 0;
@@ -1134,6 +1220,20 @@ export default function AulaPage() {
     setConnection('connecting');
     setTvOnline(false);
     setTvUrl(`${window.location.origin}/tela?c=${code}`);
+
+    if (lesson.occurrenceId && lesson.contentId) {
+      void fetch('/api/occurrences/session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          occurrenceId: lesson.occurrenceId,
+          contentId: lesson.contentId,
+          sessionCode: code,
+          snapshot: lesson.segments,
+          action: 'start',
+        }),
+      }).catch(() => undefined);
+    }
   }, [resetWarmupState]);
 
   /* Deep link used by the agenda/history: /professor?aula=<occurrenceId>. */
@@ -1165,10 +1265,25 @@ export default function AulaPage() {
     goToBeat(0);
   }, [goToBeat]);
 
-  const endSession = useCallback(() => {
+  const endSession = useCallback((skipConfirm = false) => {
+    if (!skipConfirm && !window.confirm('Encerrar a aula? O telão volta para a tela de conexão.')) {
+      return;
+    }
     /* Tell the projector before the channel goes away; its presence timeout is
        just the safety net if this message is ever dropped. */
     channelRef.current?.send({ type: 'end' });
+    const lesson = activeLessonRef.current;
+    if (lesson?.occurrenceId) {
+      void fetch('/api/occurrences/session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          occurrenceId: lesson.occurrenceId,
+          contentId: lesson.contentId,
+          action: 'end',
+        }),
+      }).catch(() => undefined);
+    }
     removeStorage(AULA_SESSION_STORAGE);
     activeLessonRef.current = null;
     beatIndexRef.current = 0;
@@ -1198,18 +1313,30 @@ export default function AulaPage() {
     removeStorage(AULA_SESSION_STORAGE);
     setAuthed(false);
     setGateInput('');
-    endSession();
+    endSession(true);
+    void fetch('/api/auth', { method: 'DELETE' }).catch(() => undefined);
   }, [endSession]);
 
   const submitGate = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
+    async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      if (gateInput.trim().toUpperCase() === PASSAPORTE_GATE_CODE) {
-        writeStorage(AULA_GATE_STORAGE, '1');
-        setAuthed(true);
-        setGateError('');
-        setGateInput('');
-        return;
+      const code = gateInput.trim().toUpperCase();
+      if (!code) return;
+      try {
+        const response = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        if (response.ok) {
+          writeStorage(AULA_GATE_STORAGE, '1');
+          setAuthed(true);
+          setGateError('');
+          setGateInput('');
+          return;
+        }
+      } catch {
+        // Network failures fall through to the same message; no detail leaks.
       }
       setGateError('Código incorreto. Confira com a coordenação.');
     },
@@ -2479,6 +2606,14 @@ export default function AulaPage() {
       window.setTimeout(() => setAgendaNotice(''), 4500);
     };
 
+    const planLesson = (occurrence: AgendaOccurrence) => {
+      const params = new URLSearchParams();
+      if (occurrence.class_id) params.set('turma', occurrence.class_id);
+      params.set('data', occurrence.date);
+      if (occurrence.content_id) params.set('content', occurrence.content_id);
+      window.location.href = `/professor/biblioteca?${params.toString()}`;
+    };
+
     const openOccurrence = (occurrenceId: string) => {
       const lesson = (lessons ?? []).find(
         (candidate) => (candidate.occurrenceId ?? candidate.id) === occurrenceId
@@ -2487,15 +2622,12 @@ export default function AulaPage() {
         startLesson(lesson);
         return;
       }
-      showAgendaNotice(
-        'Essa aula ainda não tem conteúdo planejado. A biblioteca para atribuir aulas chega na próxima fase.'
-      );
-    };
-
-    const planLesson = () => {
-      showAgendaNotice(
-        'A biblioteca para planejar/atribuir aulas será implementada na próxima fase.'
-      );
+      const occurrence = (agenda?.occurrences ?? []).find((row) => row.id === occurrenceId);
+      if (occurrence) {
+        planLesson(occurrence);
+        return;
+      }
+      showAgendaNotice('Essa aula ainda não tem conteúdo planejado.');
     };
 
     const renderLessonGroup = (group: { date: string; items: Lesson[] }) => {
@@ -2609,6 +2741,9 @@ export default function AulaPage() {
                   lessons={lessons ?? []}
                   now={now}
                   onOpenOccurrence={openOccurrence}
+                  onRefresh={syncNow}
+                  refreshing={syncing}
+                  updatedAt={lastSyncAt}
                 />
               </div>
 
@@ -2735,10 +2870,14 @@ export default function AulaPage() {
                   Editar
                 </a>
               ) : null}
-              <ConnectionPill status={connection} tvOnline={tvOnline} />
+              <ConnectionPill
+                status={connection}
+                tvOnline={tvOnline}
+                onReconnect={reconnectTv}
+              />
               <button
                 type="button"
-                onClick={endSession}
+                onClick={() => endSession()}
                 aria-label="Encerrar a aula e voltar para a lista"
                 className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
               >
@@ -2956,7 +3095,7 @@ export default function AulaPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={endSession}
+              onClick={() => endSession()}
               aria-label="Encerrar a aula e voltar para a lista"
               className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
             >
@@ -2995,7 +3134,11 @@ export default function AulaPage() {
                 <Copy className="h-3.5 w-3.5" aria-hidden="true" />
               )}
             </button>
-            <ConnectionPill status={connection} tvOnline={tvOnline} />
+            <ConnectionPill
+              status={connection}
+              tvOnline={tvOnline}
+              onReconnect={reconnectTv}
+            />
             <button
               type="button"
               onClick={logout}
@@ -3430,7 +3573,7 @@ export default function AulaPage() {
                 type="button"
                 onClick={goPrev}
                 disabled={currentIndex <= 0}
-                aria-label="Slide anterior"
+                aria-label="Anterior"
                 className="flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-black text-[var(--ink)] transition hover:border-[var(--accent)] disabled:opacity-40"
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -3440,7 +3583,7 @@ export default function AulaPage() {
                 type="button"
                 onClick={goNext}
                 disabled={currentIndex >= totalItems - 1}
-                aria-label="Próximo slide"
+                aria-label="Próxima"
                 className="flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-black text-[var(--ink)] transition hover:border-[var(--accent)] disabled:opacity-40"
               >
                 Próxima

@@ -22,7 +22,9 @@ export default function CursorToggle() {
       type="button"
       onClick={() => setCursorVisible(!visible)}
       title={visible ? 'Esconder cursor' : 'Mostrar cursor'}
-      aria-label={visible ? 'Esconder cursor' : 'Mostrar cursor'}
+      aria-label={
+        visible ? 'Cursor visível — esconder cursor' : 'Cursor oculto — mostrar cursor'
+      }
       aria-pressed={visible}
       className="flex items-center gap-2 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--ink)]"
     >

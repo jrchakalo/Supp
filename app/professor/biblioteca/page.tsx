@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   BookOpen,
   Clock,
+  Copy,
   Eye,
   Layers,
   Loader2,
@@ -44,11 +45,41 @@ function LibraryContentPage() {
   const [data, setData] = useState<LibraryData | null>(null);
   const [error, setError] = useState(false);
   const [discipline, setDiscipline] = useState('all');
+  const [trackFilter, setTrackFilter] = useState('all');
+  const [durationFilter, setDurationFilter] = useState<'all' | 'short' | 'medium' | 'long'>(
+    'all'
+  );
   const [query, setQuery] = useState('');
   const [preview, setPreview] = useState<LibraryContent | null>(null);
   const [assign, setAssign] = useState<LibraryContent | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
+  const [context, setContext] = useState<{
+    classId?: string;
+    date?: string;
+    contentId?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const classId = params.get('turma') ?? undefined;
+    const date = params.get('data') ?? undefined;
+    const contentId = params.get('content') ?? undefined;
+    if (classId || date || contentId) setContext({ classId, date, contentId });
+  }, []);
+
+  useEffect(() => {
+    if (!context || !data) return;
+    const classroom = context.classId
+      ? data.classes.find((row) => row.id === context.classId)
+      : undefined;
+    if (classroom) setDiscipline(classroom.discipline);
+    if (context.contentId) {
+      const content = data.contents.find((row) => row.id === context.contentId);
+      if (content) setAssign(content);
+    }
+  }, [context, data]);
 
   useEffect(() => {
     let active = true;
@@ -68,10 +99,16 @@ function LibraryContentPage() {
     const search = query.trim().toLowerCase();
     const filtered = (data?.contents ?? []).filter((content) => {
       if (discipline !== 'all' && content.discipline !== discipline) return false;
+      if (trackFilter !== 'all' && (content.track ?? '') !== trackFilter) return false;
+      const total = content.total_min ?? 150;
+      if (durationFilter === 'short' && total >= 120) return false;
+      if (durationFilter === 'medium' && (total < 120 || total > 180)) return false;
+      if (durationFilter === 'long' && total <= 180) return false;
       if (!search) return true;
       return (
         content.title.toLowerCase().includes(search) ||
-        content.id.toLowerCase().includes(search)
+        content.id.toLowerCase().includes(search) ||
+        (content.track ?? '').toLowerCase().includes(search)
       );
     });
 
@@ -89,7 +126,27 @@ function LibraryContentPage() {
         units: Array.from(byUnit.entries()).map(([label, contents]) => ({ label, contents })),
       };
     }).filter((group) => group.units.length > 0);
-  }, [data, discipline, query]);
+  }, [data, discipline, trackFilter, durationFilter, query]);
+
+  const duplicateContent = async (content: LibraryContent) => {
+    setDuplicatingId(content.id);
+    setNotice('');
+    try {
+      const response = await fetch('/api/editor/content', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'duplicate', contentId: content.id }),
+      });
+      const payload = (await response.json()) as { contentId?: string; error?: string };
+      if (!response.ok || !payload.contentId) {
+        throw new Error(payload.error ?? 'Não foi possível duplicar.');
+      }
+      window.location.href = `/professor/editor/${payload.contentId}`;
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : 'Não foi possível duplicar.');
+      setDuplicatingId(null);
+    }
+  };
 
   const openStandalone = async (content: LibraryContent) => {
     setOpeningId(content.id);
@@ -136,6 +193,31 @@ function LibraryContentPage() {
           </div>
         </header>
 
+        {context ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--accent)]/60 bg-[var(--accent)]/10 px-4 py-3">
+            <p className="text-xs font-bold text-[var(--ink)]">
+              Escolhendo aula para{' '}
+              <span className="font-black">
+                {data?.classes.find((row) => row.id === context.classId)?.short_code ?? 'a turma'}
+              </span>
+              {context.date
+                ? ` em ${new Date(`${context.date}T12:00:00`).toLocaleDateString('pt-BR')}`
+                : ''}
+              . Use “Dar aula” na aula escolhida para confirmar.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setContext(null);
+                window.history.replaceState(null, '', '/professor/biblioteca');
+              }}
+              className="rounded-lg border-2 border-[var(--line)] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-[var(--muted)]"
+            >
+              Limpar
+            </button>
+          </div>
+        ) : null}
+
         <div className="mt-6 flex flex-wrap items-center gap-2">
           <select
             value={discipline}
@@ -151,6 +233,38 @@ function LibraryContentPage() {
             ))}
           </select>
 
+          <select
+            value={trackFilter}
+            onChange={(event) => setTrackFilter(event.target.value)}
+            className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-bold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+            aria-label="Filtrar por trilha"
+          >
+            <option value="all">Todas as trilhas</option>
+            {Array.from(
+              new Set((data?.contents ?? []).map((item) => item.track).filter(Boolean))
+            )
+              .sort()
+              .map((track) => (
+                <option key={track} value={track ?? ''}>
+                  {track}
+                </option>
+              ))}
+          </select>
+
+          <select
+            value={durationFilter}
+            onChange={(event) =>
+              setDurationFilter(event.target.value as 'all' | 'short' | 'medium' | 'long')
+            }
+            className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-bold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+            aria-label="Filtrar por duração"
+          >
+            <option value="all">Qualquer duração</option>
+            <option value="short">Até 2h</option>
+            <option value="medium">2h a 3h</option>
+            <option value="long">Mais de 3h</option>
+          </select>
+
           <label className="relative min-w-[220px] flex-1">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]"
@@ -159,7 +273,8 @@ function LibraryContentPage() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar por título ou ID…"
+              placeholder="Buscar por título, ID ou trilha…"
+              aria-label="Buscar aulas"
               className="w-full rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] py-2 pl-9 pr-3 text-xs font-semibold text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
             />
           </label>
@@ -268,6 +383,19 @@ function LibraryContentPage() {
                                 <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                                 Prévia
                               </button>
+                              <button
+                                type="button"
+                                onClick={() => void duplicateContent(content)}
+                                disabled={duplicatingId === content.id}
+                                className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)] disabled:opacity-50"
+                              >
+                                {duplicatingId === content.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                                )}
+                                Duplicar
+                              </button>
                               <Link
                                 href={`/professor/editor/${content.id}`}
                                 className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
@@ -293,6 +421,8 @@ function LibraryContentPage() {
         <AssignLessonDialog
           content={assign}
           classes={data.classes}
+          initialClassId={context?.classId}
+          initialDate={context?.date}
           onClose={() => setAssign(null)}
         />
       ) : null}

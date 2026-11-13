@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminPatch, adminSelect, adminUpsert } from '@/lib/supabase/admin';
+import { isProfessorRequest } from '@/lib/auth/session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,21 +51,27 @@ function addMinutes(time: string, minutes: number): string {
 }
 
 export async function POST(request: NextRequest) {
+  if (!(await isProfessorRequest())) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
   try {
-    const body = (await request.json()) as {
+    const body = (await request.json().catch(() => null)) as {
       contentId?: unknown;
       classId?: unknown;
       date?: unknown;
-    };
-    const contentId = typeof body.contentId === 'string' ? body.contentId : '';
-    const classId = typeof body.classId === 'string' ? body.classId : '';
-    const date = typeof body.date === 'string' ? body.date : '';
+    } | null;
+    const contentId = typeof body?.contentId === 'string' ? body.contentId.trim() : '';
+    const classId = typeof body?.classId === 'string' ? body.classId.trim() : '';
+    const date = typeof body?.date === 'string' ? body.date.trim() : '';
 
-    if (!contentId) {
-      return NextResponse.json({ error: 'contentId is required' }, { status: 400 });
+    if (!/^[a-zA-Z0-9_-]{1,80}$/.test(contentId)) {
+      return NextResponse.json({ error: 'Conteúdo inválido.' }, { status: 400 });
     }
-    if (classId && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return NextResponse.json({ error: 'date is required' }, { status: 400 });
+    if (classId && !/^[0-9a-f-]{36}$/i.test(classId)) {
+      return NextResponse.json({ error: 'Turma inválida.' }, { status: 400 });
+    }
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return NextResponse.json({ error: 'Data inválida.' }, { status: 400 });
     }
 
     const contents = await adminSelect<ContentRow[]>(
@@ -81,6 +88,27 @@ export async function POST(request: NextRequest) {
       const endTime = addMinutes(startTime, content.total_min ?? 150);
       const startAt = `${day}T${startTime}:00-03:00`;
       const endAt = `${day}T${endTime}:00-03:00`;
+
+      /* NULL class_id does not conflict in Postgres, so find the existing
+         classless occurrence for this content/day before inserting another. */
+      const existing = await adminSelect<OccurrenceRow[]>(
+        `pp_occurrences?select=id,status,content_id&content_id=eq.${encodeURIComponent(content.id)}&class_id=is.null&date=eq.${day}&order=created_at.desc&limit=1`
+      );
+      if (existing[0]) {
+        if (existing[0].status === 'given' || existing[0].status === 'no_students') {
+          return NextResponse.json(
+            { error: 'Esta aula já foi dada e está somente leitura.' },
+            { status: 409 }
+          );
+        }
+        await adminPatch('pp_occurrences', `id=eq.${existing[0].id}`, {
+          start_at: startAt,
+          end_at: endAt,
+          content_version: content.version ?? 1,
+          updated_at: new Date().toISOString(),
+        });
+        return NextResponse.json({ occurrenceId: existing[0].id });
+      }
 
       await adminUpsert(
         'pp_occurrences',
@@ -117,7 +145,7 @@ export async function POST(request: NextRequest) {
     const endAt = `${date}T${classroom.end_time.slice(0, 5)}:00-03:00`;
 
     const existing = await adminSelect<OccurrenceRow[]>(
-      `pp_occurrences?select=id,status,content_id&class_id=eq.${encodeURIComponent(classId)}&date=eq.${date}&limit=1`
+      `pp_occurrences?select=id,status,content_id&class_id=eq.${encodeURIComponent(classId)}&date=eq.${date}&order=start_at.asc&limit=1`
     );
     const occurrence = existing[0];
 
@@ -135,6 +163,7 @@ export async function POST(request: NextRequest) {
         content_id: content.id,
         content_version: content.version ?? 1,
         status: 'planned',
+        updated_at: new Date().toISOString(),
       });
       return NextResponse.json({ occurrenceId: occurrence.id });
     }
@@ -157,13 +186,10 @@ export async function POST(request: NextRequest) {
     );
 
     const created = await adminSelect<{ id: string }[]>(
-      `pp_occurrences?select=id&class_id=eq.${encodeURIComponent(classId)}&date=eq.${date}&limit=1`
+      `pp_occurrences?select=id&class_id=eq.${encodeURIComponent(classId)}&date=eq.${date}&order=start_at.asc&limit=1`
     );
     return NextResponse.json({ occurrenceId: created[0]?.id ?? null });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'occurrence failed' },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: 'internal' }, { status: 500 });
   }
 }

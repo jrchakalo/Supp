@@ -14,7 +14,7 @@ type TodayClassesProps = {
   lessons: Lesson[];
   now: Date;
   onOpen: (occurrenceId: string) => void;
-  onPlan: () => void;
+  onPlan: (occurrence: AgendaOccurrence) => void;
 };
 
 function statusClasses(status: string, isNow: boolean): string {
@@ -118,7 +118,7 @@ export default function TodayClasses({
 
                 <button
                   type="button"
-                  onClick={() => (lesson ? onOpen(occurrence.id) : onPlan())}
+                  onClick={() => (lesson ? onOpen(occurrence.id) : onPlan(occurrence))}
                   className={clsx(
                     'flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-wide',
                     lesson

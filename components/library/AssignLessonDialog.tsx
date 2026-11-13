@@ -24,12 +24,16 @@ function todayIso(): string {
 type AssignLessonDialogProps = {
   content: LibraryContent;
   classes: LibraryClass[];
+  initialClassId?: string;
+  initialDate?: string;
   onClose: () => void;
 };
 
 export default function AssignLessonDialog({
   content,
   classes,
+  initialClassId,
+  initialDate,
   onClose,
 }: AssignLessonDialogProps) {
   const compatibleClasses = useMemo(
@@ -37,8 +41,12 @@ export default function AssignLessonDialog({
     [classes, content.discipline]
   );
   const classOptions = compatibleClasses.length > 0 ? compatibleClasses : classes;
-  const [classId, setClassId] = useState(compatibleClasses[0]?.id ?? classes[0]?.id ?? '');
-  const [date, setDate] = useState(todayIso());
+  const [classId, setClassId] = useState(
+    initialClassId && classes.some((row) => row.id === initialClassId)
+      ? initialClassId
+      : (compatibleClasses[0]?.id ?? classes[0]?.id ?? '')
+  );
+  const [date, setDate] = useState(initialDate || todayIso());
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 

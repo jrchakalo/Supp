@@ -8,16 +8,21 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  History,
+  Loader2,
   Plus,
   Redo2,
   Save,
+  ShieldAlert,
   Trash2,
   Undo2,
+  X,
 } from 'lucide-react';
 import RequireProfessor from '@/components/professor/RequireProfessor';
 import SaveScopeDialog from '@/components/editor/SaveScopeDialog';
 import { SlideStage } from '@/components/aula/SlideView';
 import type { Segment, Slide } from '@/lib/passaporte-lessons';
+import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
 import {
   fetchEditorData,
   type EditorData,
@@ -283,6 +288,26 @@ function EditorContent() {
   const [initialOccurrenceId, setInitialOccurrenceId] = useState('');
   const [showSave, setShowSave] = useState(false);
   const [message, setMessage] = useState('');
+  const [showVersions, setShowVersions] = useState(false);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [versions, setVersions] = useState<
+    Array<{
+      version: number;
+      title: string | null;
+      total_min: number | null;
+      author: string | null;
+      created_at: string;
+    }>
+  >([]);
+  const [showCorrection, setShowCorrection] = useState(false);
+  const [correctionReason, setCorrectionReason] = useState('');
+  const [correcting, setCorrecting] = useState(false);
+  const [draft, setDraft] = useState<{
+    title: string;
+    totalMin: number;
+    segments: Segment[];
+    at: number;
+  } | null>(null);
   const segmentsRef = useRef<Segment[]>([]);
   const initializedRef = useRef(false);
 
@@ -318,7 +343,46 @@ function EditorContent() {
     setSelected({ segmentIndex: 0, slideIndex: 0 });
     setReady(true);
     initializedRef.current = true;
-  }, [data]);
+
+    try {
+      const raw = readStorage(`editor-draft:${contentId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          title?: unknown;
+          totalMin?: unknown;
+          segments?: unknown;
+          at?: unknown;
+        };
+        if (
+          Array.isArray(parsed.segments) &&
+          JSON.stringify(parsed.segments) !== JSON.stringify(base)
+        ) {
+          setDraft({
+            title: typeof parsed.title === 'string' ? parsed.title : data.content.title,
+            totalMin:
+              typeof parsed.totalMin === 'number'
+                ? parsed.totalMin
+                : (data.content.total_min ?? 150),
+            segments: parsed.segments as Segment[],
+            at: typeof parsed.at === 'number' ? parsed.at : Date.now(),
+          });
+        }
+      }
+    } catch {
+      setDraft(null);
+    }
+  }, [data, contentId]);
+
+  useEffect(() => {
+    if (!ready || !data) return;
+    const timer = window.setTimeout(() => {
+      writeStorage(
+        `editor-draft:${contentId}`,
+        JSON.stringify({ title, totalMin, segments, at: Date.now() })
+      );
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [ready, data, contentId, title, totalMin, segments]);
 
   useEffect(() => {
     segmentsRef.current = segments;
@@ -487,6 +551,66 @@ function EditorContent() {
   const selectedOccurrence = data?.occurrences.find(
     (row) => row.id === initialOccurrenceId
   );
+
+  const openVersions = async () => {
+    setShowVersions(true);
+    setVersionsLoading(true);
+    try {
+      const response = await fetch(`/api/editor/content?id=${encodeURIComponent(contentId)}`, {
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error('versions');
+      const payload = (await response.json()) as { versions?: typeof versions };
+      setVersions(payload.versions ?? []);
+    } catch {
+      setVersions([]);
+    } finally {
+      setVersionsLoading(false);
+    }
+  };
+
+  const restoreVersion = async (version: number) => {
+    if (!window.confirm(`Restaurar a versão ${version} como uma nova versão?`)) return;
+    setMessage('');
+    try {
+      const response = await fetch('/api/editor/content', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ contentId, action: 'restore', version }),
+      });
+      if (!response.ok) throw new Error('restore');
+      window.location.reload();
+    } catch {
+      setMessage('Não foi possível restaurar esta versão.');
+    }
+  };
+
+  const submitCorrection = async () => {
+    if (!selectedOccurrence || correctionReason.trim().length < 10) return;
+    setCorrecting(true);
+    try {
+      const response = await fetch('/api/editor/occurrence', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          occurrenceId: selectedOccurrence.id,
+          contentId,
+          segments,
+          correction: true,
+          reason: correctionReason,
+        }),
+      });
+      if (!response.ok) throw new Error('correction');
+      setMessage('Registro corrigido e auditado. O snapshot da aula foi atualizado.');
+      setShowCorrection(false);
+      setCorrectionReason('');
+    } catch {
+      setMessage('Não foi possível corrigir o registro.');
+    } finally {
+      setCorrecting(false);
+    }
+  };
+
   const occurrenceLocked =
     selectedOccurrence?.status === 'given' ||
     selectedOccurrence?.status === 'no_students' ||
@@ -555,6 +679,24 @@ function EditorContent() {
             </button>
             <button
               type="button"
+              onClick={() => void openVersions()}
+              className="inline-flex items-center gap-2 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
+            >
+              <History className="h-4 w-4" aria-hidden="true" />
+              Versões
+            </button>
+            {occurrenceLocked ? (
+              <button
+                type="button"
+                onClick={() => setShowCorrection(true)}
+                className="inline-flex items-center gap-2 rounded-xl border-2 border-amber-400/60 bg-amber-500/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-amber-200"
+              >
+                <ShieldAlert className="h-4 w-4" aria-hidden="true" />
+                Corrigir registro
+              </button>
+            ) : null}
+            <button
+              type="button"
               onClick={() => setShowSave(true)}
               className="inline-flex items-center gap-2 rounded-xl bg-[var(--cta-bg)] px-4 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
             >
@@ -568,6 +710,39 @@ function EditorContent() {
           <p className="mt-3 rounded-xl border border-emerald-400/50 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-200">
             {message}
           </p>
+        ) : null}
+
+        {draft ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-400/50 bg-sky-500/10 px-3 py-2">
+            <p className="text-xs font-bold text-sky-100">
+              Rascunho local encontrado ({new Date(draft.at).toLocaleString('pt-BR')}).
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setTitle(draft.title);
+                  setTotalMin(draft.totalMin);
+                  setSegments(clone(draft.segments));
+                  setDraft(null);
+                  setMessage('Rascunho local restaurado. Salve para publicar.');
+                }}
+                className="rounded-lg bg-sky-400 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#071018]"
+              >
+                Restaurar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  removeStorage(`editor-draft:${contentId}`);
+                  setDraft(null);
+                }}
+                className="rounded-lg border border-sky-400/50 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-sky-100"
+              >
+                Descartar
+              </button>
+            </div>
+          </div>
         ) : null}
 
         {occurrenceLocked ? (
@@ -775,12 +950,14 @@ function EditorContent() {
             <div className="mt-2 rounded-xl bg-[var(--surface-2)]/60 px-2 py-1.5 text-[10px] font-bold text-[var(--muted)]">
               <p>Título da aula</p>
               <input
+                aria-label="Título da aula"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 className="mt-1 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2 py-1 text-xs font-black text-[var(--ink)] outline-none focus:border-[var(--accent)]"
               />
               <p className="mt-2">Duração (min)</p>
               <input
+                aria-label="Duração em minutos"
                 type="number"
                 value={totalMin}
                 onChange={(event) => setTotalMin(Number(event.target.value) || 0)}
@@ -790,6 +967,142 @@ function EditorContent() {
           </aside>
         </div>
       </div>
+
+      {showVersions ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Versões do conteúdo"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowVersions(false);
+          }}
+        >
+          <div className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-3xl border-2 border-[var(--line)] bg-[var(--surface)] p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--accent)]">
+                  Histórico global
+                </p>
+                <h2 className="mt-1 text-xl font-black">Versões do conteúdo</h2>
+                <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
+                  Restaurar cria uma nova versão; nada é apagado.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVersions(false)}
+                aria-label="Fechar versões"
+                className="rounded-full border-2 border-[var(--line)] p-1.5 text-[var(--muted)]"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            {versionsLoading ? (
+              <p className="mt-4 flex items-center gap-2 text-sm font-bold text-[var(--muted)]">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                Carregando versões…
+              </p>
+            ) : versions.length === 0 ? (
+              <p className="mt-4 text-sm font-semibold text-[var(--muted)]">
+                Nenhuma versão registrada ainda.
+              </p>
+            ) : (
+              <ol className="mt-4 space-y-2">
+                {versions.map((item) => (
+                  <li
+                    key={item.version}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-black">
+                        v{item.version}
+                        {item.version === data.content.version ? ' · atual' : ''}
+                      </p>
+                      <p className="truncate text-[11px] font-semibold text-[var(--muted)]">
+                        {new Date(item.created_at).toLocaleString('pt-BR')} ·{' '}
+                        {item.author ?? 'professor'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void restoreVersion(item.version)}
+                      disabled={item.version === data.content.version}
+                      className="rounded-lg border-2 border-[var(--line)] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-[var(--muted)] disabled:opacity-40"
+                    >
+                      Restaurar
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {showCorrection ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Corrigir registro"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowCorrection(false);
+          }}
+        >
+          <div className="w-full max-w-lg rounded-3xl border-2 border-amber-400/60 bg-[var(--surface)] p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">
+                  Aula dada
+                </p>
+                <h2 className="mt-1 text-xl font-black">Corrigir registro</h2>
+                <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
+                  Isso altera o snapshot desta aula e grava o motivo na auditoria. Use apenas
+                  para corrigir um erro real.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCorrection(false)}
+                aria-label="Fechar correção"
+                className="rounded-full border-2 border-[var(--line)] p-1.5 text-[var(--muted)]"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+            <label className="mt-4 flex flex-col gap-1 text-[10px] font-black uppercase tracking-wide text-[var(--muted)]">
+              Motivo da correção
+              <textarea
+                value={correctionReason}
+                onChange={(event) => setCorrectionReason(event.target.value)}
+                rows={3}
+                placeholder="Ex.: o slide de fechamento foi publicado com a turma errada."
+                className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-sm font-semibold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+              />
+            </label>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCorrection(false)}
+                className="rounded-xl border-2 border-[var(--line)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitCorrection()}
+                disabled={correcting || correctionReason.trim().length < 10}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-xs font-black uppercase tracking-wide text-[#071018] disabled:opacity-50"
+              >
+                {correcting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                Confirmar correção
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showSave ? (
         <SaveScopeDialog
@@ -803,10 +1116,14 @@ function EditorContent() {
           onClose={() => setShowSave(false)}
           onSaved={(scope, version) => {
             setShowSave(false);
+            removeStorage(`editor-draft:${contentId}`);
+            setDraft(null);
             setMessage(
               scope === 'global'
                 ? `Nova versão global v${version ?? '?'} criada. Aulas dadas mantêm o snapshot.`
-                : 'Edição local salva nesta aula.'
+                : scope === 'class'
+                  ? 'Edição salva para todas as aulas futuras desta turma.'
+                  : 'Edição local salva nesta aula.'
             );
           }}
         />

@@ -1,14 +1,17 @@
 # Migração — modelo de conteúdo v2
 
-Arquivo: `20261113_content_model.sql`.
+Arquivos:
+- `20261113_content_model.sql` — tabelas, RLS e folgas.
+- `20261114_restrict_anon_columns.sql` — leitura anon por coluna (esconde `platform`, `notes` e
+  histórico de versões).
 
 ## Como aplicar
 
-### Opção A — SQL Editor (recomendado, sem dependência)
+### Opção A — SQL Editor
 
-1. Abra o projeto `jscyqjxelupmsnemsoxr` no Supabase.
+1. Abra o projeto Supabase do Supp.
 2. Vá em **SQL Editor** → **New query**.
-3. Cole o conteúdo de `20261113_content_model.sql`.
+3. Cole o conteúdo de cada arquivo, na ordem acima.
 4. Rode (**Run**).
 5. Confira em **Table Editor** as tabelas:
    `pp_classes`, `pp_content`, `pp_content_versions`, `pp_occurrences`, `pp_overrides`,
@@ -30,7 +33,8 @@ node scripts/apply-migration.mjs
 ## Segurança
 
 - O SQL é **aditivo**: não apaga `pp_plans`, `pp_quizzes`, `pp_agenda` nem `pp_meta`.
-- Escrita continua via service role (rotas server-side). O anon só lê conteúdo/agenda.
+- Escrita continua via service role (rotas server-side). O anon lê apenas as colunas necessárias;
+  `pp_classes.platform`, `pp_occurrences.notes` e `pp_content_versions` ficam ocultos.
 - `pp_reports` fica **sem policy anon** de propósito (pode conter dados de alunos).
 - O código do gate não aparece aqui.
 

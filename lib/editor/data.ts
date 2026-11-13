@@ -27,6 +27,7 @@ export type EditorOccurrence = {
 export type EditorClass = {
   id: string;
   short_code: string;
+  name: string;
   weekday: number;
 };
 
@@ -73,7 +74,7 @@ export async function fetchEditorData(contentId: string): Promise<EditorData | n
     select<EditorOccurrence>(
       `pp_occurrences?select=id,class_id,date,start_at,end_at,status,content_id,snapshot&content_id=eq.${encodeURIComponent(contentId)}&order=date.asc&limit=200`
     ),
-    select<EditorClass>('pp_classes?select=id,short_code,weekday&limit=200'),
+    select<EditorClass>('pp_classes?select=id,short_code,name,weekday&limit=200'),
   ]);
   if (!contents[0]) return null;
   return { content: contents[0], occurrences, classes };
