@@ -130,7 +130,6 @@ async function runSync(request: NextRequest) {
       const end = row.end_at ?? localIso(row.class_date, classroom?.end_time ?? '00:00');
       return {
         class_id: row.class_id,
-        content_id: null,
         date: row.class_date,
         start_at: start,
         end_at: end,
