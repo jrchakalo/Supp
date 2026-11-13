@@ -1,7 +1,7 @@
 import type { Lesson } from '../passaporte-lessons';
 
 /**
- * Loads the institutional lesson content of `/aula` at runtime from Supabase.
+ * Loads the institutional lesson content of `/professor` at runtime from Supabase.
  *
  * The content lives in `pp_plans` (`id`, `meta`, `data`) and never ships in the
  * bundle. This helper is deliberately forgiving: missing env vars, HTTP errors,

@@ -26,6 +26,8 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { FLASH_DEFAULT_SECONDS, SlideStage } from '@/components/aula/SlideView';
 import { QUIZ_LESSON_ID, buildQuizSlides } from '@/components/aula/quizSlides';
+import Greeting from '@/components/professor/Greeting';
+import CursorToggle from '@/components/professor/CursorToggle';
 import { flattenBeats, type Lesson, type Slide } from '@/lib/passaporte-lessons';
 import { fetchLessons } from '@/lib/aula/lessons';
 import { PASSAPORTE_DECKS } from '@/lib/passaporte-decks';
@@ -118,6 +120,19 @@ function lessonStartMinutes(turma: string): number {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
+/** True when `now` is inside the lesson (with a 5-minute grace on both sides). */
+function isLessonNow(lesson: Lesson, now: Date): boolean {
+  const startMinutes = lessonStartMinutes(lesson.turma);
+  if (!Number.isFinite(startMinutes) || startMinutes >= 24 * 60) return false;
+
+  const start = new Date(now);
+  start.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+  const end = new Date(start.getTime() + lesson.totalMin * 60_000);
+  const grace = 5 * 60_000;
+
+  return now.getTime() >= start.getTime() - grace && now.getTime() <= end.getTime() + grace;
+}
+
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -192,7 +207,7 @@ const COMP_ROUNDS: number[] = [1, 2, 3, 5];
 
 /**
  * Warm-up shortcuts for the teacher. Each one opens a configuration modal and
- * runs on the projector (`/tv`), so the student screen never leaves the aula.
+ * runs on the projector (`/tela`), so the student screen never leaves the aula.
  */
 function WarmupBar({
   active,
@@ -299,6 +314,18 @@ export default function AulaPage() {
     return { upcoming, past };
   }, [lessons, today]);
 
+  /* The greeting says "Boa aula" when a lesson is happening now. */
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const currentLesson = useMemo(() => {
+    if (!today || !lessons || lessons.length === 0) return null;
+    const now = new Date(nowTick);
+    return lessons.find((lesson) => lesson.date === today && isLessonNow(lesson, now)) ?? null;
+  }, [lessons, today, nowTick]);
+
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [sessionCode, setSessionCode] = useState('');
   const [tvUrl, setTvUrl] = useState('');
@@ -322,7 +349,7 @@ export default function AulaPage() {
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [usePhones, setUsePhones] = useState(true);
 
-  /* Warm-ups: configured here, rendered by /tv. */
+  /* Warm-ups: configured here, rendered by /tela. */
   const [warmup, setWarmup] = useState<WarmupKind>('none');
   const [warmupModal, setWarmupModal] = useState<WarmupKind>('none');
   const [liveCount, setLiveCount] = useState<8 | 12 | 16>(12);
@@ -490,7 +517,7 @@ export default function AulaPage() {
       setPhase(savedPhase);
       setImageUrls(savedImages);
       setImageInput(savedImages[savedIndex] ?? '');
-      setTvUrl(`${window.location.origin}/tv?c=${code}`);
+      setTvUrl(`${window.location.origin}/tela?c=${code}`);
       if (savedWarmup === 'live') {
         setWarmup('live');
         warmupRef.current = 'live';
@@ -616,7 +643,7 @@ export default function AulaPage() {
         if (!teacherPresenceIdRef.current) {
           teacherPresenceIdRef.current = `teacher-${Math.random().toString(36).slice(2, 10)}`;
         }
-        /* Presence is how `/tv` knows the teacher is still in the room. */
+        /* Presence is how `/tela` knows the teacher is still in the room. */
         channelRef.current?.track({ role: 'teacher', id: teacherPresenceIdRef.current });
         syncTv();
       },
@@ -876,7 +903,7 @@ export default function AulaPage() {
     setHostUrl('');
     setConnection('connecting');
     setTvOnline(false);
-    setTvUrl(`${window.location.origin}/tv?c=${code}`);
+    setTvUrl(`${window.location.origin}/tela?c=${code}`);
   }, [resetWarmupState]);
 
   /** Leaves the welcome screen and broadcasts beat 0. */
@@ -1037,7 +1064,7 @@ export default function AulaPage() {
   }, [autoAdvance, broadcast, resetWarmupState, seconds, sessionCode, usePhones]);
 
   /* ------------------------------------------------------------------ */
-  /* Warm-ups (Live / D20 / competition) — configured here, run on /tv  */
+  /* Warm-ups (Live / D20 / competition) — configured here, run on /tela  */
   /* ------------------------------------------------------------------ */
 
   const openWarmup = useCallback((kind: Exclude<WarmupKind, 'none'>) => {
@@ -1254,7 +1281,7 @@ export default function AulaPage() {
 
   /**
    * Warm-up setup modal shared by the welcome screen and the live session.
-   * The actual game always runs on `/tv`; only the Live warm-up also opens
+   * The actual game always runs on `/tela`; only the Live warm-up also opens
    * `/host` in a new tab so the teacher can drive the room.
    */
   const warmupModalView =
@@ -1640,27 +1667,38 @@ export default function AulaPage() {
     return (
       <main className="theme-dark game-shell min-h-dvh px-4 py-6 text-[var(--ink)] sm:px-8">
         <div className="mx-auto w-full max-w-5xl">
-          <header className="flex flex-wrap items-center justify-between gap-3">
+          <header className="flex flex-wrap items-start justify-between gap-3">
+            <Greeting
+              currentLesson={
+                currentLesson
+                  ? { title: currentLesson.title, turma: currentLesson.turma }
+                  : null
+              }
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <CursorToggle />
+              <button
+                type="button"
+                onClick={logout}
+                className="flex items-center gap-2 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--danger)] hover:text-[var(--danger)]"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                Sair
+              </button>
+            </div>
+          </header>
+
+          <div className="mt-8 flex flex-wrap items-end justify-between gap-2 border-b border-[var(--line-soft)] pb-2">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[var(--accent)]">
-                Supp · Aulas
+                Aulas
               </p>
-              <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl">
-                Aulas por dia
-              </h1>
-              <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-                Hoje e próximas primeiro; as anteriores ficam no fim.
-              </p>
+              <h2 className="mt-1 text-2xl font-black">Aulas por dia</h2>
             </div>
-            <button
-              type="button"
-              onClick={logout}
-              className="flex items-center gap-2 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--danger)] hover:text-[var(--danger)]"
-            >
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              Sair
-            </button>
-          </header>
+            <p className="text-xs font-semibold text-[var(--muted)]">
+              Hoje e próximas primeiro; as anteriores ficam no fim.
+            </p>
+          </div>
 
           {lessons === null || lessonsLoading ? (
             <p
@@ -1701,7 +1739,7 @@ export default function AulaPage() {
 
           <p className="mt-6 text-xs font-semibold text-[var(--muted)]">
             Ao iniciar, o Supp gera um código de sessão e a URL do telão. O projetor abre
-            <span className="font-black text-[var(--ink)]"> /tv</span> e acompanha cada slide.
+            <span className="font-black text-[var(--ink)]"> /tela</span> e acompanha cada slide.
           </p>
         </div>
       </main>

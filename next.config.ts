@@ -56,6 +56,18 @@ const nextConfig: NextConfig = {
   },
   output: 'standalone',
   transpilePackages: ['motion'],
+  async redirects() {
+    return [
+      { source: '/aula', destination: '/professor', permanent: true },
+      { source: '/tv', destination: '/tela', permanent: true },
+      /* Legacy static projector page that used to live under /aula. */
+      {
+        source: '/aula/m5c2-p5-a2.html',
+        destination: '/tela/m5c2-p5-a2.html',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

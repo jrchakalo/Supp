@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
@@ -175,7 +175,7 @@ function readSecondsFromUrl(): 15 | 20 | 30 | null {
   return null;
 }
 
-/** Reads `?count=8|12|16` (used by the /aula warm-up); ignored otherwise. */
+/** Reads `?count=8|12|16` (used by the /professor warm-up); ignored otherwise. */
 function readCountFromUrl(): 8 | 12 | 16 | null {
   if (typeof window === 'undefined') return null;
   const raw = new URLSearchParams(window.location.search).get('count');
@@ -192,7 +192,7 @@ function readAutoFromUrl(): boolean | null {
   return null;
 }
 
-/** Reads `?start=1`: opens the room automatically (used by /aula → /host). */
+/** Reads `?start=1`: opens the room automatically (used by /professor → /host). */
 function readStartFromUrl(): boolean {
   if (typeof window === 'undefined') return false;
   return new URLSearchParams(window.location.search).get('start') === '1';
@@ -738,7 +738,7 @@ export default function HostPage() {
 
   /* Auto-advance: after the reveal the game moves on by itself. The host can
      switch it off and drive Next question manually instead. ON by default;
-     `?auto=0` (used by /aula) starts it OFF. */
+     `?auto=0` (used by /professor) starts it OFF. */
   const autoParam = readAutoFromUrl();
   const [autoAdvance, setAutoAdvance] = useState(() => autoParam ?? true);
   const autoAdvanceRef = useRef(autoParam ?? true);

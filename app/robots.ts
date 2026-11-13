@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/host', '/join'],
+        disallow: ['/host', '/join', '/professor', '/tela', '/api'],
       },
     ],
     sitemap: 'https://www.supp.lol/sitemap.xml',
