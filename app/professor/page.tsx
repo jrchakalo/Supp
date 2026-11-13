@@ -706,6 +706,16 @@ export default function AulaPage() {
     channelRef.current?.send(message);
   }, []);
 
+  /* Heartbeat: the projector shows "professor desconectado" only after 15 s
+     without a ping/presence, and keeps the last slide on screen. */
+  useEffect(() => {
+    if (!activeLesson || !sessionCode) return;
+    const ping = () => broadcast({ type: 'ping', at: Date.now() });
+    ping();
+    const timer = window.setInterval(ping, 5000);
+    return () => window.clearInterval(timer);
+  }, [activeLesson, sessionCode, broadcast]);
+
   /** Re-sends the teacher's current slide (lesson beat or quiz presentation). */
   const sendCurrentSlide = useCallback(() => {
     const lesson = activeLessonRef.current;
@@ -2016,6 +2026,21 @@ export default function AulaPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void copyValue(sessionCode, 'code')}
+              title="Copiar código da sessão"
+              className="flex items-center gap-1.5 rounded-full border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--ink)]"
+            >
+              <span className="font-mono text-xs tracking-[0.16em] text-[var(--accent)]">
+                {sessionCode}
+              </span>
+              {copied === 'code' ? (
+                <Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden="true" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+            </button>
             <ConnectionPill status={connection} tvOnline={tvOnline} />
             <button
               type="button"

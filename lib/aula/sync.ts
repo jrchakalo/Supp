@@ -129,6 +129,12 @@ export type AulaHelloMessage = {
   type: 'hello';
 };
 
+/** Teacher heartbeat: lets the projector distinguish "offline" from "idle". */
+export type AulaPingMessage = {
+  type: 'ping';
+  at: number;
+};
+
 export type AulaStateMessage = {
   type: 'state';
   lessonId: string;
@@ -146,6 +152,7 @@ export type AulaMessage =
   | AulaQuizMessage
   | AulaQuizEndMessage
   | AulaHelloMessage
+  | AulaPingMessage
   | AulaStateMessage
   | AulaWelcomeMessage
   | AulaEndMessage

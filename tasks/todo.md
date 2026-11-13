@@ -20,11 +20,11 @@
 - [x] F1-06 Atualizar documentação de rotas
 
 ## F2 — Session
-- [ ] F2-01 Código sempre visível
-- [ ] F2-02 Heartbeat e presença
-- [ ] F2-03 Reconexão automática da TV
-- [ ] F2-04 Snapshot de estado da TV
-- [ ] F2-05 Fim de aula explícito
+- [x] F2-01 Código sempre visível
+- [x] F2-02 Heartbeat e presença
+- [x] F2-03 Reconexão automática da TV (botão manual fica para F7)
+- [x] F2-04 Snapshot de estado da TV
+- [x] F2-05 Fim de aula explícito
 
 ## F3 — Dados
 - [ ] F3-01 SQL e RLS
