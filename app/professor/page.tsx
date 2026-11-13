@@ -42,8 +42,11 @@ import { PASSAPORTE_DECKS } from '@/lib/passaporte-decks';
 import { CLASSIC_CATEGORIES } from '@/lib/classic-questions';
 import { categoryCopy } from '@/lib/i18n/game-copy';
 import { getDeck } from '@/lib/game';
+import { CLASSIC_ALL_CATEGORIES, getClassicDeck } from '@/lib/classic-questions';
+import type { ClassicCategoryId, DifficultyId } from '@/lib/types';
+import type { WheelGameState } from '@/lib/aula/games';
+import WheelControl from '@/components/game/WheelControl';
 import { randomRoomCode, sanitizeRoomCode } from '@/lib/live/room';
-import type { ClassicCategoryId } from '@/lib/types';
 import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
 import {
   AULA_GATE_STORAGE,
@@ -188,7 +191,7 @@ function ConnectionPill({
   );
 }
 
-type WarmupKind = 'none' | 'live' | 'd20' | 'comp';
+type WarmupKind = 'none' | 'live' | 'd20' | 'comp' | 'wheel';
 
 const WARMUP_ITEMS: {
   id: Exclude<WarmupKind, 'none'>;
@@ -199,6 +202,7 @@ const WARMUP_ITEMS: {
   { id: 'live', label: 'Live', description: 'Quiz ao vivo', Icon: Radio },
   { id: 'comp', label: 'Competição', description: 'Torneio da turma', Icon: Trophy },
   { id: 'd20', label: 'D20', description: 'Dado de perguntas', Icon: Dices },
+  { id: 'wheel', label: 'Roleta', description: 'Roleta na TV', Icon: Dices },
 ];
 
 /** Live warm-up theme labels (the id maps to the classic categories). */
@@ -262,15 +266,6 @@ function WarmupBar({
         })}
 
         <div className="flex flex-wrap items-center gap-2 border-l-2 border-[var(--line)] pl-3">
-          <a
-            href="/?screen=wheel"
-            target="_blank"
-            rel="noreferrer"
-            title="Roleta de perguntas — abre na tela do professor"
-            className="flex items-center gap-2 rounded-xl border-2 border-dashed border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          >
-            Roleta
-          </a>
           <a
             href="/?screen=passa"
             target="_blank"
@@ -421,6 +416,13 @@ export default function AulaPage() {
   const [compRounds, setCompRounds] = useState(3);
   const [compMessage, setCompMessage] = useState<AulaCompMessage | null>(null);
   const [compRanking, setCompRanking] = useState<AulaCompScore[] | null>(null);
+  const [wheelGame, setWheelGame] = useState<WheelGameState | null>(null);
+  const [wheelCategories, setWheelCategories] = useState<ClassicCategoryId[]>(
+    CLASSIC_ALL_CATEGORIES
+  );
+  const [wheelDifficulty, setWheelDifficulty] = useState<DifficultyId>('medium');
+  const [wheelRoundsInput, setWheelRoundsInput] = useState('');
+  const [wheelSpinRequest, setWheelSpinRequest] = useState(0);
 
   const channelRef = useRef<AulaChannel | null>(null);
   const sessionRestoredRef = useRef(false);
@@ -443,6 +445,9 @@ export default function AulaPage() {
   const compRankingRef = useRef<AulaCompScore[] | null>(null);
   const compScoresRef = useRef<Record<string, number>>({});
   const compTurnRef = useRef(0);
+  const wheelGameRef = useRef<WheelGameState | null>(null);
+  const wheelUsedRef = useRef<Set<string>>(new Set());
+  const wheelSpinTimerRef = useRef<number | null>(null);
   const teacherPresenceIdRef = useRef('');
 
   useEffect(() => {
@@ -460,6 +465,7 @@ export default function AulaPage() {
     compRoundsRef.current = compRounds;
     compMessageRef.current = compMessage;
     compRankingRef.current = compRanking;
+    wheelGameRef.current = wheelGame;
   }, [
     activeLesson,
     beatIndex,
@@ -475,6 +481,7 @@ export default function AulaPage() {
     phase,
     quizIndex,
     warmup,
+    wheelGame,
   ]);
 
   /* ------------------------------------------------------------------ */
@@ -535,6 +542,7 @@ export default function AulaPage() {
         hostUrl?: unknown;
         phase?: unknown;
         images?: unknown;
+        wheel?: unknown;
       };
       if (typeof parsed.lessonId !== 'string' || typeof parsed.code !== 'string') return;
 
@@ -549,9 +557,18 @@ export default function AulaPage() {
           : 0;
       const savedQuiz =
         typeof parsed.quiz === 'string' ? sanitizeRoomCode(parsed.quiz) : null;
-      /* Only the Live warm-up can be restored: D20/competition carry a live
+      const savedWheel =
+        parsed.wheel && typeof parsed.wheel === 'object'
+          ? (parsed.wheel as WheelGameState)
+          : null;
+      /* Only Live and the wheel can be restored: D20/competition carry a live
          question that lives in memory, so they simply start over. */
-      const savedWarmup: WarmupKind = parsed.warmup === 'live' && savedQuiz ? 'live' : 'none';
+      const savedWarmup: WarmupKind =
+        parsed.warmup === 'wheel' && savedWheel
+          ? 'wheel'
+          : parsed.warmup === 'live' && savedQuiz
+            ? 'live'
+            : 'none';
       const savedHostUrl = typeof parsed.hostUrl === 'string' ? parsed.hostUrl : '';
       /* Sessions saved before the welcome screen existed default to live. */
       const savedPhase: AulaPhase = parsed.phase === 'welcome' ? 'welcome' : 'live';
@@ -580,6 +597,16 @@ export default function AulaPage() {
       if (savedWarmup === 'live') {
         setWarmup('live');
         warmupRef.current = 'live';
+      }
+      if (savedWarmup === 'wheel' && savedWheel) {
+        const restored =
+          savedWheel.phase === 'spinning'
+            ? { ...savedWheel, phase: 'idle' as const }
+            : savedWheel;
+        wheelGameRef.current = restored;
+        setWheelGame(restored);
+        setWarmup('wheel');
+        warmupRef.current = 'wheel';
       }
       if (savedQuiz) {
         setLiveQuizCode(savedQuiz);
@@ -624,9 +651,20 @@ export default function AulaPage() {
         hostUrl,
         phase,
         images: imageUrls,
+        wheel: wheelGame,
       })
     );
-  }, [activeLesson, sessionCode, beatIndex, liveQuizCode, warmup, hostUrl, phase, imageUrls]);
+  }, [
+    activeLesson,
+    sessionCode,
+    beatIndex,
+    liveQuizCode,
+    warmup,
+    hostUrl,
+    phase,
+    imageUrls,
+    wheelGame,
+  ]);
 
   useEffect(() => {
     if (!activeLesson || !sessionCode) return;
@@ -641,13 +679,20 @@ export default function AulaPage() {
       const lesson = activeLessonRef.current;
       if (!lesson) return;
 
-      if (phaseRef.current === 'welcome') {
-        channelRef.current?.send({ type: 'welcome', welcome: lesson.welcome });
+      /* A warm-up/game owns the projector even during the welcome screen: a
+         TV that just reconnected must land on the game, not on welcome. */
+      if (warmupRef.current === 'wheel') {
+        const game = wheelGameRef.current;
+        if (game) {
+          channelRef.current?.send({
+            type: 'game',
+            game: 'wheel',
+            seq: game.seq,
+            state: game,
+          });
+        }
         return;
       }
-
-      /* A D20/competition warm-up owns the projector: re-send its last state
-         instead of a slide, so an F5 on the TV lands on the game screen. */
       if (warmupRef.current === 'd20') {
         if (d20Ref.current) {
           channelRef.current?.send(d20Ref.current);
@@ -660,6 +705,11 @@ export default function AulaPage() {
         if (compRankingRef.current) {
           channelRef.current?.send({ type: 'compEnd', ranking: compRankingRef.current });
         }
+        return;
+      }
+
+      if (phaseRef.current === 'welcome') {
+        channelRef.current?.send({ type: 'welcome', welcome: lesson.welcome });
         return;
       }
 
@@ -687,8 +737,14 @@ export default function AulaPage() {
 
     const handle = createAulaChannel(sessionCode, {
       onMessage: (message: AulaMessage) => {
-        if (!active || message.type !== 'hello') return;
-        syncTv();
+        if (!active) return;
+        if (message.type === 'hello') {
+          syncTv();
+          return;
+        }
+        if (message.type === 'command' && message.game === 'wheel' && message.action === 'spin') {
+          setWheelSpinRequest((value) => value + 1);
+        }
       },
       onStatus: (status) => {
         if (!active) return;
@@ -805,6 +861,13 @@ export default function AulaPage() {
     setCompMessage(null);
     compRankingRef.current = null;
     setCompRanking(null);
+    if (wheelSpinTimerRef.current) {
+      window.clearTimeout(wheelSpinTimerRef.current);
+      wheelSpinTimerRef.current = null;
+    }
+    wheelGameRef.current = null;
+    setWheelGame(null);
+    wheelUsedRef.current.clear();
     liveQuizRef.current = null;
     setLiveQuizCode(null);
     setHostUrl('');
@@ -1355,6 +1418,188 @@ export default function AulaPage() {
     setCompNames((current) => current.filter((item) => item !== name));
   }, []);
 
+  /* ------------------------------------------------------------------ */
+  /* Roleta no palco único                                                */
+  /* ------------------------------------------------------------------ */
+
+  const broadcastWheel = useCallback(
+    (state: WheelGameState) => {
+      const seq = (wheelGameRef.current?.seq ?? 0) + 1;
+      const next = { ...state, seq };
+      wheelGameRef.current = next;
+      setWheelGame(next);
+      broadcast({ type: 'game', game: 'wheel', seq, state: next });
+    },
+    [broadcast]
+  );
+
+  const startWheelWarmup = useCallback(() => {
+    if (warmupRef.current === 'live' || liveQuizRef.current) {
+      broadcast({ type: 'quizEnd' });
+    }
+    if (warmupRef.current === 'd20' || warmupRef.current === 'comp') {
+      broadcast({ type: 'warmupEnd' });
+    }
+    resetWarmupState();
+
+    const categories = wheelCategories.length
+      ? wheelCategories
+      : CLASSIC_ALL_CATEGORIES;
+    const parsed = wheelRoundsInput.trim() ? Number(wheelRoundsInput) : NaN;
+    const rounds =
+      Number.isFinite(parsed) && parsed > 0 ? Math.min(50, Math.floor(parsed)) : null;
+
+    wheelUsedRef.current.clear();
+    warmupRef.current = 'wheel';
+    setWarmup('wheel');
+    setWarmupModal('none');
+    broadcastWheel({
+      seq: 1,
+      phase: 'idle',
+      categories,
+      rotation: 0,
+      picked: null,
+      round: 0,
+      rounds,
+      score: { correct: 0, total: 0 },
+      question: null,
+      revealed: false,
+      lastAnswerCorrect: null,
+      spinId: 0,
+    });
+  }, [broadcast, broadcastWheel, resetWarmupState, wheelCategories, wheelRoundsInput]);
+
+  const spinWheel = useCallback(() => {
+    const game = wheelGameRef.current;
+    if (!game || game.phase !== 'idle') return;
+    const categories = game.categories.length ? game.categories : CLASSIC_ALL_CATEGORIES;
+    if (categories.length === 0) return;
+
+    const index = Math.floor(Math.random() * categories.length);
+    const segmentAngle = 360 / categories.length;
+    const center = index * segmentAngle + segmentAngle / 2;
+    const normalized = ((game.rotation % 360) + 360) % 360;
+    const desired = (360 - center + 360) % 360;
+    const delta = (desired - normalized + 360) % 360;
+    const rotation = game.rotation + 360 * 5 + delta;
+
+    broadcastWheel({
+      ...game,
+      phase: 'spinning',
+      rotation,
+      picked: null,
+      question: null,
+      revealed: false,
+      lastAnswerCorrect: null,
+      spinId: game.spinId + 1,
+    });
+
+    if (wheelSpinTimerRef.current) window.clearTimeout(wheelSpinTimerRef.current);
+    wheelSpinTimerRef.current = window.setTimeout(() => {
+      wheelSpinTimerRef.current = null;
+      const current = wheelGameRef.current;
+      if (!current || current.phase !== 'spinning') return;
+      const category = categories[index];
+      const deck = getClassicDeck(wheelDifficulty, [category]);
+      const fresh = deck.filter((item) => !wheelUsedRef.current.has(item.id));
+      const pool = fresh.length > 0 ? fresh : deck;
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      if (!pick) {
+        broadcastWheel({ ...current, phase: 'over', picked: category });
+        return;
+      }
+      wheelUsedRef.current.add(pick.id);
+      broadcastWheel({
+        ...current,
+        phase: 'question',
+        picked: category,
+        round: current.round + 1,
+        question: {
+          id: pick.id,
+          text: pick.text,
+          answer: pick.answer,
+          explanation: pick.explanation,
+        },
+      });
+    }, 3100);
+  }, [broadcastWheel, wheelDifficulty]);
+
+  const answerWheel = useCallback(
+    (correct: boolean) => {
+      const game = wheelGameRef.current;
+      if (!game || game.phase !== 'question') return;
+      broadcastWheel({
+        ...game,
+        phase: 'revealed',
+        revealed: true,
+        lastAnswerCorrect: correct,
+        score: {
+          correct: game.score.correct + (correct ? 1 : 0),
+          total: game.score.total + 1,
+        },
+      });
+    },
+    [broadcastWheel]
+  );
+
+  const nextWheel = useCallback(() => {
+    const game = wheelGameRef.current;
+    if (!game) return;
+
+    if (game.phase === 'over') {
+      wheelUsedRef.current.clear();
+      broadcastWheel({
+        ...game,
+        phase: 'idle',
+        picked: null,
+        round: 0,
+        score: { correct: 0, total: 0 },
+        question: null,
+        revealed: false,
+        lastAnswerCorrect: null,
+      });
+      return;
+    }
+
+    if (game.phase !== 'revealed') return;
+    if (game.rounds !== null && game.round >= game.rounds) {
+      broadcastWheel({ ...game, phase: 'over' });
+      return;
+    }
+
+    broadcastWheel({
+      ...game,
+      phase: 'idle',
+      picked: null,
+      question: null,
+      revealed: false,
+      lastAnswerCorrect: null,
+    });
+  }, [broadcastWheel]);
+
+  const endWheel = useCallback(() => {
+    if (wheelSpinTimerRef.current) {
+      window.clearTimeout(wheelSpinTimerRef.current);
+      wheelSpinTimerRef.current = null;
+    }
+    broadcast({ type: 'gameEnd' });
+    resetWarmupState();
+    sendCurrentSlide();
+  }, [broadcast, resetWarmupState, sendCurrentSlide]);
+
+  useEffect(() => {
+    if (wheelSpinRequest === 0) return;
+    spinWheel();
+  }, [wheelSpinRequest, spinWheel]);
+
+  const toggleWheelCategory = (category: ClassicCategoryId) => {
+    setWheelCategories((current) =>
+      current.includes(category)
+        ? current.filter((item) => item !== category)
+        : [...current, category]
+    );
+  };
+
   useEffect(() => {
     if (!quizModalOpen && warmupModal === 'none') return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1392,9 +1637,11 @@ export default function AulaPage() {
               <h2 id="aula-warmup-title" className="mt-1 text-2xl font-black leading-tight">
                 {warmupModal === 'live'
                   ? 'Live na TV'
-                  : warmupModal === 'd20'
-                    ? 'D20 na TV'
-                    : 'Competição na TV'}
+                  : warmupModal === 'wheel'
+                    ? 'Roleta na TV'
+                    : warmupModal === 'd20'
+                      ? 'D20 na TV'
+                      : 'Competição na TV'}
               </h2>
             </div>
             <button
@@ -1490,6 +1737,95 @@ export default function AulaPage() {
               >
                 <Radio className="h-5 w-5" aria-hidden="true" />
                 Abrir Live na TV
+              </button>
+            </>
+          ) : warmupModal === 'wheel' ? (
+            <>
+              <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
+                A roleta fica na TV e gira com clique nela. Configure os temas e o número de
+                rodadas; vazio = infinito.
+              </p>
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Temas ({wheelCategories.length})
+                </legend>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {CLASSIC_CATEGORIES.map((category) => {
+                    const active = wheelCategories.includes(category.id);
+                    return (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() => toggleWheelCategory(category.id)}
+                        aria-pressed={active}
+                        className={
+                          active
+                            ? 'rounded-full border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-1.5 text-xs font-black text-[var(--accent)]'
+                            : 'rounded-full border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1.5 text-xs font-bold text-[var(--muted)]'
+                        }
+                      >
+                        {categoryCopy(category.id, 'pt').label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setWheelCategories(CLASSIC_ALL_CATEGORIES)}
+                    className="rounded-full border-2 border-dashed border-[var(--line)] px-3 py-1.5 text-xs font-black text-[var(--muted)]"
+                  >
+                    Todos
+                  </button>
+                </div>
+              </fieldset>
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Dificuldade
+                </legend>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {(['easy', 'medium', 'hard'] as DifficultyId[]).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setWheelDifficulty(value)}
+                      aria-pressed={wheelDifficulty === value}
+                      className={
+                        wheelDifficulty === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2.5 text-sm font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2.5 text-sm font-black text-[var(--muted)]'
+                      }
+                    >
+                      {value === 'easy' ? 'Fácil' : value === 'medium' ? 'Médio' : 'Difícil'}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <label className="mt-4 flex flex-col gap-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                Rodadas
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={wheelRoundsInput}
+                  onChange={(event) => setWheelRoundsInput(event.target.value)}
+                  placeholder="∞ (infinito)"
+                  className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-sm font-bold text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+                />
+                <span className="text-[10px] font-semibold normal-case tracking-normal">
+                  Deixe vazio para jogar até você encerrar.
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={startWheelWarmup}
+                disabled={wheelCategories.length === 0}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] disabled:opacity-50"
+              >
+                <Dices className="h-5 w-5" aria-hidden="true" />
+                Iniciar roleta na TV
               </button>
             </>
           ) : warmupModal === 'd20' ? (
@@ -2034,6 +2370,16 @@ export default function AulaPage() {
             </div>
           ) : null}
 
+          {warmup === 'wheel' && wheelGame ? (
+            <WheelControl
+              state={wheelGame}
+              onSpin={spinWheel}
+              onAnswer={answerWheel}
+              onNext={nextWheel}
+              onEnd={endWheel}
+            />
+          ) : null}
+
           {warmup === 'comp' && compMessage ? (
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--accent-2)] bg-[var(--surface)] px-4 py-3">
               <span className="min-w-0 text-sm font-black text-[var(--ink)]">
@@ -2339,6 +2685,16 @@ export default function AulaPage() {
               </div>
             </div>
           </div>
+        ) : null}
+
+        {warmup === 'wheel' && wheelGame ? (
+          <WheelControl
+            state={wheelGame}
+            onSpin={spinWheel}
+            onAnswer={answerWheel}
+            onNext={nextWheel}
+            onEnd={endWheel}
+          />
         ) : null}
 
         {warmup === 'comp' && compMessage ? (

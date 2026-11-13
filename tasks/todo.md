@@ -56,8 +56,8 @@
 - [x] F6-05 Aula dada somente leitura
 
 ## F7 — Jogos
-- [ ] F7-01 Protocolo + GameStage
-- [ ] F7-02 Roleta (clique na /tela, rodadas)
+- [x] F7-01 Protocolo + GameStage (Roleta; D20/Competição/Live a seguir)
+- [x] F7-02 Roleta (clique na /tela, rodadas)
 - [ ] F7-03 Passa Repassa
 - [ ] F7-04 D20 completo
 - [ ] F7-05 Competição completa
