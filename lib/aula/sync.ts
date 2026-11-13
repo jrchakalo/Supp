@@ -1,6 +1,7 @@
 import { getSupabaseClient } from '../live/supabase';
 import type { Slide } from '../passaporte-lessons';
 import type {
+  D20GameMessage,
   PassaGameMessage,
   WheelCommandMessage,
   WheelEndMessage,
@@ -169,6 +170,7 @@ export type AulaMessage =
   | AulaWarmupEndMessage
   | WheelGameMessage
   | PassaGameMessage
+  | D20GameMessage
   | WheelCommandMessage
   | WheelEndMessage;
 

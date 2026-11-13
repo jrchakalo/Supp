@@ -59,7 +59,7 @@
 - [x] F7-01 Protocolo + GameStage (Roleta e Passa; D20/Competição/Live a seguir)
 - [x] F7-02 Roleta (clique na /tela, rodadas)
 - [x] F7-03 Passa Repassa
-- [ ] F7-04 D20 completo
+- [x] F7-04 D20 completo
 - [ ] F7-05 Competição completa
 - [ ] F7-06 Live embutido
 - [ ] F7-07 Polimento de animações

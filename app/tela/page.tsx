@@ -16,7 +16,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import SlideView from '@/components/aula/SlideView';
 import WheelStage from '@/components/game/WheelStage';
 import PassaStage from '@/components/game/PassaStage';
-import type { PassaGameState, WheelGameState } from '@/lib/aula/games';
+import D20Stage from '@/components/game/D20Stage';
+import type { D20GameState, PassaGameState, WheelGameState } from '@/lib/aula/games';
 import type { Slide } from '@/lib/passaporte-lessons';
 import { ANSWER_BUTTONS, sanitizeRoomCode } from '@/lib/live/room';
 import {
@@ -728,6 +729,7 @@ export default function TvPage() {
   const [compRanking, setCompRanking] = useState<AulaCompScore[] | null>(null);
   const [wheelGame, setWheelGame] = useState<WheelGameState | null>(null);
   const [passaGame, setPassaGame] = useState<PassaGameState | null>(null);
+  const [d20Game, setD20Game] = useState<D20GameState | null>(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -794,6 +796,7 @@ export default function TvPage() {
     setCompRanking(null);
     setWheelGame(null);
     setPassaGame(null);
+    setD20Game(null);
   }, []);
 
   /** Marks the teacher as online and cancels a pending offline timer. */
@@ -850,7 +853,10 @@ export default function TvPage() {
         return;
       }
 
-      if (message.type === 'game' && (message.game === 'wheel' || message.game === 'passa')) {
+      if (
+        message.type === 'game' &&
+        (message.game === 'wheel' || message.game === 'passa' || message.game === 'd20')
+      ) {
         clearSavedQuizState();
         clearSavedTelaState();
         quizRoomRef.current = null;
@@ -859,7 +865,8 @@ export default function TvPage() {
         warmupRef.current = message.game;
         setWarmup(message.game);
         if (message.game === 'wheel') setWheelGame(message.state);
-        else setPassaGame(message.state);
+        else if (message.game === 'passa') setPassaGame(message.state);
+        else setD20Game(message.state);
         welcomeRef.current = false;
         setLongEnter(false);
         setWelcome(false);
@@ -1402,6 +1409,8 @@ export default function TvPage() {
               })
             }
           />
+        ) : warmup === 'd20' && d20Game ? (
+          <D20Stage state={d20Game} />
         ) : warmup === 'd20' && d20 ? (
           <D20Spectator message={d20} revealed={d20Revealed} />
         ) : warmup === 'comp' && comp ? (

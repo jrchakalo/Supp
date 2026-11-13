@@ -72,3 +72,31 @@ export type PassaGameMessage = {
   seq: number;
   state: PassaGameState;
 };
+
+export type D20Question = {
+  id: string;
+  text: string;
+  answer: boolean;
+  explanation?: string;
+};
+
+export type D20GameState = {
+  seq: number;
+  phase: 'board' | 'question' | 'revealed' | 'over';
+  number: number | null;
+  question: D20Question | null;
+  revealed: boolean;
+  lastAnswerCorrect: boolean | null;
+  score: { correct: number; total: number };
+  streak: number;
+  bestStreak: number;
+  round: number;
+  maxRounds: number;
+};
+
+export type D20GameMessage = {
+  type: 'game';
+  game: 'd20';
+  seq: number;
+  state: D20GameState;
+};
