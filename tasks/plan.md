@@ -36,5 +36,7 @@
 - [ ] **F6** Editor de slides/blocos, modal local/global, versões, aula dada somente leitura
 - [ ] **F7** Roleta (clique na `/tela`, rodadas), Passa, D20, Competição, Live embutido, docs de jogos
 - [ ] **F8** E2E, unitários, performance, segurança, ensaio real, release, histórico git/docs
+- [ ] **F9 (pós-lançamento)** Criação em massa de todas as aulas de todas as turmas, depois que a
+  plataforma estiver pronta (não faz parte da construção da ferramenta)
 
 Detalhes de aceite/verificação/arquivos: `03-PLANO-E-BACKLOG.md` (local).

@@ -73,3 +73,6 @@
 - [ ] F8-05 Ensaio real
 - [ ] F8-06 Release
 - [ ] F8-07 Histórico git e documentação final
+
+## F9 — Pós-lançamento
+- [ ] F9-01 Criação em massa de todas as aulas de todas as turmas (depois da plataforma pronta)
