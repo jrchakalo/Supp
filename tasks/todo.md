@@ -75,4 +75,5 @@
 - [x] F8-07 Histórico git e documentação final
 
 ## F9 — Pós-lançamento
-- [ ] F9-01 Criação em massa de todas as aulas de todas as turmas (depois da plataforma pronta)
+- [x] F9-01 Próxima aula criada e vinculada para as 16 turmas (10 novas + 6 existentes; decks e revisão técnica)
+- [ ] F9-02 Revisão humana do conteúdo e produção das semanas seguintes

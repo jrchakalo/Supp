@@ -1,4 +1,5 @@
 import type { LiveQuestion } from './types';
+import { EXTRA_DECKS } from './passaporte-decks-extra';
 
 /**
  * Baralhos do projeto Passaporte (conteúdo de aula).
@@ -504,4 +505,5 @@ export const PASSAPORTE_DECKS: Record<string, PassaporteDeck> = {
       { id: 'p1a2-10', tier: 1, text: 'KWL significa...', options: ['Know, Want, Learn', 'Kids, Work, Life', 'Keep, Write, Listen', 'Know, Walk, Look'], correctIndex: 0, explanation: 'Saber, querer aprender, aprender.' },
     ],
   },
+  ...EXTRA_DECKS,
 };
