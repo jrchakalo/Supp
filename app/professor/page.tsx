@@ -46,7 +46,9 @@ import { CLASSIC_ALL_CATEGORIES, getClassicDeck } from '@/lib/classic-questions'
 import type { ClassicCategoryId, DifficultyId } from '@/lib/types';
 import type { WheelGameState } from '@/lib/aula/games';
 import WheelControl from '@/components/game/WheelControl';
-import { randomRoomCode, sanitizeRoomCode } from '@/lib/live/room';
+import { getLiveDeck, prepareQuestion, randomRoomCode, sanitizeRoomCode } from '@/lib/live/room';
+import type { PassaGameState, PassaQuestion } from '@/lib/aula/games';
+import PassaControl from '@/components/game/PassaControl';
 import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
 import {
   AULA_GATE_STORAGE,
@@ -191,7 +193,7 @@ function ConnectionPill({
   );
 }
 
-type WarmupKind = 'none' | 'live' | 'd20' | 'comp' | 'wheel';
+type WarmupKind = 'none' | 'live' | 'd20' | 'comp' | 'wheel' | 'passa';
 
 const WARMUP_ITEMS: {
   id: Exclude<WarmupKind, 'none'>;
@@ -203,6 +205,7 @@ const WARMUP_ITEMS: {
   { id: 'comp', label: 'Competição', description: 'Torneio da turma', Icon: Trophy },
   { id: 'd20', label: 'D20', description: 'Dado de perguntas', Icon: Dices },
   { id: 'wheel', label: 'Roleta', description: 'Roleta na TV', Icon: Dices },
+  { id: 'passa', label: 'Passa Repassa', description: 'Times na TV', Icon: Trophy },
 ];
 
 /** Live warm-up theme labels (the id maps to the classic categories). */
@@ -264,18 +267,6 @@ function WarmupBar({
             </button>
           );
         })}
-
-        <div className="flex flex-wrap items-center gap-2 border-l-2 border-[var(--line)] pl-3">
-          <a
-            href="/?screen=passa"
-            target="_blank"
-            rel="noreferrer"
-            title="Passa Repassa — abre na tela do professor"
-            className="flex items-center gap-2 rounded-xl border-2 border-dashed border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          >
-            Passa Repassa
-          </a>
-        </div>
       </div>
     </section>
   );
@@ -423,6 +414,11 @@ export default function AulaPage() {
   const [wheelDifficulty, setWheelDifficulty] = useState<DifficultyId>('medium');
   const [wheelRoundsInput, setWheelRoundsInput] = useState('');
   const [wheelSpinRequest, setWheelSpinRequest] = useState(0);
+  const [passaGame, setPassaGame] = useState<PassaGameState | null>(null);
+  const [passaTeam1, setPassaTeam1] = useState('Time 1');
+  const [passaTeam2, setPassaTeam2] = useState('Time 2');
+  const [passaTarget, setPassaTarget] = useState<5 | 10 | 15>(5);
+  const [passaDifficulty, setPassaDifficulty] = useState<DifficultyId>('medium');
 
   const channelRef = useRef<AulaChannel | null>(null);
   const sessionRestoredRef = useRef(false);
@@ -448,6 +444,8 @@ export default function AulaPage() {
   const wheelGameRef = useRef<WheelGameState | null>(null);
   const wheelUsedRef = useRef<Set<string>>(new Set());
   const wheelSpinTimerRef = useRef<number | null>(null);
+  const passaGameRef = useRef<PassaGameState | null>(null);
+  const passaUsedRef = useRef<Set<string>>(new Set());
   const teacherPresenceIdRef = useRef('');
 
   useEffect(() => {
@@ -466,6 +464,7 @@ export default function AulaPage() {
     compMessageRef.current = compMessage;
     compRankingRef.current = compRanking;
     wheelGameRef.current = wheelGame;
+    passaGameRef.current = passaGame;
   }, [
     activeLesson,
     beatIndex,
@@ -482,6 +481,7 @@ export default function AulaPage() {
     quizIndex,
     warmup,
     wheelGame,
+    passaGame,
   ]);
 
   /* ------------------------------------------------------------------ */
@@ -543,6 +543,7 @@ export default function AulaPage() {
         phase?: unknown;
         images?: unknown;
         wheel?: unknown;
+        passa?: unknown;
       };
       if (typeof parsed.lessonId !== 'string' || typeof parsed.code !== 'string') return;
 
@@ -561,14 +562,20 @@ export default function AulaPage() {
         parsed.wheel && typeof parsed.wheel === 'object'
           ? (parsed.wheel as WheelGameState)
           : null;
-      /* Only Live and the wheel can be restored: D20/competition carry a live
-         question that lives in memory, so they simply start over. */
+      const savedPassa =
+        parsed.passa && typeof parsed.passa === 'object'
+          ? (parsed.passa as PassaGameState)
+          : null;
+      /* Only Live, the wheel and Passa can be restored: D20/competition carry
+         a live question that lives in memory, so they simply start over. */
       const savedWarmup: WarmupKind =
-        parsed.warmup === 'wheel' && savedWheel
-          ? 'wheel'
-          : parsed.warmup === 'live' && savedQuiz
-            ? 'live'
-            : 'none';
+        parsed.warmup === 'passa' && savedPassa
+          ? 'passa'
+          : parsed.warmup === 'wheel' && savedWheel
+            ? 'wheel'
+            : parsed.warmup === 'live' && savedQuiz
+              ? 'live'
+              : 'none';
       const savedHostUrl = typeof parsed.hostUrl === 'string' ? parsed.hostUrl : '';
       /* Sessions saved before the welcome screen existed default to live. */
       const savedPhase: AulaPhase = parsed.phase === 'welcome' ? 'welcome' : 'live';
@@ -607,6 +614,12 @@ export default function AulaPage() {
         setWheelGame(restored);
         setWarmup('wheel');
         warmupRef.current = 'wheel';
+      }
+      if (savedWarmup === 'passa' && savedPassa) {
+        passaGameRef.current = savedPassa;
+        setPassaGame(savedPassa);
+        setWarmup('passa');
+        warmupRef.current = 'passa';
       }
       if (savedQuiz) {
         setLiveQuizCode(savedQuiz);
@@ -652,6 +665,7 @@ export default function AulaPage() {
         phase,
         images: imageUrls,
         wheel: wheelGame,
+        passa: passaGame,
       })
     );
   }, [
@@ -664,6 +678,7 @@ export default function AulaPage() {
     phase,
     imageUrls,
     wheelGame,
+    passaGame,
   ]);
 
   useEffect(() => {
@@ -681,6 +696,18 @@ export default function AulaPage() {
 
       /* A warm-up/game owns the projector even during the welcome screen: a
          TV that just reconnected must land on the game, not on welcome. */
+      if (warmupRef.current === 'passa') {
+        const game = passaGameRef.current;
+        if (game) {
+          channelRef.current?.send({
+            type: 'game',
+            game: 'passa',
+            seq: game.seq,
+            state: game,
+          });
+        }
+        return;
+      }
       if (warmupRef.current === 'wheel') {
         const game = wheelGameRef.current;
         if (game) {
@@ -868,6 +895,9 @@ export default function AulaPage() {
     wheelGameRef.current = null;
     setWheelGame(null);
     wheelUsedRef.current.clear();
+    passaGameRef.current = null;
+    setPassaGame(null);
+    passaUsedRef.current.clear();
     liveQuizRef.current = null;
     setLiveQuizCode(null);
     setHostUrl('');
@@ -1600,6 +1630,213 @@ export default function AulaPage() {
     );
   };
 
+  /* ------------------------------------------------------------------ */
+  /* Passa Repassa no palco único                                        */
+  /* ------------------------------------------------------------------ */
+
+  const broadcastPassa = useCallback(
+    (state: PassaGameState) => {
+      const seq = (passaGameRef.current?.seq ?? 0) + 1;
+      const next = { ...state, seq };
+      passaGameRef.current = next;
+      setPassaGame(next);
+      broadcast({ type: 'game', game: 'passa', seq, state: next });
+    },
+    [broadcast]
+  );
+
+  const drawPassaQuestion = useCallback((): PassaQuestion | null => {
+    const deck = getLiveDeck('classic', passaDifficulty, CLASSIC_ALL_CATEGORIES);
+    const fresh = deck.filter((item) => !passaUsedRef.current.has(item.id));
+    const pool = fresh.length > 0 ? fresh : deck;
+    if (pool.length === 0) return null;
+
+    const raw = pool[Math.floor(Math.random() * pool.length)];
+    passaUsedRef.current.add(raw.id);
+    const prepared = prepareQuestion(raw);
+    return {
+      id: raw.id,
+      text: prepared.text,
+      options: prepared.options,
+      correctIndex: prepared.correctIndex,
+      explanation: raw.explanation,
+      category: raw.category,
+    };
+  }, [passaDifficulty]);
+
+  const startPassaWarmup = useCallback(() => {
+    if (warmupRef.current === 'live' || liveQuizRef.current) {
+      broadcast({ type: 'quizEnd' });
+    } else if (warmupRef.current !== 'none') {
+      broadcast({ type: 'warmupEnd' });
+    }
+    resetWarmupState();
+    passaUsedRef.current.clear();
+
+    const team1 = passaTeam1.trim() || 'Time 1';
+    const team2 = passaTeam2.trim() || 'Time 2';
+    const question = drawPassaQuestion();
+    const teams: [string, string] = [team1, team2];
+
+    warmupRef.current = 'passa';
+    setWarmup('passa');
+    setWarmupModal('none');
+    broadcastPassa({
+      seq: 1,
+      phase: question ? 'question' : 'over',
+      teams,
+      scores: [0, 0],
+      activeTeam: 0,
+      starter: 0,
+      target: passaTarget,
+      round: question ? 1 : 0,
+      question,
+      chosenIndex: null,
+      revealed: false,
+      lastResult: null,
+      deadline: question ? Date.now() + 20_000 : null,
+      winner: null,
+    });
+  }, [broadcast, broadcastPassa, drawPassaQuestion, passaTarget, passaTeam1, passaTeam2, resetWarmupState]);
+
+  const answerPassa = useCallback(
+    (optionIndex: number) => {
+      const game = passaGameRef.current;
+      if (!game || !game.question) return;
+      if (game.phase !== 'question' && game.phase !== 'steal') return;
+
+      const correct = optionIndex === game.question.correctIndex;
+      if (correct) {
+        const scores: [number, number] = [game.scores[0], game.scores[1]];
+        scores[game.activeTeam] += 1;
+        broadcastPassa({
+          ...game,
+          scores,
+          phase: 'reveal',
+          chosenIndex: optionIndex,
+          revealed: true,
+          deadline: null,
+          lastResult: {
+            team: game.activeTeam,
+            stolen: game.phase === 'steal',
+            correct: true,
+          },
+          winner: scores[game.activeTeam] >= game.target ? game.activeTeam : null,
+        });
+        return;
+      }
+
+      if (game.phase === 'question') {
+        broadcastPassa({
+          ...game,
+          phase: 'steal',
+          activeTeam: game.activeTeam === 0 ? 1 : 0,
+          chosenIndex: null,
+          revealed: false,
+          deadline: Date.now() + 20_000,
+          lastResult: null,
+        });
+        return;
+      }
+
+      broadcastPassa({
+        ...game,
+        phase: 'reveal',
+        chosenIndex: optionIndex,
+        revealed: true,
+        deadline: null,
+        lastResult: { team: null, stolen: false, correct: false },
+      });
+    },
+    [broadcastPassa]
+  );
+
+  const nextPassa = useCallback(() => {
+    const game = passaGameRef.current;
+    if (!game || game.phase !== 'reveal') return;
+    if (game.winner !== null) {
+      broadcastPassa({ ...game, phase: 'over', deadline: null });
+      return;
+    }
+
+    const nextStarter: 0 | 1 = game.starter === 0 ? 1 : 0;
+    const question = drawPassaQuestion();
+    if (!question) {
+      broadcastPassa({ ...game, phase: 'over', starter: nextStarter, deadline: null });
+      return;
+    }
+    broadcastPassa({
+      ...game,
+      phase: 'question',
+      starter: nextStarter,
+      activeTeam: nextStarter,
+      round: game.round + 1,
+      question,
+      chosenIndex: null,
+      revealed: false,
+      lastResult: null,
+      deadline: Date.now() + 20_000,
+    });
+  }, [broadcastPassa, drawPassaQuestion]);
+
+  const newPassa = useCallback(() => {
+    const game = passaGameRef.current;
+    if (!game) return;
+    passaUsedRef.current.clear();
+    const question = drawPassaQuestion();
+    broadcastPassa({
+      ...game,
+      phase: question ? 'question' : 'over',
+      scores: [0, 0],
+      activeTeam: 0,
+      starter: 0,
+      round: question ? 1 : 0,
+      question,
+      chosenIndex: null,
+      revealed: false,
+      lastResult: null,
+      deadline: question ? Date.now() + 20_000 : null,
+      winner: null,
+    });
+  }, [broadcastPassa, drawPassaQuestion]);
+
+  const endPassa = useCallback(() => {
+    broadcast({ type: 'gameEnd' });
+    resetWarmupState();
+    sendCurrentSlide();
+  }, [broadcast, resetWarmupState, sendCurrentSlide]);
+
+  useEffect(() => {
+    if (!passaGame || !passaGame.deadline) return;
+    if (passaGame.phase !== 'question' && passaGame.phase !== 'steal') return;
+    const delay = Math.max(0, passaGame.deadline - Date.now());
+    const timer = window.setTimeout(() => {
+      const current = passaGameRef.current;
+      if (!current || !current.deadline) return;
+      if (current.phase === 'question') {
+        broadcastPassa({
+          ...current,
+          phase: 'steal',
+          activeTeam: current.activeTeam === 0 ? 1 : 0,
+          chosenIndex: null,
+          revealed: false,
+          deadline: Date.now() + 20_000,
+          lastResult: null,
+        });
+      } else if (current.phase === 'steal') {
+        broadcastPassa({
+          ...current,
+          phase: 'reveal',
+          chosenIndex: null,
+          revealed: true,
+          deadline: null,
+          lastResult: { team: null, stolen: false, correct: false },
+        });
+      }
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [passaGame, broadcastPassa]);
+
   useEffect(() => {
     if (!quizModalOpen && warmupModal === 'none') return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1639,9 +1876,11 @@ export default function AulaPage() {
                   ? 'Live na TV'
                   : warmupModal === 'wheel'
                     ? 'Roleta na TV'
-                    : warmupModal === 'd20'
-                      ? 'D20 na TV'
-                      : 'Competição na TV'}
+                    : warmupModal === 'passa'
+                      ? 'Passa Repassa na TV'
+                      : warmupModal === 'd20'
+                        ? 'D20 na TV'
+                        : 'Competição na TV'}
               </h2>
             </div>
             <button
@@ -1737,6 +1976,87 @@ export default function AulaPage() {
               >
                 <Radio className="h-5 w-5" aria-hidden="true" />
                 Abrir Live na TV
+              </button>
+            </>
+          ) : warmupModal === 'passa' ? (
+            <>
+              <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
+                Dois times, 20 segundos por turno e repasse em caso de erro. O telão mostra a
+                pergunta e o placar; você marca a opção escolhida pelo time.
+              </p>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Time 1
+                  <input
+                    value={passaTeam1}
+                    onChange={(event) => setPassaTeam1(event.target.value)}
+                    className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-sm font-bold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Time 2
+                  <input
+                    value={passaTeam2}
+                    onChange={(event) => setPassaTeam2(event.target.value)}
+                    className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-sm font-bold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+                  />
+                </label>
+              </div>
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Meta de pontos
+                </legend>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {([5, 10, 15] as const).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setPassaTarget(value)}
+                      aria-pressed={passaTarget === value}
+                      className={
+                        passaTarget === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2.5 text-sm font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2.5 text-sm font-black text-[var(--muted)]'
+                      }
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Dificuldade
+                </legend>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {(['easy', 'medium', 'hard'] as DifficultyId[]).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setPassaDifficulty(value)}
+                      aria-pressed={passaDifficulty === value}
+                      className={
+                        passaDifficulty === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2.5 text-sm font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2.5 text-sm font-black text-[var(--muted)]'
+                      }
+                    >
+                      {value === 'easy' ? 'Fácil' : value === 'medium' ? 'Médio' : 'Difícil'}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <button
+                type="button"
+                onClick={startPassaWarmup}
+                className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)]"
+              >
+                <Trophy className="h-5 w-5" aria-hidden="true" />
+                Iniciar Passa Repassa
               </button>
             </>
           ) : warmupModal === 'wheel' ? (
@@ -2370,6 +2690,16 @@ export default function AulaPage() {
             </div>
           ) : null}
 
+          {warmup === 'passa' && passaGame ? (
+            <PassaControl
+              state={passaGame}
+              onAnswer={answerPassa}
+              onNext={nextPassa}
+              onNew={newPassa}
+              onEnd={endPassa}
+            />
+          ) : null}
+
           {warmup === 'wheel' && wheelGame ? (
             <WheelControl
               state={wheelGame}
@@ -2685,6 +3015,16 @@ export default function AulaPage() {
               </div>
             </div>
           </div>
+        ) : null}
+
+        {warmup === 'passa' && passaGame ? (
+          <PassaControl
+            state={passaGame}
+            onAnswer={answerPassa}
+            onNext={nextPassa}
+            onNew={newPassa}
+            onEnd={endPassa}
+          />
         ) : null}
 
         {warmup === 'wheel' && wheelGame ? (

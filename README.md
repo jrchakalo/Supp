@@ -226,10 +226,12 @@ O professor usa **`/professor`** no notebook e **`/tela`** na TV. Já disponíve
   somente leitura.
 - **Roleta no palco único**: clique na roleta da `/tela`, rodadas (∞ por padrão), pergunta T/F,
   placar e recuperação de F5.
+- **Passa Repassa no palco único**: dois times, meta de pontos, timer de 20 s, roubo, placar,
+  animações e recuperação de F5.
 
 Em implementação nas próximas fases:
 
-- Passa Repassa, D20, Competição e Live no palco único da `/tela`, sem segunda aba.
+- D20, Competição e Live no palco único da `/tela`, sem segunda aba.
 
 Tecnicamente, o cockpit usa **Supabase Realtime** para sincronizar notebook e telão, heartbeat e
 snapshot local para resiliência, e um modelo de **conteúdo canônico + ocorrência + snapshot +

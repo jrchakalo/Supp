@@ -15,7 +15,8 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import SlideView from '@/components/aula/SlideView';
 import WheelStage from '@/components/game/WheelStage';
-import type { WheelGameState } from '@/lib/aula/games';
+import PassaStage from '@/components/game/PassaStage';
+import type { PassaGameState, WheelGameState } from '@/lib/aula/games';
 import type { Slide } from '@/lib/passaporte-lessons';
 import { ANSWER_BUTTONS, sanitizeRoomCode } from '@/lib/live/room';
 import {
@@ -498,7 +499,7 @@ function LiveSpectator({
   );
 }
 
-type WarmupOverlay = 'none' | 'd20' | 'comp' | 'wheel';
+type WarmupOverlay = 'none' | 'd20' | 'comp' | 'wheel' | 'passa';
 
 /** Warm-up D20: statement first, TRUE/FALSE + explanation after the reveal. */
 function D20Spectator({
@@ -726,6 +727,7 @@ export default function TvPage() {
   const [comp, setComp] = useState<AulaCompMessage | null>(null);
   const [compRanking, setCompRanking] = useState<AulaCompScore[] | null>(null);
   const [wheelGame, setWheelGame] = useState<WheelGameState | null>(null);
+  const [passaGame, setPassaGame] = useState<PassaGameState | null>(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -791,6 +793,7 @@ export default function TvPage() {
     setComp(null);
     setCompRanking(null);
     setWheelGame(null);
+    setPassaGame(null);
   }, []);
 
   /** Marks the teacher as online and cancels a pending offline timer. */
@@ -847,15 +850,16 @@ export default function TvPage() {
         return;
       }
 
-      if (message.type === 'game' && message.game === 'wheel') {
+      if (message.type === 'game' && (message.game === 'wheel' || message.game === 'passa')) {
         clearSavedQuizState();
         clearSavedTelaState();
         quizRoomRef.current = null;
         setQuizRoom(null);
         forgetLive();
-        warmupRef.current = 'wheel';
-        setWarmup('wheel');
-        setWheelGame(message.state);
+        warmupRef.current = message.game;
+        setWarmup(message.game);
+        if (message.game === 'wheel') setWheelGame(message.state);
+        else setPassaGame(message.state);
         welcomeRef.current = false;
         setLongEnter(false);
         setWelcome(false);
@@ -1384,6 +1388,8 @@ export default function TvPage() {
               </p>
             </section>
           </div>
+        ) : warmup === 'passa' && passaGame ? (
+          <PassaStage state={passaGame} />
         ) : warmup === 'wheel' && wheelGame ? (
           <WheelStage
             state={wheelGame}
@@ -1469,6 +1475,9 @@ export default function TvPage() {
           ) : null}
           {warmup === 'wheel' ? (
             <span className="ml-2 text-[var(--accent)]">· roleta</span>
+          ) : null}
+          {warmup === 'passa' ? (
+            <span className="ml-2 text-[var(--accent)]">· passa repassa</span>
           ) : null}
           {warmup === 'comp' ? (
             <span className="ml-2 text-[var(--accent)]">· competição</span>

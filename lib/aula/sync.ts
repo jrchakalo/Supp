@@ -1,6 +1,11 @@
 import { getSupabaseClient } from '../live/supabase';
 import type { Slide } from '../passaporte-lessons';
-import type { WheelCommandMessage, WheelEndMessage, WheelGameMessage } from './games';
+import type {
+  PassaGameMessage,
+  WheelCommandMessage,
+  WheelEndMessage,
+  WheelGameMessage,
+} from './games';
 
 /**
  * Realtime link between the teacher screen (`/professor`) and the projector
@@ -163,6 +168,7 @@ export type AulaMessage =
   | AulaCompEndMessage
   | AulaWarmupEndMessage
   | WheelGameMessage
+  | PassaGameMessage
   | WheelCommandMessage
   | WheelEndMessage;
 
