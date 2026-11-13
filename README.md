@@ -206,21 +206,27 @@ com **52 perguntas por tema padrão** e o **Anime com 84**:
 - `npm run start` — servidor de produção.
 - `npm run lint` — ESLint.
 
-## Cockpit do professor (planejamento 2026-11)
+## Cockpit do professor
 
-O módulo de aulas evolui para o cockpit diário do professor:
+O professor usa **`/professor`** no notebook e **`/tela`** na TV. Já disponível:
 
-- **`/professor`** — painel com saudação, agenda da semana, aula agora/próxima, aulas do dia e histórico.
-- **`/tela`** — telão controlado pelo professor, com reconexão automática e jogos completos.
-- **`/professor/biblioteca`** — banco de aulas por disciplina e unit/projeto.
-- **`/professor/historico`** — aulas dadas, class reports e snapshots.
-- **Edição de slides** com escopo **local** (esta aula/turma) ou **global** (todas as aulas do conteúdo);
-  aulas já dadas mantêm o snapshot do que foi ensinado.
-- **Jogos** (Roleta, Passa Repassa, D20, Competição e Live) no palco único da `/tela`, sem segunda aba.
+- Rotas novas com redirects permanentes de `/aula` e `/tv` (query preservada).
+- **Saudação por horário** (madrugada/manhã/tarde/noite) e “Boa aula” quando há aula agora.
+- **Cursor oculto** em todas as telas, visível apenas em campos de digitação; toggle e `Ctrl+Alt+C`.
+- **Código da sessão** sempre visível no `/professor`, com copiar e QR.
+- **Reconexão da `/tela`**: heartbeat de 5 s, código preservado, último slide restaurado no F5 e
+  aviso de “professor desconectado” após 15 s — sem apagar a tela.
 
-Tecnicamente, o cockpit usa **Supabase Realtime** para sincronizar notebook e telão, um modelo de
-**conteúdo canônico + ocorrência + snapshot + overrides**, e sincronização server-side de turmas e
-relatórios. As rotas antigas `/aula` e `/tv` continuam funcionando por redirect.
+Em implementação nas próximas fases:
+
+- Agenda semanal, aula agora/próxima, aulas do dia e histórico.
+- Biblioteca por disciplina/unit e edição de slides com escopo **local** (esta aula/turma) ou
+  **global** (todas as aulas do conteúdo); aulas já dadas mantêm o snapshot.
+- Jogos (Roleta, Passa Repassa, D20, Competição e Live) no palco único da `/tela`, sem segunda aba.
+
+Tecnicamente, o cockpit usa **Supabase Realtime** para sincronizar notebook e telão, heartbeat e
+snapshot local para resiliência, e um modelo de **conteúdo canônico + ocorrência + snapshot +
+overrides** para separar biblioteca de aulas dadas.
 
 As regras de arquitetura, dados, git e execução com IA estão em [`AGENTS.md`](AGENTS.md) e
 [`CONTRIBUTING.md`](CONTRIBUTING.md).
@@ -232,6 +238,8 @@ app/
   page.tsx                  Menu, eventos, D20, roleta, competição, passa ou repassa e orquestração das telas
   host/page.tsx             Sala ao vivo — tela do professor
   join/page.tsx             Sala ao vivo — tela do aluno
+  professor/page.tsx        Cockpit do professor (painel, aulas, sessão)
+  tela/page.tsx             Telão controlado pelo professor
   globals.css               Tokens de tema claro/escuro e cenário de Halloween
 components/
   D20Setup.tsx              Configuração do modo D20 (temas, dificuldade e idioma)
