@@ -229,10 +229,11 @@ O professor usa **`/professor`** no notebook e **`/tela`** na TV. Já disponíve
 - **Passa Repassa no palco único**: dois times, meta de pontos, timer de 20 s, roubo, placar,
   animações e recuperação de F5.
 - **D20 no palco único**: tabuleiro 4×5, número/rolagem, pergunta T/F, placar, sequência e F5.
+- **Competição no palco único**: alunos, rodadas, pergunta por aluno, placar, pódio e F5.
 
 Em implementação nas próximas fases:
 
-- Competição e Live no palco único da `/tela`, sem segunda aba.
+- Live no palco único da `/tela`, sem segunda aba.
 
 Tecnicamente, o cockpit usa **Supabase Realtime** para sincronizar notebook e telão, heartbeat e
 snapshot local para resiliência, e um modelo de **conteúdo canônico + ocorrência + snapshot +
