@@ -4,8 +4,8 @@ import { PASSAPORTE_DECKS } from '@/lib/passaporte-decks';
 /**
  * The quiz "without phones" runs as a slide deck: every question becomes two
  * slides — the question itself and the answer with the correct option +
- * explanation. `/aula` broadcasts these as `{ type: 'slide', lessonId: 'quiz', slide }`
- * and `/tv` simply renders the slide it receives.
+ * explanation. `/professor` broadcasts these as `{ type: 'slide', lessonId: 'quiz', slide }`
+ * and `/tela` simply renders the slide it receives.
  */
 
 export const QUIZ_LESSON_ID = 'quiz';

@@ -2,12 +2,12 @@ import { getSupabaseClient } from '../live/supabase';
 import type { Slide } from '../passaporte-lessons';
 
 /**
- * Realtime link between the teacher screen (`/aula`) and the projector
- * (`/tv`). It is a plain broadcast channel plus presence: the projector tracks
+ * Realtime link between the teacher screen (`/professor`) and the projector
+ * (`/tela`). It is a plain broadcast channel plus presence: the projector tracks
  * `{ role: 'tv' }` so the teacher knows whether a screen is actually connected.
  *
  * The teacher is the single source of truth: it broadcasts the current slide
- * and the quiz state. A freshly-opened `/tv` says `hello`; the teacher replies
+ * and the quiz state. A freshly-opened `/tela` says `hello`; the teacher replies
  * with `state` (current position) and re-sends the slide, so an F5 or a late
  * join always catches up.
  */
@@ -36,7 +36,7 @@ export type AulaSlideMessage = {
   lessonId: string;
   /** Beat index (lesson) or slide index (quiz presentation). */
   index: number;
-  /** The slide itself, so `/tv` never needs the lesson data to render it. */
+  /** The slide itself, so `/tela` never needs the lesson data to render it. */
   slide: Slide;
   /** Optional scene image for the current beat (e.g. the crime scene). */
   imageUrl?: string;
@@ -59,7 +59,7 @@ export const AULA_WELCOME_FALLBACK: AulaWelcomeContent = {
 /** Pre-class screen: the TV shows the welcome message until the first slide. */
 export type AulaWelcomeMessage = {
   type: 'welcome';
-  /** Lesson welcome copy, so `/tv` does not need the lesson data. */
+  /** Lesson welcome copy, so `/tela` does not need the lesson data. */
   welcome?: AulaWelcomeContent;
 };
 
@@ -74,7 +74,7 @@ export type AulaQuizEndMessage = {
   type: 'quizEnd';
 };
 
-/** The teacher ended the lesson: `/tv` must go back to the connect screen. */
+/** The teacher ended the lesson: `/tela` must go back to the connect screen. */
 export type AulaEndMessage = {
   type: 'end';
 };
@@ -120,7 +120,7 @@ export type AulaCompEndMessage = {
   ranking: AulaCompScore[];
 };
 
-/** Closes a D20/competition overlay so `/tv` accepts slides again. */
+/** Closes a D20/competition overlay so `/tela` accepts slides again. */
 export type AulaWarmupEndMessage = {
   type: 'warmupEnd';
 };
@@ -133,7 +133,7 @@ export type AulaStateMessage = {
   type: 'state';
   lessonId: string;
   index: number;
-  /** The current slide, so a late-joining `/tv` can catch up on its own. */
+  /** The current slide, so a late-joining `/tela` can catch up on its own. */
   slide: Slide;
   /** Scene image for the current beat, when the teacher picked one. */
   imageUrl?: string;

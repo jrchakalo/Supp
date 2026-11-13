@@ -493,7 +493,7 @@ export default function GamePage() {
   }, [hydrated, theme]);
 
   /*
-   * Deep links used by the /aula warm-up bar:
+   * Deep links used by the /professor warm-up bar:
    *   /?screen=competition  → competition (setup first if there is no roster)
    *   /?screen=d20          → d20-setup
    * Without the param nothing changes.

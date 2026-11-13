@@ -1,6 +1,7 @@
 import type {Metadata, Viewport} from 'next';
 import { Fredoka } from 'next/font/google';
 import './globals.css'; // Global styles
+import CursorPolicy from '@/components/CursorPolicy';
 
 const fredoka = Fredoka({ subsets: ['latin'], variable: '--font-fredoka' });
 
@@ -50,7 +51,10 @@ export const viewport: Viewport = {
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="pt-BR" className={fredoka.variable}>
-      <body className="antialiased" suppressHydrationWarning>{children}</body>
+      <body className="antialiased" suppressHydrationWarning>
+        <CursorPolicy />
+        {children}
+      </body>
     </html>
   );
 }

@@ -1,10 +1,10 @@
 import type { LiveQuestion } from './types';
 
 /**
- * Tipos compartilhados entre a tela do professor (`/aula`) e o telão (`/tv`).
+ * Tipos compartilhados entre a tela do professor (`/professor`) e o telão (`/tela`).
  *
  * O conteúdo institucional das aulas NÃO fica no repositório/bundle: ele é
- * carregado em runtime do Supabase por `lib/aula/lessons.ts`.
+ * carregado em runtime do Supabase por `lib/professor/lessons.ts`.
  */
 
 /**

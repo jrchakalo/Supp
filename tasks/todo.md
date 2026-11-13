@@ -12,12 +12,12 @@
 - [x] F0-06 Git, branches, commits e CI
 
 ## F1 — Shell
-- [ ] F1-01 Mover rotas + redirects
-- [ ] F1-02 Atualizar links/QR/textos/robots
-- [ ] F1-03 Saudação por hora (“Júnior”)
-- [ ] F1-04 Cursor global + toggle
-- [ ] F1-05 Navegação e layout
-- [ ] F1-06 Atualizar documentação de rotas
+- [x] F1-01 Mover rotas + redirects
+- [x] F1-02 Atualizar links/QR/textos/robots
+- [x] F1-03 Saudação por hora (“Júnior”)
+- [x] F1-04 Cursor global + toggle
+- [ ] F1-05 Navegação e layout (abas ficam com F4/F5)
+- [x] F1-06 Atualizar documentação de rotas
 
 ## F2 — Session
 - [ ] F2-01 Código sempre visível

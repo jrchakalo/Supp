@@ -1014,7 +1014,7 @@ export default function TvPage() {
       onSubscribed: () => {
         if (!active) return;
         setRealtimeMissing(false);
-        /* Presence is how `/aula` knows the projector is actually open. */
+        /* Presence is how `/professor` knows the projector is actually open. */
         aulaChannelRef.current?.track({ role: 'tv', id: tvPresenceIdRef.current });
         aulaChannelRef.current?.send({ type: 'hello' });
       },
@@ -1242,7 +1242,7 @@ export default function TvPage() {
               </form>
 
               <p className="mt-5 text-[11px] font-semibold text-[var(--muted)]">
-                O professor abre <span className="font-black text-[var(--ink)]">/aula</span> e inicia
+                O professor abre <span className="font-black text-[var(--ink)]">/professor</span> e inicia
                 a aula para gerar este código.
               </p>
             </section>
@@ -1312,7 +1312,7 @@ export default function TvPage() {
 
       <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)] sm:px-5">
         <span>
-          supp.lol · aula{' '}
+          supp.lol · sessão{' '}
           <span className="text-[var(--ink)]">{code || '—'}</span>
           {quizRoom ? <span className="ml-2 text-[var(--accent-2)]">· quiz {quizRoom}</span> : null}
           {warmup === 'd20' ? (
@@ -1330,7 +1330,7 @@ export default function TvPage() {
             ) : (
               <WifiOff className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
             )}
-            <ConnectionPill status={connection} label="aula" />
+            <ConnectionPill status={connection} label="sessão" />
           </span>
           <button
             type="button"
