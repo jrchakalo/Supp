@@ -216,6 +216,8 @@ O professor usa **`/professor`** no notebook e **`/tela`** na TV. Já disponíve
 - **Código da sessão** sempre visível no `/professor`, com copiar e QR.
 - **Reconexão da `/tela`**: heartbeat de 5 s, código preservado, último slide restaurado no F5 e
   aviso de “professor desconectado” após 15 s — sem apagar a tela.
+- **Modelo v2**: conteúdo canônico + ocorrência (turma/data) + snapshot; sync automático de turmas e
+  class reports via rota server-side.
 
 Em implementação nas próximas fases:
 

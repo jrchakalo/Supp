@@ -33,7 +33,7 @@
 - [x] F3-04 Resolver (snapshot/conteúdo; overrides ficam para F6)
 - [x] F3-05 Correção P1 A2 (recap local)
 - [x] F3-06 Leitura v2 no app
-- [ ] F3-07 Documentação de dados
+- [x] F3-07 Documentação de dados
 
 ## F4 — Agenda e dashboard
 - [ ] F4-01 WeekAgenda
