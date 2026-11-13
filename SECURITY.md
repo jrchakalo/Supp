@@ -45,8 +45,10 @@ Out of scope:
 - Security headers are configured in `next.config.ts`: CSP, HSTS,
   `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
   `Permissions-Policy`, COOP and CORP.
-- The Supabase anon key is public by design. The app only uses Realtime
-  broadcast channels and presence; no database tables or service-role keys are
-  used in the browser.
+- The Supabase anon key is public by design. It can read institutional content
+  through RLS (never `pp_reports.raw`). Every write and every report read goes
+  through a server route that requires a signed `httpOnly` professor session.
+- The professor gate issues that session; the client-side flag is only UX.
 - Room codes and nicknames are sanitized and length-limited before broadcast.
-- `npm run build` and `npx tsc --noEmit` are expected to pass before release.
+- `npm run test:unit`, `npx tsc --noEmit` and `npm run build` are expected to
+  pass before release.

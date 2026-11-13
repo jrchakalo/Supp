@@ -14,7 +14,7 @@ type NextClassCardProps = {
   today: string;
   hasLesson: boolean;
   onOpen: () => void;
-  onPlan: () => void;
+  onPlan: (occurrence: AgendaOccurrence) => void;
 };
 
 export default function NextClassCard({
@@ -86,7 +86,7 @@ export default function NextClassCard({
 
         <button
           type="button"
-          onClick={hasLesson ? onOpen : onPlan}
+          onClick={hasLesson ? onOpen : () => onPlan(occurrence)}
           className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-4 py-2.5 text-sm font-black uppercase tracking-wide text-[var(--cta-text)]"
         >
           <Play className="h-4 w-4" aria-hidden="true" />

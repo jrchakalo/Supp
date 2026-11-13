@@ -108,6 +108,8 @@ export type Lesson = {
   classId?: string | null;
   contentId?: string;
   status?: string;
+  /** Persisted room code so a reload/another device keeps the same QR. */
+  sessionCode?: string | null;
 };
 
 export type QuizDeck = { id: string; title: string; questions: LiveQuestion[] };

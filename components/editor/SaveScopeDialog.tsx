@@ -15,7 +15,7 @@ type SaveScopeDialogProps = {
   totalMin: number;
   initialOccurrenceId: string;
   onClose: () => void;
-  onSaved: (scope: 'global' | 'local', version?: number) => void;
+  onSaved: (scope: 'global' | 'local' | 'class', version?: number) => void;
 };
 
 function dateLabel(iso: string): string {
@@ -49,11 +49,15 @@ export default function SaveScopeDialog({
   const givenCount = occurrences.length - editable.length;
   const classById = new Map(classes.map((row) => [row.id, row]));
 
-  const [scope, setScope] = useState<'global' | 'local'>(
+  const [scope, setScope] = useState<'global' | 'local' | 'class'>(
     editable.length > 0 ? (initialOccurrenceId ? 'local' : 'global') : 'global'
   );
+  const initialOccurrence = occurrences.find((row) => row.id === initialOccurrenceId);
   const [occurrenceId, setOccurrenceId] = useState(
     editable.find((row) => row.id === initialOccurrenceId)?.id ?? editable[0]?.id ?? ''
+  );
+  const [classId, setClassId] = useState(
+    initialOccurrence?.class_id ?? classes[0]?.id ?? ''
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -67,11 +71,24 @@ export default function SaveScopeDialog({
         const response = await fetch('/api/editor/occurrence', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ occurrenceId, segments }),
+          body: JSON.stringify({ occurrenceId, contentId: content.id, segments }),
         });
         const payload = (await response.json()) as { error?: string };
         if (!response.ok) throw new Error(payload.error ?? 'Não foi possível salvar.');
         onSaved('local');
+        return;
+      }
+
+      if (scope === 'class') {
+        if (!classId) throw new Error('Escolha a turma que receberá a edição.');
+        const response = await fetch('/api/editor/class', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ contentId: content.id, classId, segments, title, totalMin }),
+        });
+        const payload = (await response.json()) as { error?: string };
+        if (!response.ok) throw new Error(payload.error ?? 'Não foi possível salvar.');
+        onSaved('class');
         return;
       }
 
@@ -170,6 +187,47 @@ export default function SaveScopeDialog({
               <span className="mt-2 block text-[10px] font-bold text-rose-300">
                 Não há aula futura deste conteúdo para edição local.
               </span>
+            ) : null}
+          </label>
+
+          <label
+            className={`block cursor-pointer rounded-2xl border-2 p-3 transition ${
+              scope === 'class'
+                ? 'border-[var(--accent)] bg-[var(--accent)]/10'
+                : 'border-[var(--line-soft)] bg-[var(--surface-2)]'
+            }`}
+          >
+            <span className="flex items-start gap-2">
+              <input
+                type="radio"
+                name="scope"
+                value="class"
+                checked={scope === 'class'}
+                onChange={() => setScope('class')}
+                disabled={classes.length === 0}
+                className="mt-1"
+              />
+              <span>
+                <span className="block text-sm font-black">Sempre nesta turma</span>
+                <span className="block text-[11px] font-semibold text-[var(--muted)]">
+                  Vale para todas as aulas futuras deste conteúdo nesta turma. As outras turmas
+                  e as aulas já dadas não mudam.
+                </span>
+              </span>
+            </span>
+
+            {scope === 'class' ? (
+              <select
+                value={classId}
+                onChange={(event) => setClassId(event.target.value)}
+                className="mt-3 w-full rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-bold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+              >
+                {classes.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.short_code} · {row.name}
+                  </option>
+                ))}
+              </select>
             ) : null}
           </label>
 

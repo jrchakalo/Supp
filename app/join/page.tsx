@@ -337,10 +337,14 @@ export default function JoinPage() {
                 {t('Join a room', 'Entrar na sala')}
               </h1>
 
-              <label className="mt-6 block text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+              <label
+                htmlFor="join-code"
+                className="mt-6 block text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]"
+              >
                 {t('Room code', 'Código da sala')}
               </label>
               <input
+                id="join-code"
                 value={codeInput}
                 onChange={(event) => setCodeInput(event.target.value.toUpperCase())}
                 placeholder={t('Type your code', 'Digite o seu código')}
@@ -350,10 +354,14 @@ export default function JoinPage() {
                 className="mt-1 w-full rounded-2xl border-4 border-[var(--line)] bg-[var(--surface-2)] px-4 py-3 text-center text-2xl font-black tracking-[0.3em] text-[var(--ink)] outline-none"
               />
 
-              <label className="mt-4 block text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+              <label
+                htmlFor="join-name"
+                className="mt-4 block text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]"
+              >
                 {t('Nickname', 'Apelido')}
               </label>
               <input
+                id="join-name"
                 value={nameInput}
                 onChange={(event) => setNameInput(event.target.value.slice(0, 16))}
                 placeholder={t('Your nickname', 'Seu apelido')}

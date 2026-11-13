@@ -164,7 +164,8 @@ com **52 perguntas por tema padrão** e o **Anime com 84**:
 - Headers de segurança em `next.config.ts`: CSP, HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP e CORP.
 - `poweredByHeader: false`.
 - `.env.local` é ignorado pelo Git; só `.env.example` contém placeholders.
-- A chave anon do Supabase é pública por design. O app usa apenas canais broadcast/presence, sem tabelas e sem service-role no navegador.
+- A chave anon do Supabase é pública por design. Ela lê conteúdo institucional via RLS (sem `pp_reports.raw`); escritas passam por rotas server-side autenticadas com cookie assinado.
+- O gate do professor cria uma sessão `httpOnly`; as APIs de edição/ocorrência/histórico rejeitam chamadas sem essa sessão.
 - Códigos de sala e apelidos são sanitizados e limitados antes do broadcast.
 - Política de reporte em [SECURITY.md](SECURITY.md).
 
@@ -185,6 +186,7 @@ com **52 perguntas por tema padrão** e o **Anime com 84**:
 
 - **Jogo local (D20 / Competição):** nenhuma variável é necessária — os baralhos ficam em `lib/`.
 - **Live:** `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` (copie de `.env.example`).
+- **Cockpit server-side:** `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET` e, opcionalmente, `PROFESSOR_GATE_CODE` e `PROFESSOR_SESSION_SECRET` (nunca no cliente).
 
 ### Configuração do Live
 

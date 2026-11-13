@@ -1510,7 +1510,7 @@ export default function TvPage() {
         )}
       </div>
 
-      <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)] sm:px-5">
+      <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-[#0b1020] px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)] sm:px-5">
         <span>
           supp.lol · sessão{' '}
           <span className="text-[var(--ink)]">{code || '—'}</span>

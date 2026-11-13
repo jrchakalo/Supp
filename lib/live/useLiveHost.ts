@@ -59,6 +59,7 @@ type Snapshot = {
   replies: Reply[];
   startedAt: number;
   timeoutMs: number;
+  autoAdvance: boolean;
 };
 
 export type LiveHostOptions = {
@@ -487,7 +488,7 @@ export function useLiveHost(options: LiveHostOptions) {
           setQuestion(snap.question);
           setScoresVersion((version) => version + 1);
           setAnswered(repliesRef.current.length);
-          setAutoAdvance(true);
+          setAutoAdvance(snap.autoAdvance !== false);
 
           if (snap.phase === 'question' && snap.question) {
             const remaining = snap.startedAt + snap.timeoutMs - Date.now();
@@ -608,6 +609,7 @@ export function useLiveHost(options: LiveHostOptions) {
       replies: repliesRef.current,
       startedAt: startedAtRef.current,
       timeoutMs: optionsRef.current.seconds * 1000,
+      autoAdvance,
     };
     writeStorage(STORAGE_NAME, JSON.stringify(snapshot));
   }, [status, code, phase, seq, reveal, answered, autoAdvance, scoresVersion]);

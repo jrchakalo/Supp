@@ -52,8 +52,8 @@ Regras:
 
 - Unitários: `npm run test:unit` (compila funções puras e roda `node:test`).
 - E2E local: com o build servido e o Chrome em `--remote-debugging-port=9222`,
-  rode `E2E_BASE_URL=http://localhost:3000 npm run test:e2e`.
-  O smoke cobre redirects 308, gate, abertura de aula, código visível, TV/F5 e D20.
+  rode `E2E_GATE_CODE=<código> E2E_BASE_URL=http://localhost:3000 npm run test:e2e`.
+  O smoke cobre redirects 308, gate, abertura de aula, código, TV/F5, cursor, agenda e D20.
 
 ## Documentação
 

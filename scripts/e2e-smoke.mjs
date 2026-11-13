@@ -87,6 +87,18 @@ async function clickText(tab, pattern) {
 }
 
 async function run() {
+  const existing = await (await fetch(`${CDP_URL}/json/list`)).json();
+  for (const target of existing) {
+    if (target.type === 'page' && !target.url.startsWith('about:')) {
+      try {
+        await fetch(`${CDP_URL}/json/close/${target.id}`);
+      } catch {
+        // Best effort: a tab may already be closing.
+      }
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 800));
+
   for (const [route, destination] of [
     ['/aula', '/professor'],
     ['/tv', '/tela'],
@@ -102,12 +114,36 @@ async function run() {
   await professor.send('Page.reload');
   await professor.wait(2500);
   log('gate renders', await waitFor(professor, "/Área do professor|código de acesso/i.test(document.body.innerText)"));
-  await professor.evaluate("localStorage.setItem('supp-aula-gate','1')");
-  await professor.send('Page.reload');
+
+  const gateCode = process.env.E2E_GATE_CODE;
+  if (gateCode) {
+    await professor.evaluate("document.querySelector('#aula-gate')?.focus()");
+    await professor.send('Input.insertText', { text: gateCode });
+    await professor.wait(250);
+    await clickText(professor, '/^entrar$/i');
+  } else {
+    await professor.evaluate("localStorage.setItem('supp-aula-gate','1')");
+    await professor.send('Page.reload');
+  }
   await professor.wait(3000);
   log(
     'cockpit after gate',
     await waitFor(professor, "/aula vai começar|PRÓXIMA AULA|AGENDA/i.test(document.body.innerText)")
+  );
+
+  log(
+    'cursor hidden by default',
+    await professor.evaluate("document.documentElement.classList.contains('hide-cursor')")
+  );
+  await professor.send('Emulation.setDeviceMetricsOverride', {
+    width: 1366,
+    height: 768,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  log(
+    'agenda rendered at 1366x768',
+    await professor.evaluate("/Agenda/i.test(document.body.innerText)")
   );
 
   const greeting = await professor.evaluate(
@@ -135,9 +171,35 @@ async function run() {
   await tv.wait(5000);
   log('TV keeps code after F5', (await tv.text()).includes(code));
 
+  await professor.send('Emulation.setDeviceMetricsOverride', {
+    width: 1920,
+    height: 1080,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await tv.send('Emulation.setDeviceMetricsOverride', {
+    width: 1920,
+    height: 1080,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await tv.send('Page.reload');
+  await tv.wait(4000);
+  log('TV at 1920x1080', (await tv.text()).includes(code));
+
+  await professor.wait(800);
+  const d20Click = await clickText(professor, '/D20/i');
+  if (d20Click !== 'ok') {
+    console.log(
+      'D20 buttons:',
+      await professor.evaluate(
+        "Array.from(document.querySelectorAll('button')).map((el) => el.innerText.trim()).filter(Boolean).slice(0, 20)"
+      )
+    );
+  }
   log(
     'D20 modal',
-    (await clickText(professor, '/^D20$/')) === 'ok' &&
+    d20Click === 'ok' &&
       (await waitFor(professor, "/Iniciar D20/i.test(document.body.innerText)"))
   );
   await clickText(professor, '/iniciar d20/i');
@@ -154,7 +216,7 @@ async function run() {
   await clickText(professor, '/^acertou$/i');
   await tv.wait(800);
   log('D20 reveal on TV', (await tv.text()).includes('Acertou!'));
-  await clickText(professor, '/voltar aos slides|encerrar/i');
+  await clickText(professor, '/^encerrar$/i');
   await tv.wait(1500);
   log('D20 exit', !(await tv.text()).includes('Escolha um número'));
 

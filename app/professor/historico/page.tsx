@@ -19,8 +19,10 @@ type HistoryRow = {
   contentId: string | null;
   classCode: string;
   className: string;
+  discipline: string;
   title: string;
   reportId: string | null;
+  occurrenceId: string | null;
   summary: string | null;
 };
 
@@ -47,6 +49,8 @@ function HistoryContent() {
   const [error, setError] = useState(false);
   const [classFilter, setClassFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [disciplineFilter, setDisciplineFilter] = useState('all');
+  const [periodFilter, setPeriodFilter] = useState<'all' | '30' | '90' | '365'>('all');
   const [query, setQuery] = useState('');
   const todayIso = useMemo(() => isoDate(new Date()), []);
 
@@ -70,21 +74,32 @@ function HistoryContent() {
     () => Array.from(new Set((rows ?? []).map((row) => row.classCode))).sort(),
     [rows]
   );
+  const disciplineOptions = useMemo(
+    () => Array.from(new Set((rows ?? []).map((row) => row.discipline))).sort(),
+    [rows]
+  );
 
   const filtered = useMemo(() => {
     const search = query.trim().toLowerCase();
+    const cutoff =
+      periodFilter === 'all'
+        ? ''
+        : isoDate(new Date(Date.now() - Number(periodFilter) * 24 * 60 * 60 * 1000));
     return (rows ?? []).filter((row) => {
       if (row.date > todayIso) return false;
+      if (cutoff && row.date < cutoff) return false;
       if (classFilter !== 'all' && row.classCode !== classFilter) return false;
       if (statusFilter !== 'all' && row.status !== statusFilter) return false;
+      if (disciplineFilter !== 'all' && row.discipline !== disciplineFilter) return false;
       if (!search) return true;
       return (
         row.title.toLowerCase().includes(search) ||
         row.className.toLowerCase().includes(search) ||
+        row.discipline.toLowerCase().includes(search) ||
         (row.summary ?? '').toLowerCase().includes(search)
       );
     });
-  }, [rows, classFilter, statusFilter, query, todayIso]);
+  }, [rows, classFilter, statusFilter, disciplineFilter, periodFilter, query, todayIso]);
 
   const groups = useMemo(() => {
     const map = new Map<string, HistoryRow[]>();
@@ -149,10 +164,39 @@ function HistoryContent() {
             <option value="cancelled">Cancelada</option>
           </select>
 
+          <select
+            value={disciplineFilter}
+            onChange={(event) => setDisciplineFilter(event.target.value)}
+            className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-bold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+            aria-label="Filtrar por disciplina"
+          >
+            <option value="all">Todas as disciplinas</option>
+            {disciplineOptions.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={periodFilter}
+            onChange={(event) =>
+              setPeriodFilter(event.target.value as 'all' | '30' | '90' | '365')
+            }
+            className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-bold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+            aria-label="Filtrar por período"
+          >
+            <option value="all">Todo o período</option>
+            <option value="30">Últimos 30 dias</option>
+            <option value="90">Últimos 90 dias</option>
+            <option value="365">Último ano</option>
+          </select>
+
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar aula, turma ou relato…"
+            aria-label="Buscar no histórico"
             className="min-w-[220px] flex-1 rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
           />
 
@@ -206,6 +250,9 @@ function HistoryContent() {
                               {formatTime(row.startAt)}–{formatTime(row.endAt)}
                             </span>
                             <span className="text-[11px] font-black">{row.classCode}</span>
+                            <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[var(--muted)]">
+                              {row.discipline}
+                            </span>
                           </div>
                           <p className="mt-1 text-sm font-black">{row.title}</p>
                           <p className="text-[11px] font-semibold text-[var(--muted)]">
@@ -213,9 +260,9 @@ function HistoryContent() {
                           </p>
                         </div>
 
-                        {row.contentId ? (
+                        {row.occurrenceId ? (
                           <Link
-                            href={`/professor?aula=${row.id}`}
+                            href={`/professor?aula=${row.occurrenceId}`}
                             className="flex shrink-0 items-center gap-1 rounded-xl border-2 border-[var(--line)] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--ink)]"
                           >
                             Abrir

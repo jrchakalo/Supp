@@ -9,4 +9,4 @@ export type ContentModel = 'legacy' | 'v2';
 export const CONTENT_MODEL: ContentModel =
   process.env.NEXT_PUBLIC_CONTENT_MODEL === 'v2' ? 'v2' : 'legacy';
 
-export const GAMES_V2 = process.env.NEXT_PUBLIC_GAMES_V2 === '1';
+export const GAMES_V2 = process.env.NEXT_PUBLIC_GAMES_V2 !== '0';
