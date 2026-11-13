@@ -220,11 +220,13 @@ O professor usa **`/professor`** no notebook e **`/tela`** na TV. Já disponíve
   class reports via rota server-side.
 - **Agenda semanal** (seg–dom, semanas do mês, folgas de sexta/domingo), com clique para abrir a aula.
 - **Aula agora/próxima**, aulas de hoje com tag **Dada** e **histórico** com todos os reports e filtros.
+- **Biblioteca** por disciplina/projeto/unit, com busca, prévia, “dar aula” para uma turma/data e
+  “abrir sem turma”.
 
 Em implementação nas próximas fases:
 
-- Biblioteca por disciplina/unit e edição de slides com escopo **local** (esta aula/turma) ou
-  **global** (todas as aulas do conteúdo); aulas já dadas mantêm o snapshot.
+- Edição de slides com escopo **local** (esta aula/turma) ou **global** (todas as aulas do
+  conteúdo); aulas já dadas mantêm o snapshot.
 - Jogos (Roleta, Passa Repassa, D20, Competição e Live) no palco único da `/tela`, sem segunda aba.
 
 Tecnicamente, o cockpit usa **Supabase Realtime** para sincronizar notebook e telão, heartbeat e
