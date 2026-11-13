@@ -38,7 +38,8 @@ Migração/seeds: `node scripts/<script>.mjs` (sempre dry-run primeiro).
 
 - `/aula` → `/professor` e `/tv` → `/tela` por redirect 308 (preservar query).
 - Nunca criar links/QR novos para `/aula` ou `/tv`.
-- Gate do professor: `AUL41` (client-side). O código da sessão fica sempre visível.
+- Gate simples client-side (implementação em `lib/aula/sync.ts`); **não repetir o código do gate**
+  em README ou documentação versionada. O código da sessão fica sempre visível.
 
 ## 4. Modelo de conteúdo (regra central)
 
@@ -111,13 +112,35 @@ Migração/seeds: `node scripts/<script>.mjs` (sempre dry-run primeiro).
 
 - Spec antes de código para mudanças > 30 min.
 - Context pack de até 8 arquivos; não despejar o repositório inteiro.
-- Subagentes: `explore` para mapear, `general` para implementar, revisor separado, QA separado.
-- Worktrees para trilhas paralelas; copiar `.env.local` e `projetos-pasaporte/` para teste (ou testar
-  no diretório principal).
+- Subagentes e skills valem **no planejamento e na implementação**. Use:
+  - `explore` para mapear; `general` para implementar; revisor separado; QA separado.
+  - `find-skills` quando faltar uma capacidade (testes, design, Next.js, animações).
+- Worktrees para trilhas paralelas; uma branch por worktree. Copiar `.env.local` e
+  `projetos-pasaporte/` para teste (ou testar no diretório principal).
 - O implementador não revisa o próprio diff; o revisor não corrige; o QA não altera código.
-- Se faltar uma skill, usar `npx skills find "<tema>"` e avaliar reputação/instalações.
+- Registrar no relatório da tarefa quais subagentes/skills foram usados e o que verificaram.
 
-## 11. Onde está o plano
+## 11. Git, branches e commits
+
+- `main` é produção; features em `feat/<fase>-<tema>`, fixes em `fix/<tema>`, docs em `docs/<tema>`.
+- Conventional Commits: `feat(professor): ...`, `fix(tela): ...`, `docs(readme): ...`,
+  `chore(ci): ...`; resumo ≤ 72 chars; corpo com o “porquê” e `Refs: <tarefa>`.
+- Rebase na `main`; merge `--no-ff` para preservar a fase; CI verde antes.
+- Commits pequenos e atômicos; não misturar formatação/renomeação com feature.
+- Nunca commitar `.env*`, `projetos-pasaporte/`, `node_modules/`, `.next/`, segredos ou dumps.
+- Não usar `git add .` às cegas; revisar `git status`/`git diff`.
+- Detalhes: `CONTRIBUTING.md` e `projetos-pasaporte/docs/planejamento-2026-11/05-GIT-E-DOCUMENTACAO.md`.
+
+## 12. Documentação
+
+- `projetos-pasaporte/docs/` é a fonte operacional; atualizar na mesma fase em que a implementação
+  muda rotas, schema, turmas, reports ou catálogo.
+- README público: **somente implementação, tecnologia e técnicas**. Proibido conteúdo de aulas,
+  detalhes de `projetos-pasaporte/`, código do gate, credenciais ou dados de alunos.
+- `docs/` local pode ter detalhes institucionais; nunca copiar para o README.
+- `08-BRIEF-DE-PLANEJAMENTO.md` fica marcado como histórico/superado pelo plano 2026-11.
+
+## 13. Onde está o plano
 
 - `projetos-pasaporte/docs/planejamento-2026-11/00-INDICE.md`
 - `01-SPEC-PRODUTO.md`, `02-ARQUITETURA-E-DADOS.md`

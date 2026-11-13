@@ -8,13 +8,16 @@
 - [ ] F0-02 AGENTS.md e regras
 - [ ] F0-03 Feature flags
 - [ ] F0-04 Seeds de teste
+- [ ] F0-05 Inventário e mapa da documentação
+- [ ] F0-06 Git, branches, commits e CI
 
 ## F1 — Shell
 - [ ] F1-01 Mover rotas + redirects
 - [ ] F1-02 Atualizar links/QR/textos/robots
-- [ ] F1-03 Saudação por hora
+- [ ] F1-03 Saudação por hora (“Júnior”)
 - [ ] F1-04 Cursor global + toggle
 - [ ] F1-05 Navegação e layout
+- [ ] F1-06 Atualizar documentação de rotas
 
 ## F2 — Session
 - [ ] F2-01 Código sempre visível
@@ -30,13 +33,14 @@
 - [ ] F3-04 Resolver + overrides
 - [ ] F3-05 Correção P1 A2 (recap local)
 - [ ] F3-06 Leitura v2 no app
+- [ ] F3-07 Documentação de dados
 
 ## F4 — Agenda e dashboard
 - [ ] F4-01 WeekAgenda
-- [ ] F4-02 Dados da agenda (seg–dom, dia 1, folgas)
+- [ ] F4-02 Dados da agenda (seg–dom, dia 1, folgas para sempre)
 - [ ] F4-03 Próxima/aula agora
 - [ ] F4-04 Aulas de hoje com tag Dada
-- [ ] F4-05 Histórico
+- [ ] F4-05 Histórico (todos os reports)
 
 ## F5 — Biblioteca
 - [ ] F5-01 Listagem e filtros
@@ -59,6 +63,7 @@
 - [ ] F7-05 Competição completa
 - [ ] F7-06 Live embutido
 - [ ] F7-07 Polimento de animações
+- [ ] F7-08 Documentação dos jogos
 
 ## F8 — QA e release
 - [ ] F8-01 E2E Playwright
@@ -67,3 +72,4 @@
 - [ ] F8-04 Segurança
 - [ ] F8-05 Ensaio real
 - [ ] F8-06 Release
+- [ ] F8-07 Histórico git e documentação final

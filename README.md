@@ -218,9 +218,12 @@ O módulo de aulas evolui para o cockpit diário do professor:
   aulas já dadas mantêm o snapshot do que foi ensinado.
 - **Jogos** (Roleta, Passa Repassa, D20, Competição e Live) no palco único da `/tela`, sem segunda aba.
 
-As rotas antigas `/aula` e `/tv` continuam funcionando por redirect. As regras de arquitetura, dados e
-execução com IA estão em [`AGENTS.md`](AGENTS.md); o plano completo fica em
-`projetos-pasaporte/docs/planejamento-2026-11/` (conteúdo institucional, fora do git).
+Tecnicamente, o cockpit usa **Supabase Realtime** para sincronizar notebook e telão, um modelo de
+**conteúdo canônico + ocorrência + snapshot + overrides**, e sincronização server-side de turmas e
+relatórios. As rotas antigas `/aula` e `/tv` continuam funcionando por redirect.
+
+As regras de arquitetura, dados, git e execução com IA estão em [`AGENTS.md`](AGENTS.md) e
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Estrutura do projeto
 

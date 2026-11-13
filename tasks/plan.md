@@ -27,14 +27,14 @@
 
 ## Backlog resumido
 
-- [ ] **F0** Backup, AGENTS.md, flags, seeds
-- [ ] **F1** Rotas `/professor`/`/tela`, redirects, saudação, cursor, navegação
+- [ ] **F0** Backup, AGENTS.md, flags, seeds, mapa da documentação, git/CI
+- [ ] **F1** Rotas `/professor`/`/tela`, redirects, saudação “Júnior”, cursor, navegação, docs de rotas
 - [ ] **F2** Código visível, heartbeat, reconexão, snapshot da TV, fim explícito
-- [ ] **F3** SQL/RLS, sync Passaporte, migração 15 aulas, resolver/overrides, P1 A2
-- [ ] **F4** Agenda semanal (seg–dom, folgas sex/dom), próxima/aula agora, hoje, histórico
+- [ ] **F3** SQL/RLS, sync Passaporte, migração 15 aulas, resolver/overrides, P1 A2, docs de dados
+- [ ] **F4** Agenda semanal (seg–dom, folgas sex/dom para sempre), próxima/aula agora, hoje, histórico (todos os reports)
 - [ ] **F5** Biblioteca por disciplina/unit, busca, atribuir, aula avulsa, clonar
 - [ ] **F6** Editor de slides/blocos, modal local/global, versões, aula dada somente leitura
-- [ ] **F7** Roleta (clique na `/tela`, rodadas), Passa, D20, Competição, Live embutido
-- [ ] **F8** E2E, unitários, performance, segurança, ensaio real, release
+- [ ] **F7** Roleta (clique na `/tela`, rodadas), Passa, D20, Competição, Live embutido, docs de jogos
+- [ ] **F8** E2E, unitários, performance, segurança, ensaio real, release, histórico git/docs
 
 Detalhes de aceite/verificação/arquivos: `03-PLANO-E-BACKLOG.md` (local).
