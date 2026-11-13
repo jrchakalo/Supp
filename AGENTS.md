@@ -17,12 +17,14 @@ Postgres), motion/react, canvas-confetti. Deploy: Vercel (`main` → https://www
 ```bash
 npm run dev                 # local
 npx tsc --noEmit            # tipos
+npm run test:unit           # unitários (agenda, live, conteúdo puro)
 npm run build               # build de produção (obrigatório antes de commit)
 npm run start -- -p 3000    # servir build
 npx eslint .                # lint (configuração atual ignora no build)
 ```
 
-Testes E2E (quando existirem): `npx playwright test`.
+E2E local: com o build servido e o Chrome em `--remote-debugging-port=9222`,
+`E2E_BASE_URL=http://localhost:3000 npm run test:e2e` (redirects, gate, aula, TV/F5, D20).
 Migração/seeds: `node scripts/<script>.mjs` (sempre dry-run primeiro).
 
 ## 3. Rotas

@@ -205,6 +205,8 @@ com **52 perguntas por tema padrão** e o **Anime com 84**:
 - `npm run build` — build de produção.
 - `npm run start` — servidor de produção.
 - `npm run lint` — ESLint.
+- `npm run test:unit` — testes unitários das regras de agenda e do Live.
+- `npm run test:e2e` — smoke E2E local (precisa do build servido e Chrome com CDP).
 
 ## Cockpit do professor
 

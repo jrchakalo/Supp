@@ -67,8 +67,7 @@ function isOff(date: string, rules: CalendarRule[]): boolean {
   });
 }
 
-function authorized(request: NextRequest, dry: boolean): boolean {
-  if (dry) return true;
+function authorized(request: NextRequest, dry: boolean): boolean {  if (dry) return true;
   const secret = process.env.CRON_SECRET;
   const header =
     request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ??
@@ -87,11 +86,36 @@ function authorized(request: NextRequest, dry: boolean): boolean {
   return false;
 }
 
+/* Best-effort in-memory guard: one real sync per 10 s per client. Vercel may
+   run several instances, so this complements (not replaces) the secret. */
+const lastSyncByClient = new Map<string, number>();
+const SYNC_COOLDOWN_MS = 10_000;
+
+function rateLimited(request: NextRequest): boolean {
+  const client =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'local';
+  const now = Date.now();
+  const last = lastSyncByClient.get(client) ?? 0;
+  if (now - last < SYNC_COOLDOWN_MS) return true;
+  lastSyncByClient.set(client, now);
+  if (lastSyncByClient.size > 500) {
+    for (const [key, timestamp] of lastSyncByClient) {
+      if (now - timestamp > SYNC_COOLDOWN_MS) lastSyncByClient.delete(key);
+    }
+  }
+  return false;
+}
+
 async function runSync(request: NextRequest) {
   const url = new URL(request.url);
   const dry = url.searchParams.get('dry') === '1';
   if (!authorized(request, dry)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+  if (!dry && rateLimited(request)) {
+    return NextResponse.json({ error: 'rate limited' }, { status: 429 });
   }
 
   const snapshot = await fetchPassaporteSnapshot();
