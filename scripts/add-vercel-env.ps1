@@ -16,8 +16,9 @@ foreach ($line in $lines) {
   $null = $line -match '^([A-Z0-9_]+)=(.*)$'
   $key = $matches[1]
   $value = $matches[2]
-  Write-Host "Adicionando $key em $Environment..."
-  $value | npx --yes vercel env add $key $Environment --force --yes
+  $type = if ($key -like 'NEXT_PUBLIC_*') { 'config' } else { 'secret' }
+  Write-Host "Adicionando $key em $Environment ($type)..."
+  $value | npx --yes vercel env add $key $Environment --type $type --force --yes
   if ($LASTEXITCODE -ne 0) {
     throw "Falha ao adicionar $key"
   }
