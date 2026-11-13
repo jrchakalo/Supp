@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2] — 2026-11-13
+
+### Conteúdo
+
+- Dez novas aulas completas (7 blocos, 8 slides, 150 min) e dez decks de 6 perguntas.
+- Próxima aula de cada uma das 16 turmas vinculada na agenda (10 novas + 6 reaproveitadas).
+- Pipeline local de produção em `projetos-pasaporte/scripts/` (não versionado) e catálogo local.
+
 ## [1.0.1] — 2026-11-13
 
 ### Segurança
