@@ -27,7 +27,7 @@
 - [x] F2-05 Fim de aula explícito
 
 ## F3 — Dados
-- [ ] F3-01 SQL e RLS
+- [ ] F3-01 SQL e RLS (SQL pronto em `supabase/migrations/`; aplicar no Supabase)
 - [ ] F3-02 Sync Passaporte
 - [ ] F3-03 Migração dos 15 JSONs
 - [ ] F3-04 Resolver + overrides
