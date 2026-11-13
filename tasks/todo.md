@@ -71,7 +71,7 @@
 - [x] F8-03 Performance (FCP ~1,3 s no cold; bundle 368 kB)
 - [x] F8-04 Segurança (CSP/headers, secret no sync, rate limit, sem PII/raw)
 - [ ] F8-05 Ensaio real (1 dia de aulas — depende do professor)
-- [ ] F8-06 Release (tag e verificação final)
+- [x] F8-06 Release (v1.0.0 publicada; redirects e produção verificados)
 - [x] F8-07 Histórico git e documentação final
 
 ## F9 — Pós-lançamento
