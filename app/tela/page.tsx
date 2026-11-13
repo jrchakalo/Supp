@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import SlideView from '@/components/aula/SlideView';
+import WheelStage from '@/components/game/WheelStage';
+import type { WheelGameState } from '@/lib/aula/games';
 import type { Slide } from '@/lib/passaporte-lessons';
 import { ANSWER_BUTTONS, sanitizeRoomCode } from '@/lib/live/room';
 import {
@@ -496,7 +498,7 @@ function LiveSpectator({
   );
 }
 
-type WarmupOverlay = 'none' | 'd20' | 'comp';
+type WarmupOverlay = 'none' | 'd20' | 'comp' | 'wheel';
 
 /** Warm-up D20: statement first, TRUE/FALSE + explanation after the reveal. */
 function D20Spectator({
@@ -723,6 +725,7 @@ export default function TvPage() {
   const [d20Revealed, setD20Revealed] = useState(false);
   const [comp, setComp] = useState<AulaCompMessage | null>(null);
   const [compRanking, setCompRanking] = useState<AulaCompScore[] | null>(null);
+  const [wheelGame, setWheelGame] = useState<WheelGameState | null>(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -787,6 +790,7 @@ export default function TvPage() {
     setD20Revealed(false);
     setComp(null);
     setCompRanking(null);
+    setWheelGame(null);
   }, []);
 
   /** Marks the teacher as online and cancels a pending offline timer. */
@@ -840,6 +844,28 @@ export default function TvPage() {
 
       if (message.type === 'end') {
         returnToConnect();
+        return;
+      }
+
+      if (message.type === 'game' && message.game === 'wheel') {
+        clearSavedQuizState();
+        clearSavedTelaState();
+        quizRoomRef.current = null;
+        setQuizRoom(null);
+        forgetLive();
+        warmupRef.current = 'wheel';
+        setWarmup('wheel');
+        setWheelGame(message.state);
+        welcomeRef.current = false;
+        setLongEnter(false);
+        setWelcome(false);
+        setSlide(null);
+        setSlideImage(undefined);
+        return;
+      }
+
+      if (message.type === 'gameEnd') {
+        resetWarmup();
         return;
       }
 
@@ -1358,6 +1384,18 @@ export default function TvPage() {
               </p>
             </section>
           </div>
+        ) : warmup === 'wheel' && wheelGame ? (
+          <WheelStage
+            state={wheelGame}
+            onSpin={() =>
+              aulaChannelRef.current?.send({
+                type: 'command',
+                game: 'wheel',
+                action: 'spin',
+                nonce: Date.now(),
+              })
+            }
+          />
         ) : warmup === 'd20' && d20 ? (
           <D20Spectator message={d20} revealed={d20Revealed} />
         ) : warmup === 'comp' && comp ? (
@@ -1428,6 +1466,9 @@ export default function TvPage() {
           {quizRoom ? <span className="ml-2 text-[var(--accent-2)]">· quiz {quizRoom}</span> : null}
           {warmup === 'd20' ? (
             <span className="ml-2 text-[var(--accent)]">· warm-up D20</span>
+          ) : null}
+          {warmup === 'wheel' ? (
+            <span className="ml-2 text-[var(--accent)]">· roleta</span>
           ) : null}
           {warmup === 'comp' ? (
             <span className="ml-2 text-[var(--accent)]">· competição</span>
