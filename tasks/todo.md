@@ -36,11 +36,11 @@
 - [x] F3-07 Documentação de dados
 
 ## F4 — Agenda e dashboard
-- [ ] F4-01 WeekAgenda
-- [ ] F4-02 Dados da agenda (seg–dom, dia 1, folgas para sempre)
-- [ ] F4-03 Próxima/aula agora
-- [ ] F4-04 Aulas de hoje com tag Dada
-- [ ] F4-05 Histórico (todos os reports)
+- [x] F4-01 WeekAgenda
+- [x] F4-02 Dados da agenda (seg–dom, dia 1, folgas para sempre)
+- [x] F4-03 Próxima/aula agora
+- [x] F4-04 Aulas de hoje com tag Dada
+- [x] F4-05 Histórico (todos os reports)
 
 ## F5 — Biblioteca
 - [ ] F5-01 Listagem e filtros
