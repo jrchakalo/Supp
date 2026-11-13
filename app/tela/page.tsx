@@ -93,6 +93,60 @@ function clearSavedQuizState() {
   removeStorage(TV_QUIZ_STORAGE);
 }
 
+/** localStorage snapshot of the last slide, so F5 keeps the projector on it. */
+const TV_STATE_STORAGE = 'tela-state';
+const TV_STATE_TTL_MS = 12 * 60 * 60 * 1000;
+
+type SavedTelaState = {
+  code: string;
+  lessonId: string;
+  index: number;
+  slide: Slide;
+  imageUrl?: string;
+  savedAt: number;
+};
+
+function readSavedTelaState(code: string): SavedTelaState | null {
+  if (!code) return null;
+  const raw = readStorage(TV_STATE_STORAGE);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<SavedTelaState>;
+    if (
+      typeof parsed.code !== 'string' ||
+      parsed.code !== code ||
+      typeof parsed.savedAt !== 'number' ||
+      !parsed.slide ||
+      typeof parsed.slide !== 'object'
+    ) {
+      return null;
+    }
+    if (Date.now() - parsed.savedAt > TV_STATE_TTL_MS) {
+      removeStorage(TV_STATE_STORAGE);
+      return null;
+    }
+    return {
+      code: parsed.code,
+      lessonId: typeof parsed.lessonId === 'string' ? parsed.lessonId : '',
+      index: typeof parsed.index === 'number' ? parsed.index : 0,
+      slide: parsed.slide as Slide,
+      imageUrl: typeof parsed.imageUrl === 'string' ? parsed.imageUrl : undefined,
+      savedAt: parsed.savedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveTelaState(state: SavedTelaState) {
+  writeStorage(TV_STATE_STORAGE, JSON.stringify(state));
+}
+
+function clearSavedTelaState() {
+  removeStorage(TV_STATE_STORAGE);
+}
+
 function ConnectionPill({
   status,
   label = 'conexão',
@@ -643,6 +697,8 @@ export default function TvPage() {
 
   const [connection, setConnection] = useState<AulaConnectionStatus>('idle');
   const [realtimeMissing, setRealtimeMissing] = useState(false);
+  /** Teacher heartbeat/presence: when false, keep the slide and show a banner. */
+  const [teacherOnline, setTeacherOnline] = useState(false);
   const [slide, setSlide] = useState<Slide | null>(null);
   const [slideImage, setSlideImage] = useState<string | undefined>(undefined);
   const [slideKey, setSlideKey] = useState(0);
@@ -671,6 +727,7 @@ export default function TvPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const aulaChannelRef = useRef<AulaChannel | null>(null);
+  const codeRef = useRef('');
   const quizRoomRef = useRef<string | null>(null);
   const welcomeRef = useRef(true);
   /** Keeps the long animation across the back-to-back `state` + `slide` pair. */
@@ -685,6 +742,10 @@ export default function TvPage() {
   useEffect(() => {
     quizRoomRef.current = quizRoom;
   }, [quizRoom]);
+
+  useEffect(() => {
+    codeRef.current = code;
+  }, [code]);
 
   useEffect(() => {
     warmupRef.current = warmup;
@@ -728,6 +789,16 @@ export default function TvPage() {
     setCompRanking(null);
   }, []);
 
+  /** Marks the teacher as online and cancels a pending offline timer. */
+  const markTeacherOnline = useCallback(() => {
+    teacherSeenRef.current = true;
+    setTeacherOnline(true);
+    if (teacherAbsenceRef.current) {
+      window.clearTimeout(teacherAbsenceRef.current);
+      teacherAbsenceRef.current = null;
+    }
+  }, []);
+
   /** Back to the initial code screen, zeroing every game/slide state. */
   const returnToConnect = useCallback(() => {
     if (teacherAbsenceRef.current) {
@@ -735,6 +806,8 @@ export default function TvPage() {
       teacherAbsenceRef.current = null;
     }
     teacherSeenRef.current = false;
+    setTeacherOnline(false);
+    clearSavedTelaState();
     clearSavedQuizState();
     quizRoomRef.current = null;
     setQuizRoom(null);
@@ -757,6 +830,14 @@ export default function TvPage() {
 
   const handleAulaMessage = useCallback(
     (message: AulaMessage) => {
+      if (message.type === 'ping') {
+        markTeacherOnline();
+        return;
+      }
+
+      /* Any real message from the teacher is also proof of life. */
+      markTeacherOnline();
+
       if (message.type === 'end') {
         returnToConnect();
         return;
@@ -764,6 +845,7 @@ export default function TvPage() {
 
       if (message.type === 'd20') {
         clearSavedQuizState();
+        clearSavedTelaState();
         quizRoomRef.current = null;
         setQuizRoom(null);
         forgetLive();
@@ -793,6 +875,7 @@ export default function TvPage() {
 
       if (message.type === 'comp') {
         clearSavedQuizState();
+        clearSavedTelaState();
         quizRoomRef.current = null;
         setQuizRoom(null);
         forgetLive();
@@ -833,6 +916,7 @@ export default function TvPage() {
         quizRoomRef.current = null;
         setQuizRoom(null);
         forgetLive();
+        clearSavedTelaState();
         showWelcome();
         return;
       }
@@ -842,12 +926,21 @@ export default function TvPage() {
         quizRoomRef.current = null;
         setQuizRoom(null);
         applySlide(message.slide, message.imageUrl);
+        saveTelaState({
+          code: codeRef.current,
+          lessonId: message.lessonId,
+          index: message.index,
+          slide: message.slide,
+          imageUrl: message.imageUrl,
+          savedAt: Date.now(),
+        });
         return;
       }
 
       if (message.type === 'quiz') {
         resetWarmup();
         clearSavedQuizState();
+        clearSavedTelaState();
         forgetLive();
         welcomeRef.current = false;
         setLongEnter(false);
@@ -870,6 +963,14 @@ export default function TvPage() {
 
       if (message.type === 'state') {
         applySlide(message.slide, message.imageUrl);
+        saveTelaState({
+          code: codeRef.current,
+          lessonId: message.lessonId,
+          index: message.index,
+          slide: message.slide,
+          imageUrl: message.imageUrl,
+          savedAt: Date.now(),
+        });
         if (message.quiz) {
           if (quizRoomRef.current !== message.quiz) forgetLive();
           quizRoomRef.current = message.quiz;
@@ -885,7 +986,7 @@ export default function TvPage() {
         }
       }
     },
-    [applySlide, forgetLive, resetWarmup, returnToConnect, showWelcome]
+    [applySlide, forgetLive, markTeacherOnline, resetWarmup, returnToConnect, showWelcome]
   );
 
   const handleLiveMessage = useCallback((message: HostToPlayerMessage) => {
@@ -985,13 +1086,18 @@ export default function TvPage() {
     if (initial) {
       setCode(initial);
       setCodeInput(initial);
-      restoreQuizState(initial);
+      if (readSavedQuizState(initial)) {
+        restoreQuizState(initial);
+      } else {
+        const savedSlide = readSavedTelaState(initial);
+        if (savedSlide) applySlide(savedSlide.slide, savedSlide.imageUrl);
+      }
     }
 
     const onFullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, [restoreQuizState]);
+  }, [applySlide, restoreQuizState]);
 
   /* Aula channel: slides + quiz switches. */
   useEffect(() => {
@@ -1023,21 +1129,17 @@ export default function TvPage() {
         const hasTeacher = members.some((member) => member.role === 'teacher');
 
         if (hasTeacher) {
-          teacherSeenRef.current = true;
-          if (teacherAbsenceRef.current) {
-            window.clearTimeout(teacherAbsenceRef.current);
-            teacherAbsenceRef.current = null;
-          }
+          markTeacherOnline();
           return;
         }
 
-        /* Only boot when the teacher was here and just left; the first
-           presence snapshot of a fresh tab must not count as absence. */
+        /* Keep the last slide and the code: after 15 s without teacher presence
+           the projector only shows a discreet "reconnecting" banner. */
         if (!teacherSeenRef.current || teacherAbsenceRef.current) return;
         teacherAbsenceRef.current = window.setTimeout(() => {
           teacherAbsenceRef.current = null;
-          if (active) returnToConnect();
-        }, 4000);
+          if (active) setTeacherOnline(false);
+        }, 15_000);
       },
     });
 
@@ -1057,7 +1159,7 @@ export default function TvPage() {
       handle.remove();
       if (aulaChannelRef.current === handle) aulaChannelRef.current = null;
     };
-  }, [code, nonce, handleAulaMessage, returnToConnect]);
+  }, [code, nonce, handleAulaMessage, markTeacherOnline]);
 
   /* Live spectator channel: broadcast only, never presence or answers. */
   useEffect(() => {
@@ -1170,6 +1272,9 @@ export default function TvPage() {
     );
   }
 
+  const hasStageContent =
+    Boolean(slide) || Boolean(welcomeContent) || Boolean(quizRoom) || warmup !== 'none';
+
   return (
     <main className="theme-dark game-shell relative flex h-dvh flex-col overflow-hidden text-[var(--ink)]">
       {realtimeMissing || connection === 'error' || connection === 'offline' ? (
@@ -1177,6 +1282,12 @@ export default function TvPage() {
           {realtimeMissing || connection === 'offline'
             ? 'Realtime indisponível — o telão mantém o último slide e tenta reconectar.'
             : 'Conexão instável — mantendo o último slide e tentando reconectar.'}
+        </div>
+      ) : null}
+
+      {code && connection === 'connected' && !teacherOnline && hasStageContent ? (
+        <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-full border border-amber-400/60 bg-black/80 px-4 py-2 text-xs font-black uppercase tracking-wide text-amber-300">
+          Professor desconectado · tentando reconectar…
         </div>
       ) : null}
 
