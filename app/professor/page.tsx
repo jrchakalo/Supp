@@ -47,8 +47,9 @@ import type { ClassicCategoryId, DifficultyId } from '@/lib/types';
 import type { WheelGameState } from '@/lib/aula/games';
 import WheelControl from '@/components/game/WheelControl';
 import { getLiveDeck, prepareQuestion, randomRoomCode, sanitizeRoomCode } from '@/lib/live/room';
-import type { PassaGameState, PassaQuestion } from '@/lib/aula/games';
+import type { PassaGameState, PassaQuestion, D20GameState } from '@/lib/aula/games';
 import PassaControl from '@/components/game/PassaControl';
+import D20Control from '@/components/game/D20Control';
 import { readStorage, removeStorage, writeStorage } from '@/lib/storage';
 import {
   AULA_GATE_STORAGE,
@@ -419,6 +420,7 @@ export default function AulaPage() {
   const [passaTeam2, setPassaTeam2] = useState('Time 2');
   const [passaTarget, setPassaTarget] = useState<5 | 10 | 15>(5);
   const [passaDifficulty, setPassaDifficulty] = useState<DifficultyId>('medium');
+  const [d20Game, setD20Game] = useState<D20GameState | null>(null);
 
   const channelRef = useRef<AulaChannel | null>(null);
   const sessionRestoredRef = useRef(false);
@@ -446,6 +448,7 @@ export default function AulaPage() {
   const wheelSpinTimerRef = useRef<number | null>(null);
   const passaGameRef = useRef<PassaGameState | null>(null);
   const passaUsedRef = useRef<Set<string>>(new Set());
+  const d20GameRef = useRef<D20GameState | null>(null);
   const teacherPresenceIdRef = useRef('');
 
   useEffect(() => {
@@ -465,6 +468,7 @@ export default function AulaPage() {
     compRankingRef.current = compRanking;
     wheelGameRef.current = wheelGame;
     passaGameRef.current = passaGame;
+    d20GameRef.current = d20Game;
   }, [
     activeLesson,
     beatIndex,
@@ -474,6 +478,7 @@ export default function AulaPage() {
     compRounds,
     d20,
     d20Revealed,
+    d20Game,
     imageUrls,
     liveQuizCode,
     mode,
@@ -544,6 +549,7 @@ export default function AulaPage() {
         images?: unknown;
         wheel?: unknown;
         passa?: unknown;
+        d20?: unknown;
       };
       if (typeof parsed.lessonId !== 'string' || typeof parsed.code !== 'string') return;
 
@@ -566,16 +572,22 @@ export default function AulaPage() {
         parsed.passa && typeof parsed.passa === 'object'
           ? (parsed.passa as PassaGameState)
           : null;
-      /* Only Live, the wheel and Passa can be restored: D20/competition carry
-         a live question that lives in memory, so they simply start over. */
+      const savedD20 =
+        parsed.d20 && typeof parsed.d20 === 'object'
+          ? (parsed.d20 as D20GameState)
+          : null;
+      /* Only Live, the wheel, Passa and D20 can be restored: competition
+         carries a live question that lives in memory. */
       const savedWarmup: WarmupKind =
-        parsed.warmup === 'passa' && savedPassa
-          ? 'passa'
-          : parsed.warmup === 'wheel' && savedWheel
-            ? 'wheel'
-            : parsed.warmup === 'live' && savedQuiz
-              ? 'live'
-              : 'none';
+        parsed.warmup === 'd20' && savedD20
+          ? 'd20'
+          : parsed.warmup === 'passa' && savedPassa
+            ? 'passa'
+            : parsed.warmup === 'wheel' && savedWheel
+              ? 'wheel'
+              : parsed.warmup === 'live' && savedQuiz
+                ? 'live'
+                : 'none';
       const savedHostUrl = typeof parsed.hostUrl === 'string' ? parsed.hostUrl : '';
       /* Sessions saved before the welcome screen existed default to live. */
       const savedPhase: AulaPhase = parsed.phase === 'welcome' ? 'welcome' : 'live';
@@ -620,6 +632,12 @@ export default function AulaPage() {
         setPassaGame(savedPassa);
         setWarmup('passa');
         warmupRef.current = 'passa';
+      }
+      if (savedWarmup === 'd20' && savedD20) {
+        d20GameRef.current = savedD20;
+        setD20Game(savedD20);
+        setWarmup('d20');
+        warmupRef.current = 'd20';
       }
       if (savedQuiz) {
         setLiveQuizCode(savedQuiz);
@@ -666,6 +684,7 @@ export default function AulaPage() {
         images: imageUrls,
         wheel: wheelGame,
         passa: passaGame,
+        d20: d20Game,
       })
     );
   }, [
@@ -679,6 +698,7 @@ export default function AulaPage() {
     imageUrls,
     wheelGame,
     passaGame,
+    d20Game,
   ]);
 
   useEffect(() => {
@@ -721,9 +741,14 @@ export default function AulaPage() {
         return;
       }
       if (warmupRef.current === 'd20') {
-        if (d20Ref.current) {
-          channelRef.current?.send(d20Ref.current);
-          if (d20RevealedRef.current) channelRef.current?.send({ type: 'd20Reveal' });
+        const game = d20GameRef.current;
+        if (game) {
+          channelRef.current?.send({
+            type: 'game',
+            game: 'd20',
+            seq: game.seq,
+            state: game,
+          });
         }
         return;
       }
@@ -898,6 +923,8 @@ export default function AulaPage() {
     passaGameRef.current = null;
     setPassaGame(null);
     passaUsedRef.current.clear();
+    d20GameRef.current = null;
+    setD20Game(null);
     liveQuizRef.current = null;
     setLiveQuizCode(null);
     setHostUrl('');
@@ -1289,50 +1316,135 @@ export default function AulaPage() {
     broadcast({ type: 'quiz', code, active: true });
   }, [broadcast, liveCount, liveSeconds, liveTheme, resetWarmupState]);
 
-  const drawD20 = useCallback(() => {
-    const deck = getDeck('classic', 'medium');
-    if (deck.length === 0) return;
+  const broadcastD20Game = useCallback(
+    (state: D20GameState) => {
+      const seq = (d20GameRef.current?.seq ?? 0) + 1;
+      const next = { ...state, seq };
+      d20GameRef.current = next;
+      setD20Game(next);
+      broadcast({ type: 'game', game: 'd20', seq, state: next });
+    },
+    [broadcast]
+  );
 
-    const current = d20Ref.current;
-    let pick = deck[Math.floor(Math.random() * deck.length)] ?? deck[0];
-    if (deck.length > 1 && current && pick.text === current.text) {
-      const index = deck.findIndex((item) => item.id === pick.id);
-      pick = deck[(index + 1) % deck.length] ?? pick;
-    }
-
-    const message: AulaD20Message = {
-      type: 'd20',
-      text: pick.text,
-      answer: pick.answer,
-      explanation: pick.explanation,
-    };
-    d20Ref.current = message;
-    setD20(message);
-    d20RevealedRef.current = false;
-    setD20Revealed(false);
-    warmupRef.current = 'd20';
-    setWarmup('d20');
-    setWarmupModal('none');
-    broadcast(message);
-  }, [broadcast]);
-
-  const startD20Warmup = useCallback(() => {
+  const startD20Game = useCallback(() => {
     if (warmupRef.current === 'live' || liveQuizRef.current) {
       broadcast({ type: 'quizEnd' });
-    }
-    if (warmupRef.current === 'comp') {
+    } else if (warmupRef.current !== 'none') {
       broadcast({ type: 'warmupEnd' });
     }
     resetWarmupState();
-    drawD20();
-  }, [broadcast, drawD20, resetWarmupState]);
+    warmupRef.current = 'd20';
+    setWarmup('d20');
+    setWarmupModal('none');
+    broadcastD20Game({
+      seq: 1,
+      phase: 'board',
+      number: null,
+      question: null,
+      revealed: false,
+      lastAnswerCorrect: null,
+      score: { correct: 0, total: 0 },
+      streak: 0,
+      bestStreak: 0,
+      round: 1,
+      maxRounds: 20,
+    });
+  }, [broadcast, broadcastD20Game, resetWarmupState]);
 
-  const revealD20 = useCallback(() => {
-    if (!d20Ref.current || d20RevealedRef.current) return;
-    d20RevealedRef.current = true;
-    setD20Revealed(true);
-    broadcast({ type: 'd20Reveal' });
-  }, [broadcast]);
+  const pickD20Number = useCallback(
+    (number: number) => {
+      const game = d20GameRef.current;
+      if (!game || game.phase !== 'board') return;
+      const deck = getDeck('classic', 'medium');
+      if (deck.length === 0) return;
+      const pick = deck[Math.floor(Math.random() * deck.length)] ?? deck[0];
+      broadcastD20Game({
+        ...game,
+        phase: 'question',
+        number,
+        question: {
+          id: pick.id,
+          text: pick.text,
+          answer: pick.answer,
+          explanation: pick.explanation,
+        },
+        revealed: false,
+        lastAnswerCorrect: null,
+      });
+    },
+    [broadcastD20Game]
+  );
+
+  const randomD20 = useCallback(() => {
+    pickD20Number(1 + Math.floor(Math.random() * 20));
+  }, [pickD20Number]);
+
+  const revealD20Game = useCallback(
+    (correct: boolean) => {
+      const game = d20GameRef.current;
+      if (!game || game.phase !== 'question') return;
+      const streak = correct ? game.streak + 1 : 0;
+      broadcastD20Game({
+        ...game,
+        phase: 'revealed',
+        revealed: true,
+        lastAnswerCorrect: correct,
+        score: {
+          correct: game.score.correct + (correct ? 1 : 0),
+          total: game.score.total + 1,
+        },
+        streak,
+        bestStreak: Math.max(game.bestStreak, streak),
+      });
+    },
+    [broadcastD20Game]
+  );
+
+  const nextD20Game = useCallback(() => {
+    const game = d20GameRef.current;
+    if (!game || game.phase !== 'revealed') return;
+    if (game.round >= game.maxRounds) {
+      broadcastD20Game({ ...game, phase: 'over' });
+      return;
+    }
+    broadcastD20Game({
+      ...game,
+      phase: 'board',
+      number: null,
+      question: null,
+      revealed: false,
+      lastAnswerCorrect: null,
+      round: game.round + 1,
+    });
+  }, [broadcastD20Game]);
+
+  const newD20Game = useCallback(() => {
+    const game = d20GameRef.current;
+    if (!game) return;
+    broadcastD20Game({
+      ...game,
+      phase: 'board',
+      number: null,
+      question: null,
+      revealed: false,
+      lastAnswerCorrect: null,
+      score: { correct: 0, total: 0 },
+      streak: 0,
+      bestStreak: 0,
+      round: 1,
+    });
+  }, [broadcastD20Game]);
+
+  const endD20Game = useCallback(() => {
+    broadcast({ type: 'gameEnd' });
+    resetWarmupState();
+    sendCurrentSlide();
+  }, [broadcast, resetWarmupState, sendCurrentSlide]);
+
+  const startD20Warmup = useCallback(() => {
+    startD20Game();
+  }, [startD20Game]);
 
   const drawCompQuestion = useCallback(
     (flatTurn: number) => {
@@ -2151,8 +2263,8 @@ export default function AulaPage() {
           ) : warmupModal === 'd20' ? (
             <>
               <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
-                Sorteia uma pergunta True/False do baralho clássico. O telão mostra a afirmação e
-                você controla Revelar / Próxima por aqui.
+                Abre o tabuleiro 4×5 na TV. Clique em um número ou role o D20; a pergunta
+                True/False aparece e você marca Acertou/Errou por aqui.
               </p>
               <button
                 type="button"
@@ -2160,7 +2272,7 @@ export default function AulaPage() {
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)]"
               >
                 <Dices className="h-5 w-5" aria-hidden="true" />
-                Rodar D20
+                Iniciar D20
               </button>
             </>
           ) : (
@@ -2655,39 +2767,16 @@ export default function AulaPage() {
             </div>
           ) : null}
 
-          {warmup === 'd20' && d20 ? (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-[var(--accent)] bg-[var(--surface)] px-4 py-3">
-              <span className="min-w-0 text-sm font-black text-[var(--ink)]">
-                🎲 D20 na TV: {d20.text}{' '}
-                <span className="text-xs font-bold text-[var(--muted)]">
-                  · resposta {d20.answer ? 'TRUE' : 'FALSE'}
-                </span>
-              </span>
-              <span className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={revealD20}
-                  disabled={d20Revealed}
-                  className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)] disabled:opacity-50"
-                >
-                  Revelar
-                </button>
-                <button
-                  type="button"
-                  onClick={drawD20}
-                  className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--ink)]"
-                >
-                  Próxima
-                </button>
-                <button
-                  type="button"
-                  onClick={backToLessonSlides}
-                  className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)]"
-                >
-                  Voltar aos slides
-                </button>
-              </span>
-            </div>
+          {warmup === 'd20' && d20Game ? (
+            <D20Control
+              state={d20Game}
+              onPick={pickD20Number}
+              onRandom={randomD20}
+              onReveal={revealD20Game}
+              onNext={nextD20Game}
+              onNew={newD20Game}
+              onEnd={endD20Game}
+            />
           ) : null}
 
           {warmup === 'passa' && passaGame ? (
@@ -2972,49 +3061,16 @@ export default function AulaPage() {
           </div>
         ) : null}
 
-        {warmup === 'd20' && d20 ? (
-          <div className="mt-3 rounded-2xl border-2 border-[var(--accent)] bg-[var(--surface)] px-4 py-3">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 text-sm font-black">
-                  <Dices className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
-                  D20 na TV — True or False?
-                </p>
-                <p className="mt-1 text-base font-black leading-snug text-[var(--ink)]">{d20.text}</p>
-                <p className="mt-1 text-xs font-bold text-[var(--muted)]">
-                  Resposta:{' '}
-                  <span className={d20.answer ? 'text-emerald-400' : 'text-rose-400'}>
-                    {d20.answer ? 'TRUE' : 'FALSE'}
-                  </span>
-                  {d20.explanation ? ` · ${d20.explanation}` : ''}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={revealD20}
-                  disabled={d20Revealed}
-                  className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)] disabled:opacity-50"
-                >
-                  Revelar
-                </button>
-                <button
-                  type="button"
-                  onClick={drawD20}
-                  className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--ink)] transition hover:border-[var(--accent)]"
-                >
-                  Próxima
-                </button>
-                <button
-                  type="button"
-                  onClick={backToLessonSlides}
-                  className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
-                >
-                  Voltar aos slides
-                </button>
-              </div>
-            </div>
-          </div>
+        {warmup === 'd20' && d20Game ? (
+          <D20Control
+            state={d20Game}
+            onPick={pickD20Number}
+            onRandom={randomD20}
+            onReveal={revealD20Game}
+            onNext={nextD20Game}
+            onNew={newD20Game}
+            onEnd={endD20Game}
+          />
         ) : null}
 
         {warmup === 'passa' && passaGame ? (
