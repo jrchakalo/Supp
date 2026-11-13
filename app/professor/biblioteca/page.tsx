@@ -9,6 +9,7 @@ import {
   Eye,
   Layers,
   Loader2,
+  Pencil,
   Play,
   Search,
   Users,
@@ -267,6 +268,13 @@ function LibraryContentPage() {
                                 <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                                 Prévia
                               </button>
+                              <Link
+                                href={`/professor/editor/${content.id}`}
+                                className="inline-flex items-center gap-1.5 rounded-xl border-2 border-[var(--line)] px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[var(--muted)] transition hover:text-[var(--ink)]"
+                              >
+                                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                                Editar
+                              </Link>
                             </div>
                           </article>
                         ))}

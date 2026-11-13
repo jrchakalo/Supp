@@ -222,11 +222,11 @@ O professor usa **`/professor`** no notebook e **`/tela`** na TV. Já disponíve
 - **Aula agora/próxima**, aulas de hoje com tag **Dada** e **histórico** com todos os reports e filtros.
 - **Biblioteca** por disciplina/projeto/unit, com busca, prévia, “dar aula” para uma turma/data e
   “abrir sem turma”.
+- **Editor de slides** com prévia, undo/redo, versão global e snapshot local; aulas já dadas ficam
+  somente leitura.
 
 Em implementação nas próximas fases:
 
-- Edição de slides com escopo **local** (esta aula/turma) ou **global** (todas as aulas do
-  conteúdo); aulas já dadas mantêm o snapshot.
 - Jogos (Roleta, Passa Repassa, D20, Competição e Live) no palco único da `/tela`, sem segunda aba.
 
 Tecnicamente, o cockpit usa **Supabase Realtime** para sincronizar notebook e telão, heartbeat e
