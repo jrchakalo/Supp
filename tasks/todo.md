@@ -62,8 +62,8 @@
 - [x] F7-04 D20 completo
 - [x] F7-05 Competição completa
 - [x] F7-06 Live embutido
-- [ ] F7-07 Polimento de animações
-- [ ] F7-08 Documentação dos jogos
+- [x] F7-07 Polimento de animações
+- [x] F7-08 Documentação dos jogos
 
 ## F8 — QA e release
 - [ ] F8-01 E2E Playwright

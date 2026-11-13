@@ -284,6 +284,24 @@ function LiveSpectator({
     confetti({ ...common, particleCount: 60, angle: 125, spread: 55, origin: { x: 1, y: 0.7 } });
   }, [phase, podiumStep, podiumPlaces]);
 
+  /* A correct answer deserves a small celebration on the reveal screen. */
+  const revealKey = reveal
+    ? `${reveal.seq}:${reveal.leaderboard.map((row) => `${row.playerId}:${row.gained}`).join(',')}`
+    : '';
+  useEffect(() => {
+    if (!reveal || phase !== 'reveal') return;
+    if (!reveal.leaderboard.some((row) => row.gained > 0)) return;
+    confetti({
+      particleCount: 40,
+      spread: 60,
+      origin: { y: 0.7 },
+      disableForReducedMotion: true,
+      colors: ['#f59e0b', '#22d3ee', '#a78bfa', '#34d399', '#f472b6'],
+    });
+    // The key changes once per reveal, so replays do not duplicate the burst.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealKey]);
+
   if (phase === 'question' && question) {
     return (
       <div className="flex h-full min-h-0 flex-col p-4 sm:p-6">
@@ -612,6 +630,24 @@ function CompSpectator({
   message: AulaCompMessage;
   ranking: AulaCompScore[] | null;
 }) {
+  const previousScoresRef = useRef<Record<string, number> | null>(null);
+
+  useEffect(() => {
+    const current = Object.fromEntries(message.scores.map((row) => [row.name, row.score]));
+    const previous = previousScoresRef.current;
+    previousScoresRef.current = current;
+    if (ranking || !previous) return;
+    const scored = message.scores.some((row) => row.score > (previous[row.name] ?? 0));
+    if (!scored) return;
+    confetti({
+      particleCount: 45,
+      spread: 65,
+      origin: { y: 0.68 },
+      disableForReducedMotion: true,
+      colors: ['#ffd166', '#4cc9f0', '#22c55e', '#f472b6'],
+    });
+  }, [message, ranking]);
+
   if (ranking) return <CompPodium ranking={ranking} />;
 
   const scores = [...message.scores].sort(
