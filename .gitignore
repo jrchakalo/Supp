@@ -11,3 +11,4 @@ coverage/
 projetos-pasaporte/
 docsend_pages/
 supabase/.temp/
+.vercel
