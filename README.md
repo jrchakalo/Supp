@@ -218,10 +218,11 @@ O professor usa **`/professor`** no notebook e **`/tela`** na TV. Já disponíve
   aviso de “professor desconectado” após 15 s — sem apagar a tela.
 - **Modelo v2**: conteúdo canônico + ocorrência (turma/data) + snapshot; sync automático de turmas e
   class reports via rota server-side.
+- **Agenda semanal** (seg–dom, semanas do mês, folgas de sexta/domingo), com clique para abrir a aula.
+- **Aula agora/próxima**, aulas de hoje com tag **Dada** e **histórico** com todos os reports e filtros.
 
 Em implementação nas próximas fases:
 
-- Agenda semanal, aula agora/próxima, aulas do dia e histórico.
 - Biblioteca por disciplina/unit e edição de slides com escopo **local** (esta aula/turma) ou
   **global** (todas as aulas do conteúdo); aulas já dadas mantêm o snapshot.
 - Jogos (Roleta, Passa Repassa, D20, Competição e Live) no palco único da `/tela`, sem segunda aba.
