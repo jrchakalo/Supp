@@ -60,7 +60,7 @@
 - [x] F7-02 Roleta (clique na /tela, rodadas)
 - [x] F7-03 Passa Repassa
 - [x] F7-04 D20 completo
-- [ ] F7-05 Competição completa
+- [x] F7-05 Competição completa
 - [ ] F7-06 Live embutido
 - [ ] F7-07 Polimento de animações
 - [ ] F7-08 Documentação dos jogos

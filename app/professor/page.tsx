@@ -550,6 +550,8 @@ export default function AulaPage() {
         wheel?: unknown;
         passa?: unknown;
         d20?: unknown;
+        comp?: unknown;
+        compRanking?: unknown;
       };
       if (typeof parsed.lessonId !== 'string' || typeof parsed.code !== 'string') return;
 
@@ -576,18 +578,26 @@ export default function AulaPage() {
         parsed.d20 && typeof parsed.d20 === 'object'
           ? (parsed.d20 as D20GameState)
           : null;
-      /* Only Live, the wheel, Passa and D20 can be restored: competition
-         carries a live question that lives in memory. */
+      const savedComp =
+        parsed.comp && typeof parsed.comp === 'object'
+          ? (parsed.comp as AulaCompMessage)
+          : null;
+      const savedCompRanking = Array.isArray(parsed.compRanking)
+        ? (parsed.compRanking as AulaCompScore[])
+        : null;
+      /* Live, the wheel, Passa, D20 and Competition restore from storage. */
       const savedWarmup: WarmupKind =
-        parsed.warmup === 'd20' && savedD20
-          ? 'd20'
-          : parsed.warmup === 'passa' && savedPassa
-            ? 'passa'
-            : parsed.warmup === 'wheel' && savedWheel
-              ? 'wheel'
-              : parsed.warmup === 'live' && savedQuiz
-                ? 'live'
-                : 'none';
+        parsed.warmup === 'comp' && savedComp
+          ? 'comp'
+          : parsed.warmup === 'd20' && savedD20
+            ? 'd20'
+            : parsed.warmup === 'passa' && savedPassa
+              ? 'passa'
+              : parsed.warmup === 'wheel' && savedWheel
+                ? 'wheel'
+                : parsed.warmup === 'live' && savedQuiz
+                  ? 'live'
+                  : 'none';
       const savedHostUrl = typeof parsed.hostUrl === 'string' ? parsed.hostUrl : '';
       /* Sessions saved before the welcome screen existed default to live. */
       const savedPhase: AulaPhase = parsed.phase === 'welcome' ? 'welcome' : 'live';
@@ -639,6 +649,24 @@ export default function AulaPage() {
         setWarmup('d20');
         warmupRef.current = 'd20';
       }
+      if (savedWarmup === 'comp' && savedComp) {
+        const names = savedComp.scores.map((row) => row.name);
+        const scores = Object.fromEntries(savedComp.scores.map((row) => [row.name, row.score]));
+        compNamesRef.current = names;
+        compRoundsRef.current = savedComp.totalRounds ?? compRoundsRef.current;
+        compScoresRef.current = scores;
+        compTurnRef.current =
+          ((savedComp.round ?? 1) - 1) * Math.max(names.length, 1) +
+          Math.max(names.indexOf(savedComp.student), 0);
+        compMessageRef.current = savedComp;
+        compRankingRef.current = savedCompRanking;
+        setCompNames(names);
+        setCompRounds(savedComp.totalRounds ?? compRoundsRef.current);
+        setCompMessage(savedComp);
+        setCompRanking(savedCompRanking);
+        setWarmup('comp');
+        warmupRef.current = 'comp';
+      }
       if (savedQuiz) {
         setLiveQuizCode(savedQuiz);
         setHostUrl(
@@ -685,6 +713,8 @@ export default function AulaPage() {
         wheel: wheelGame,
         passa: passaGame,
         d20: d20Game,
+        comp: compMessage,
+        compRanking,
       })
     );
   }, [
@@ -699,6 +729,8 @@ export default function AulaPage() {
     wheelGame,
     passaGame,
     d20Game,
+    compMessage,
+    compRanking,
   ]);
 
   useEffect(() => {
@@ -2804,6 +2836,23 @@ export default function AulaPage() {
               <span className="min-w-0 text-sm font-black text-[var(--ink)]">
                 🏆 Competição: {compMessage.student} · rodada {compMessage.round ?? 1} de{' '}
                 {compMessage.totalRounds ?? compRounds}
+              </span>
+              {compRanking ? (
+                <span className="w-full text-xs font-black text-[var(--accent)]">
+                  Fim da competição — pódio no telão.
+                </span>
+              ) : null}
+              <span className="flex w-full flex-wrap gap-1.5 text-[11px] font-bold text-[var(--muted)]">
+                {[...compMessage.scores]
+                  .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+                  .map((row) => (
+                    <span
+                      key={row.name}
+                      className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-0.5 text-[var(--ink)]"
+                    >
+                      {row.name}: {row.score}
+                    </span>
+                  ))}
               </span>
               <span className="flex flex-wrap items-center gap-2">
                 {compRanking ? null : compMessage.revealed ? (
