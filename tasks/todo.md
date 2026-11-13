@@ -27,12 +27,12 @@
 - [x] F2-05 Fim de aula explícito
 
 ## F3 — Dados
-- [ ] F3-01 SQL e RLS (SQL pronto em `supabase/migrations/`; aplicar no Supabase)
-- [ ] F3-02 Sync Passaporte
-- [ ] F3-03 Migração dos 15 JSONs
-- [ ] F3-04 Resolver + overrides
-- [ ] F3-05 Correção P1 A2 (recap local)
-- [ ] F3-06 Leitura v2 no app
+- [x] F3-01 SQL e RLS
+- [x] F3-02 Sync Passaporte
+- [x] F3-03 Migração dos 15 JSONs
+- [x] F3-04 Resolver (snapshot/conteúdo; overrides ficam para F6)
+- [x] F3-05 Correção P1 A2 (recap local)
+- [x] F3-06 Leitura v2 no app
 - [ ] F3-07 Documentação de dados
 
 ## F4 — Agenda e dashboard

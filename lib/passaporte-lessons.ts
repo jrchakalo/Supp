@@ -103,6 +103,11 @@ export type Lesson = {
   segments: Segment[];
   /** Optional welcome copy coming from the lesson data (Supabase). */
   welcome?: LessonWelcome;
+  /** v2: the occurrence this lesson belongs to (class + date). */
+  occurrenceId?: string;
+  classId?: string | null;
+  contentId?: string;
+  status?: string;
 };
 
 export type QuizDeck = { id: string; title: string; questions: LiveQuestion[] };
