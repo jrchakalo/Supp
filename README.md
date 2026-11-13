@@ -206,6 +206,22 @@ com **52 perguntas por tema padrão** e o **Anime com 84**:
 - `npm run start` — servidor de produção.
 - `npm run lint` — ESLint.
 
+## Cockpit do professor (planejamento 2026-11)
+
+O módulo de aulas evolui para o cockpit diário do professor:
+
+- **`/professor`** — painel com saudação, agenda da semana, aula agora/próxima, aulas do dia e histórico.
+- **`/tela`** — telão controlado pelo professor, com reconexão automática e jogos completos.
+- **`/professor/biblioteca`** — banco de aulas por disciplina e unit/projeto.
+- **`/professor/historico`** — aulas dadas, class reports e snapshots.
+- **Edição de slides** com escopo **local** (esta aula/turma) ou **global** (todas as aulas do conteúdo);
+  aulas já dadas mantêm o snapshot do que foi ensinado.
+- **Jogos** (Roleta, Passa Repassa, D20, Competição e Live) no palco único da `/tela`, sem segunda aba.
+
+As rotas antigas `/aula` e `/tv` continuam funcionando por redirect. As regras de arquitetura, dados e
+execução com IA estão em [`AGENTS.md`](AGENTS.md); o plano completo fica em
+`projetos-pasaporte/docs/planejamento-2026-11/` (conteúdo institucional, fora do git).
+
 ## Estrutura do projeto
 
 ```
