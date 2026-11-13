@@ -37,7 +37,7 @@ Escopos: `professor`, `tela`, `session`, `content`, `agenda`, `library`, `editor
 
 Regras:
 - Um commit = uma mudança lógica; não misture formatação/renomeação com feature.
-- Rode `npx tsc --noEmit` e `npm run build` antes de commitar código.
+- Rode `npx tsc --noEmit`, `npm run test:unit` e `npm run build` antes de commitar código.
 - Não commite `.env*`, `projetos-pasaporte/`, `node_modules/`, `.next/`, segredos ou dumps.
 - Não use `git add .` às cegas; revise `git status` e `git diff`.
 - Não reescreva histórico publicado na `main` (sem force push).
@@ -45,8 +45,15 @@ Regras:
 ## Pull requests
 
 - PR pequeno, com resumo, tarefa(s), como testar e screenshots quando houver UI.
-- CI precisa passar (`tsc` + `build`).
+- CI precisa passar (`tsc` + `test:unit` + `build`).
 - Descreva riscos e o que ficou fora de escopo.
+
+## Testes
+
+- Unitários: `npm run test:unit` (compila funções puras e roda `node:test`).
+- E2E local: com o build servido e o Chrome em `--remote-debugging-port=9222`,
+  rode `E2E_BASE_URL=http://localhost:3000 npm run test:e2e`.
+  O smoke cobre redirects 308, gate, abertura de aula, código visível, TV/F5 e D20.
 
 ## Documentação
 

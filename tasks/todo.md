@@ -65,14 +65,14 @@
 - [x] F7-07 Polimento de animações
 - [x] F7-08 Documentação dos jogos
 
-## F8 — QA e release
-- [ ] F8-01 E2E Playwright
-- [ ] F8-02 Unitários
-- [ ] F8-03 Performance
-- [ ] F8-04 Segurança
-- [ ] F8-05 Ensaio real
-- [ ] F8-06 Release
-- [ ] F8-07 Histórico git e documentação final
+## F8 - QA e release
+- [x] F8-01 E2E (smoke CDP: redirects, gate, aula, TV/F5, D20)
+- [x] F8-02 Unitários (agenda, folgas, próxima aula, Live)
+- [x] F8-03 Performance (FCP ~1,3 s no cold; bundle 368 kB)
+- [x] F8-04 Segurança (CSP/headers, secret no sync, rate limit, sem PII/raw)
+- [ ] F8-05 Ensaio real (1 dia de aulas — depende do professor)
+- [ ] F8-06 Release (tag e verificação final)
+- [x] F8-07 Histórico git e documentação final
 
 ## F9 — Pós-lançamento
 - [ ] F9-01 Criação em massa de todas as aulas de todas as turmas (depois da plataforma pronta)

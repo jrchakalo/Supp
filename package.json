@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test:unit": "tsc -p tsconfig.test.json && node --test tests/unit",
+    "test:e2e": "node scripts/e2e-smoke.mjs",
     "clean": "next clean"
   },
   "dependencies": {
