@@ -100,14 +100,14 @@ export const EXTRA_DECKS: Record<string, PassaporteDeck> = {
   },
   'ib-word-2': {
     id: 'ib-word-2',
-    title: "Word II — Formatting, tables and images",
+    title: "Word II — Formatação, tabelas e imagens",
     questions: [
-      { id: 'word2-01', tier: 1, text: "Which tool creates consistent headings?", options: ["Styles","Paint","Clipboard","Zoom"], correctIndex: 0, explanation: "Styles apply heading levels consistently." },
-      { id: 'word2-02', tier: 1, text: "A table is best for…", options: ["Comparing information","Adding sound","Changing the font","Printing"], correctIndex: 0, explanation: "Tables organize comparisons." },
-      { id: 'word2-03', tier: 2, text: "“In line with text” controls…", options: ["The image position","The font color","The page size","The spell check"], correctIndex: 0, explanation: "It keeps the image in the text flow." },
-      { id: 'word2-04', tier: 2, text: "Why export to PDF?", options: ["To edit more","To keep the layout","To add macros","To change the font"], correctIndex: 1, explanation: "PDF preserves the layout." },
-      { id: 'word2-05', tier: 3, text: "Good formatting is…", options: ["Random","Consistent","Invisible","Always bold"], correctIndex: 1, explanation: "Consistency helps the reader." },
-      { id: 'word2-06', tier: 3, text: "An image should…", options: ["Decorate only","Support the message","Replace the text","Be huge"], correctIndex: 1, explanation: "Images support understanding." },
+      { id: 'word2-01', tier: 1, text: "Which tool creates consistent headings?", options: ["Styles","Paint","Clipboard","Zoom"], correctIndex: 0, explanation: "Styles apply heading levels consistently.", textPt: "Qual ferramenta cria títulos consistentes?", optionsPt: ["Estilos (Styles)","Pincel","Área de transferência","Zoom"] },
+      { id: 'word2-02', tier: 1, text: "A table is best for…", options: ["Comparing information","Adding sound","Changing the font","Printing"], correctIndex: 0, explanation: "Tables organize comparisons.", textPt: "Uma tabela é melhor para…", optionsPt: ["Comparar informações","Adicionar som","Mudar a fonte","Imprimir"] },
+      { id: 'word2-03', tier: 2, text: "“In line with text” controls…", options: ["The image position","The font color","The page size","The spell check"], correctIndex: 0, explanation: "It keeps the image in the text flow.", textPt: "“In line with text” controla…", optionsPt: ["A posição da imagem","A cor da fonte","O tamanho da página","A correção ortográfica"] },
+      { id: 'word2-04', tier: 2, text: "Why export to PDF?", options: ["To edit more","To keep the layout","To add macros","To change the font"], correctIndex: 1, explanation: "PDF preserves the layout.", textPt: "Por que exportar para PDF?", optionsPt: ["Para editar mais","Para manter o layout","Para adicionar macros","Para mudar a fonte"] },
+      { id: 'word2-05', tier: 3, text: "Good formatting is…", options: ["Random","Consistent","Invisible","Always bold"], correctIndex: 1, explanation: "Consistency helps the reader.", textPt: "Uma boa formatação é…", optionsPt: ["Aleatória","Consistente","Invisível","Sempre negrito"] },
+      { id: 'word2-06', tier: 3, text: "An image should…", options: ["Decorate only","Support the message","Replace the text","Be huge"], correctIndex: 1, explanation: "Images support understanding.", textPt: "Uma imagem deve…", optionsPt: ["Só decorar","Apoiar a mensagem","Substituir o texto","Ser enorme"] },
     ],
   },
   'ib-m1-a2': {

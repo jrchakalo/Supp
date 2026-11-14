@@ -310,6 +310,11 @@ function LiveSpectator({
           <div className="flex items-center gap-2 text-[clamp(0.9rem,1.4vw,1.3rem)] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
             <Users className="h-[1.2em] w-[1.2em]" aria-hidden="true" />
             Quiz ao vivo · sala {code}
+            {question.total ? (
+              <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-0.5 text-[0.62em] tracking-wide text-[var(--muted)]">
+                Pergunta {question.seq + 1} de {question.total}
+              </span>
+            ) : null}
           </div>
           <div className="flex items-center gap-2">
             <Timer className="h-[1.4em] w-[1.4em] text-[var(--accent-2)]" aria-hidden="true" />
@@ -367,6 +372,11 @@ function LiveSpectator({
           <div className="flex items-center gap-2 text-[clamp(0.8rem,1.2vw,1.1rem)] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
             <Trophy className="h-[1.2em] w-[1.2em]" aria-hidden="true" />
             Revelação · sala {code}
+            {reveal.total ? (
+              <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-0.5 text-[0.62em] tracking-wide text-[var(--muted)]">
+                Pergunta {reveal.seq + 1} de {reveal.total}
+              </span>
+            ) : null}
           </div>
           <ConnectionPill status={connection} label="live" />
         </div>

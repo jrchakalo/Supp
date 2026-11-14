@@ -138,6 +138,7 @@ export function useLiveHost(options: LiveHostOptions) {
       return {
         kind: 'question',
         seq: seqIndex,
+        total: runRef.current.length,
         questionId: current.id,
         text: current.text,
         options: current.options,
@@ -216,6 +217,7 @@ export function useLiveHost(options: LiveHostOptions) {
       broadcast({
         kind: 'reveal',
         seq: seqIndex,
+        total: runRef.current.length,
         questionId: current.id,
         text: current.text,
         options: current.options,
@@ -544,6 +546,7 @@ export function useLiveHost(options: LiveHostOptions) {
             broadcast({
               kind: 'reveal',
               seq: snap.reveal.seq,
+              total: runRef.current.length || undefined,
               questionId: snap.question.id,
               text: snap.question.text,
               options: snap.question.options,

@@ -65,7 +65,18 @@ export type Slide =
     }
   | { kind: 'big'; title: string; subtitle?: string; lines: string[]; teacherNote?: string }
   | { kind: 'quiz'; title: string; subtitle?: string; bullets: string[]; teacherNote?: string }
-  | { kind: 'question'; title: string; subtitle?: string; question: string; options: string[]; teacherNote?: string }
+  | {
+      kind: 'question';
+      title: string;
+      subtitle?: string;
+      question: string;
+      options: string[];
+      /** Tradução em português, revelada depois de `translationDelayMs`. */
+      textPt?: string;
+      optionsPt?: string[];
+      translationDelayMs?: number;
+      teacherNote?: string;
+    }
   | {
       kind: 'answer';
       title: string;
@@ -74,6 +85,9 @@ export type Slide =
       options: string[];
       correctIndex: number;
       explanation?: string;
+      textPt?: string;
+      optionsPt?: string[];
+      translationDelayMs?: number;
       teacherNote?: string;
     };
 

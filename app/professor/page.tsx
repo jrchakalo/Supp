@@ -558,6 +558,7 @@ export default function AulaPage() {
   const compResultsRef = useRef<Array<{ student: string; correct: boolean }>>([]);
   const compUsedIdsRef = useRef<Set<string>>(new Set());
   const compTiebreakRef = useRef(0);
+  const pendingCompPhaseRef = useRef<{ phaseIndex: number; survivors: string[] } | null>(null);
   const wheelGameRef = useRef<WheelGameState | null>(null);
   const wheelUsedRef = useRef<Set<string>>(new Set());
   const wheelSpinTimerRef = useRef<number | null>(null);
@@ -1606,7 +1607,7 @@ export default function AulaPage() {
   const pickD20Number = useCallback(
     (number: number) => {
       const game = d20GameRef.current;
-      if (!game || game.phase !== 'board') return;
+      if (!game || (game.phase !== 'board' && game.phase !== 'revealed')) return;
       const deck = getClassicRunDeck(d20Difficulty, d20Categories);
       if (deck.length === 0) return;
       let pool = deck.filter((item) => !d20UsedRef.current.has(item.id));
@@ -1654,9 +1655,8 @@ export default function AulaPage() {
         streak,
         bestStreak: Math.max(game.bestStreak, streak),
       });
-      scheduleAutoAdvance(() => nextD20Ref.current?.(), 2600);
     },
-    [broadcastD20Game, scheduleAutoAdvance]
+    [broadcastD20Game]
   );
 
   const nextD20Game = useCallback(() => {
@@ -1798,6 +1798,7 @@ export default function AulaPage() {
     compAliveRef.current = names;
     compUsedIdsRef.current.clear();
     compTiebreakRef.current = 0;
+    pendingCompPhaseRef.current = null;
     compPhasesRef.current = buildCompetitionPhases(compLevel, compProgressive);
     setWarmupModal('none');
     setWarmup('comp');
@@ -1836,13 +1837,18 @@ export default function AulaPage() {
       compMessageRef.current = next;
       setCompMessage(next);
       broadcast(next);
-      scheduleAutoAdvance(() => nextCompRef.current?.(), 2600);
     },
-    [broadcast, scheduleAutoAdvance]
+    [broadcast]
   );
 
   const nextCompTurn = useCallback(() => {
     clearAutoAdvance();
+    const pending = pendingCompPhaseRef.current;
+    if (pending) {
+      pendingCompPhaseRef.current = null;
+      startCompPhaseRef.current(pending.phaseIndex, pending.survivors);
+      return;
+    }
     const order = compPhaseOrderRef.current;
     const phases = compPhasesRef.current;
     const phaseIndex = compPhaseIndexRef.current;
@@ -1911,11 +1917,8 @@ export default function AulaPage() {
     compAliveRef.current = survivors;
     compPhaseIndexRef.current = phaseIndex + 1;
     broadcast(summary);
-    scheduleAutoAdvance(
-      () => startCompPhaseRef.current(phaseIndex + 1, survivors),
-      4000
-    );
-  }, [askCompQuestion, broadcast, scheduleAutoAdvance]);
+    pendingCompPhaseRef.current = { phaseIndex: phaseIndex + 1, survivors };
+  }, [askCompQuestion, broadcast]);
 
   nextCompRef.current = nextCompTurn;
 
@@ -1985,7 +1988,7 @@ export default function AulaPage() {
 
   const spinWheel = useCallback(() => {
     const game = wheelGameRef.current;
-    if (!game || game.phase !== 'idle') return;
+    if (!game || (game.phase !== 'idle' && game.phase !== 'revealed')) return;
     const categories = game.categories.length ? game.categories : CLASSIC_ALL_CATEGORIES;
     if (categories.length === 0) return;
 
@@ -2052,9 +2055,8 @@ export default function AulaPage() {
           total: game.score.total + 1,
         },
       });
-      scheduleAutoAdvance(() => nextWheelRef.current?.(), 2800);
     },
-    [broadcastWheel, scheduleAutoAdvance]
+    [broadcastWheel]
   );
 
   const nextWheel = useCallback(() => {
@@ -2213,7 +2215,6 @@ export default function AulaPage() {
           },
           winner: scores[game.activeTeam] >= game.target ? game.activeTeam : null,
         });
-        scheduleAutoAdvance(() => nextPassaRef.current?.(), 2800);
         return;
       }
 
@@ -2238,9 +2239,8 @@ export default function AulaPage() {
         deadline: null,
         lastResult: { team: null, stolen: false, correct: false },
       });
-      scheduleAutoAdvance(() => nextPassaRef.current?.(), 2800);
     },
-    [broadcastPassa, scheduleAutoAdvance]
+    [broadcastPassa]
   );
 
   const nextPassa = useCallback(() => {
@@ -4317,8 +4317,8 @@ export default function AulaPage() {
                 {deck?.questions.length ?? 12} perguntas · {deck?.title ?? activeLesson.title}
               </p>
               <p className="mt-0.5 text-[11px] font-semibold text-[var(--muted)]">
-                Baralho fixo da aula, em português. Tempo de cada pergunta, auto-avanço e uso de
-                celulares são os únicos ajustes.
+                Baralho em inglês: a tradução em português aparece depois de 10 segundos.
+                Tempo de cada pergunta, auto-avanço e uso de celulares são os únicos ajustes.
               </p>
             </div>
 
@@ -4409,7 +4409,7 @@ export default function AulaPage() {
             <p className="mt-3 text-[11px] font-semibold text-[var(--muted)]">
               {usePhones
                 ? 'O telão entra em modo espectador do Live e mostra perguntas, respostas e ranking.'
-                : 'O telão passa a mostrar 24 slides gerados do baralho: pergunta e resposta.'}
+                : `O telão passa a mostrar ${quizSlides.length} slides gerados do baralho: pergunta e resposta.`}
             </p>
           </div>
         </div>

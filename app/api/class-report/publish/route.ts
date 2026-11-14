@@ -19,6 +19,8 @@ type ClassRow = {
   short_code: string;
   discipline: string | null;
   platform_class_id: string | null;
+  start_time: string | null;
+  end_time: string | null;
 };
 type ContentRow = { unit_no: number | null; lesson_no: number | null };
 type PlatformClass = {
@@ -117,7 +119,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Aula sem turma vinculada.' }, { status: 404 });
     }
     const [classroom] = await adminSelect<ClassRow[]>(
-      `pp_classes?select=id,short_code,discipline,platform_class_id&id=eq.${encodeURIComponent(
+      `pp_classes?select=id,short_code,discipline,platform_class_id,start_time,end_time&id=eq.${encodeURIComponent(
         occurrence.class_id
       )}&limit=1`
     );
@@ -164,14 +166,17 @@ export async function POST(request: NextRequest) {
       (report) => report.class_date.slice(0, 10) === occurrence.date
     );
 
+    const startHm = classroom.start_time?.slice(0, 5) ?? utcHm(occurrence.start_at);
+    const endHm = classroom.end_time?.slice(0, 5) ?? utcHm(occurrence.end_at);
+
     const payload = {
       ...(existing ? { id: existing.id } : {}),
       bookId,
       unitBooks: [{ unitBookId: unit.id, unitLessons: [0] }],
       classDate: `${occurrence.date}T12:00:00.000Z`,
       classId: classroom.platform_class_id,
-      startClass: `${occurrence.date}T${utcHm(occurrence.start_at)}:00.000Z`,
-      endClass: `${occurrence.date}T${utcHm(occurrence.end_at)}:00.000Z`,
+      startClass: `${occurrence.date}T${startHm}:00.000Z`,
+      endClass: `${occurrence.date}T${endHm}:00.000Z`,
       classInfo: text,
       teacherId: platformClass.teacher_id,
       studentInfos: students.map((student) => ({

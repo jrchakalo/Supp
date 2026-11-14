@@ -260,6 +260,29 @@ function SlideBody({
   showNotes: boolean;
   variant: SlideVariant;
 }) {
+  const translationKey =
+    slide.kind === 'question' || slide.kind === 'answer' ? slide.question : '';
+  const translationText =
+    slide.kind === 'question' || slide.kind === 'answer' ? slide.textPt : undefined;
+  const translationDelay =
+    slide.kind === 'answer'
+      ? 0
+      : slide.kind === 'question'
+        ? slide.translationDelayMs ?? 10000
+        : 0;
+  const [translationVisible, setTranslationVisible] = useState(false);
+
+  useEffect(() => {
+    setTranslationVisible(false);
+    if (!translationText) return;
+    if (translationDelay <= 0) {
+      setTranslationVisible(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setTranslationVisible(true), translationDelay);
+    return () => window.clearTimeout(timer);
+  }, [translationKey, translationText, translationDelay]);
+
   switch (slide.kind) {
     case 'cover':
       return (
@@ -541,9 +564,18 @@ function SlideBody({
       return (
         <div className="flex h-full min-h-0 flex-col">
           <p className={EYEBROW_CLS}>{slide.title}</p>
-          <h2 className="mt-[0.6cqw] text-[4cqw] font-black leading-tight text-balance break-words text-[var(--ink)]">
+          <h2 className="mt-[0.6cqw] text-[3.5cqw] font-black leading-tight text-balance break-words text-[var(--ink)]">
             {slide.question}
           </h2>
+          {translationVisible && slide.textPt ? (
+            <p className="mt-[0.4cqw] text-[1.55cqw] font-bold leading-snug text-[var(--accent-2)]">
+              PT: {slide.textPt}
+            </p>
+          ) : slide.textPt ? (
+            <p className="mt-[0.4cqw] text-[1.1cqw] font-black uppercase tracking-wide text-[var(--muted)]">
+              Tradução em alguns segundos…
+            </p>
+          ) : null}
           {slide.subtitle ? (
             <p className={clsx('mt-[0.5cqw]', SUBTITLE_CLS)}>{slide.subtitle}</p>
           ) : null}
@@ -562,8 +594,13 @@ function SlideBody({
                   >
                     {style.shape}
                   </span>
-                  <span className="min-w-0 flex-1 break-words text-[2cqw] font-black leading-tight">
+                  <span className="min-w-0 flex-1 break-words text-[1.9cqw] font-black leading-tight">
                     {option}
+                    {translationVisible && slide.optionsPt?.[index] ? (
+                      <span className="mt-[0.15cqw] block text-[1.15cqw] font-semibold leading-tight opacity-90">
+                        {slide.optionsPt[index]}
+                      </span>
+                    ) : null}
                   </span>
                 </div>
               );
@@ -579,6 +616,11 @@ function SlideBody({
           <h2 className="mt-[0.6cqw] text-[3.2cqw] font-black leading-tight text-balance break-words text-[var(--ink)]">
             {slide.question}
           </h2>
+          {translationVisible && slide.textPt ? (
+            <p className="mt-[0.4cqw] text-[1.45cqw] font-bold leading-snug text-[var(--accent-2)]">
+              PT: {slide.textPt}
+            </p>
+          ) : null}
           <div className="mt-[1.4cqw] grid min-h-0 flex-1 grid-cols-2 content-center gap-[1.2cqw]">
             {slide.options.map((option, index) => {
               const style = ANSWER_BUTTONS[index % ANSWER_BUTTONS.length];
@@ -599,8 +641,13 @@ function SlideBody({
                   >
                     {style.shape}
                   </span>
-                  <span className="min-w-0 flex-1 break-words text-[2cqw] font-black leading-tight">
+                  <span className="min-w-0 flex-1 break-words text-[1.9cqw] font-black leading-tight">
                     {option}
+                    {translationVisible && slide.optionsPt?.[index] ? (
+                      <span className="mt-[0.15cqw] block text-[1.1cqw] font-semibold leading-tight opacity-90">
+                        {slide.optionsPt[index]}
+                      </span>
+                    ) : null}
                   </span>
                   {correct ? (
                     <Check aria-hidden="true" className="h-[1.4em] w-[1.4em] shrink-0" />

@@ -83,7 +83,7 @@ export default function WheelStage({ state, onSpin, onAnswer }: WheelStageProps)
     }
   }, [state.phase, state.lastAnswerCorrect, state.spinId]);
 
-  const canSpin = state.phase === 'idle';
+  const canSpin = state.phase === 'idle' || state.phase === 'revealed';
   const pickedLabel = state.picked
     ? SHORT_LABELS[state.picked] ?? categoryCopy(state.picked, 'pt').label
     : null;
