@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
     const patch: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
       started_at: occurrence.started_at ?? new Date().toISOString(),
+      ended_at: null,
     };
 
     const code = sanitizeRoomCode(sessionCode);
