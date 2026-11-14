@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Copy,
   Dices,
+  FileText,
   Gamepad2,
   Image as ImageIcon,
   KeyRound,
@@ -56,6 +57,7 @@ import type {
 import type { WheelGameState } from '@/lib/aula/games';
 import WheelControl from '@/components/game/WheelControl';
 import LiveHostPanel from '@/components/live/LiveHostPanel';
+import ClassReportDialog from '@/components/professor/ClassReportDialog';
 import { useLiveHost } from '@/lib/live/useLiveHost';
 import { getLiveDeck, prepareQuestion, randomRoomCode, sanitizeRoomCode } from '@/lib/live/room';
 import type { PassaGameState, PassaQuestion, D20GameState } from '@/lib/aula/games';
@@ -440,6 +442,8 @@ export default function AulaPage() {
     'Aula a planejar';
 
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [classReportOpen, setClassReportOpen] = useState(false);
+  const [classReportSaved, setClassReportSaved] = useState('');
   const openedFromQueryRef = useRef(false);
   const [sessionCode, setSessionCode] = useState('');
   const [tvUrl, setTvUrl] = useState('');
@@ -530,6 +534,11 @@ export default function AulaPage() {
   const imageUrlsRef = useRef<Record<number, string>>({});
   const liveQuizRef = useRef<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setClassReportOpen(false);
+    setClassReportSaved(activeLesson?.classReportText ?? '');
+  }, [activeLesson?.id, activeLesson?.classReportText]);
 
   /* Warm-up refs, read by the channel sync without waiting for a re-render. */
   const warmupRef = useRef<WarmupKind>('none');
@@ -1017,6 +1026,7 @@ export default function AulaPage() {
   const beat = beats[beatIndex];
   const lessonSlide = beat?.slide;
   const segment = activeLesson?.segments.find((item) => item.id === beat?.segmentId);
+  const reportTemplate = activeLesson?.segments.find((item) => item.classReport)?.classReport;
   const quizSlide = quizSlides[quizIndex];
   const currentSlide = mode === 'quiz' ? quizSlide : beat?.slide;
   const totalItems = mode === 'quiz' ? quizSlides.length : beats.length;
@@ -1309,7 +1319,7 @@ export default function AulaPage() {
           contentId: lesson.contentId,
           sessionCode: code,
           snapshot: lesson.segments,
-          action: 'start',
+          action: 'open',
         }),
       }).catch(() => undefined);
     }
@@ -1342,7 +1352,20 @@ export default function AulaPage() {
     phaseRef.current = 'live';
     setPhase('live');
     goToBeat(0);
-  }, [goToBeat]);
+    if (lesson.occurrenceId && lesson.contentId) {
+      void fetch('/api/occurrences/session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          occurrenceId: lesson.occurrenceId,
+          contentId: lesson.contentId,
+          sessionCode,
+          snapshot: lesson.segments,
+          action: 'start',
+        }),
+      }).catch(() => undefined);
+    }
+  }, [goToBeat, sessionCode]);
 
   const endSession = useCallback((skipConfirm = false) => {
     if (!skipConfirm && !window.confirm('Encerrar a aula? O telão volta para a tela de conexão.')) {
@@ -2541,7 +2564,10 @@ export default function AulaPage() {
                       key={value}
                       type="button"
                       aria-pressed={liveLanguage === value}
-                      onClick={() => setLiveLanguage(value)}
+                      onClick={() => {
+                        setLiveLanguage(value);
+                        if (value === 'pt') setLiveTranslate(false);
+                      }}
                       className={
                         liveLanguage === value
                           ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--ink)]'
@@ -2566,6 +2592,7 @@ export default function AulaPage() {
                     id: 'translate',
                     label: 'Tradução na metade',
                     value: liveTranslate,
+                    disabled: liveLanguage === 'pt',
                     toggle: () => setLiveTranslate((value) => !value),
                   },
                   {
@@ -2581,16 +2608,28 @@ export default function AulaPage() {
                     role="switch"
                     aria-checked={item.value}
                     onClick={item.toggle}
+                    disabled={'disabled' in item ? Boolean(item.disabled) : false}
+                    title={
+                      item.id === 'translate' && liveLanguage === 'pt'
+                        ? 'A tradução na metade só existe de English para Português.'
+                        : undefined
+                    }
                     className={
                       item.value
-                        ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-[11px] font-black text-[var(--ink)]'
-                        : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-[11px] font-black text-[var(--muted)]'
+                        ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-[11px] font-black text-[var(--ink)] disabled:opacity-45'
+                        : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-[11px] font-black text-[var(--muted)] disabled:opacity-45'
                     }
                   >
                     {item.label}: {item.value ? 'on' : 'off'}
                   </button>
                 ))}
               </div>
+              {liveLanguage === 'pt' ? (
+                <p className="mt-2 text-[11px] font-semibold text-[var(--muted)]">
+                  Tradução na metade fica indisponível em português: ela existe para traduzir
+                  perguntas em English.
+                </p>
+              ) : null}
 
               <button
                 type="button"
@@ -4209,10 +4248,37 @@ export default function AulaPage() {
                   Abrir sala do quiz
                 </button>
               ) : null}
+
+              {mode === 'lesson' && segment?.classReport ? (
+                <button
+                  type="button"
+                  onClick={() => setClassReportOpen(true)}
+                  className="ml-auto flex items-center gap-2 rounded-xl bg-[var(--cta-bg)] px-4 py-2.5 text-sm font-black uppercase tracking-wide text-[var(--cta-text)]"
+                >
+                  <FileText className="h-4 w-4" aria-hidden="true" />
+                  {classReportSaved ? 'Ver class report' : 'Gerar class report'}
+                </button>
+              ) : null}
             </div>
           </section>
         </div>
       </div>
+
+      {activeLesson && reportTemplate && activeLesson.occurrenceId ? (
+        <ClassReportDialog
+          open={classReportOpen}
+          onClose={() => setClassReportOpen(false)}
+          occurrenceId={activeLesson.occurrenceId}
+          classCode={activeLesson.classCode ?? activeLesson.turma}
+          date={activeLesson.date}
+          template={reportTemplate}
+          savedText={classReportSaved || activeLesson.classReportText || ''}
+          onSaved={(text) => {
+            setClassReportSaved(text);
+            setLessonsNonce((value) => value + 1);
+          }}
+        />
+      ) : null}
 
       {/* Quiz setup modal */}
       {quizModalOpen ? (
