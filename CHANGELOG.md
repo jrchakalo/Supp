@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.3] — 2026-11-14
+
+### Correções de produto
+
+- Cursor do mouse sempre visível; caret de digitação apenas em campos editáveis.
+- Agenda com turmas alternadas por semana, fim às 18h e status corrigidos (cancelada cinza,
+  sem alunos âmbar, não dada rosa).
+- Aulas por dia colapsáveis (hoje/amanhã abertos); “Próxima aula” só quando há aula hoje;
+  aulas de hoje abaixo e mensagem “Sem aulas hoje. Aproveite a folga!”.
+- Biblioteca com disciplinas/projetos colapsáveis e sem filtros redundantes de trilha/duração.
+- `/tela` valida o código da sala; código inexistente não “conecta”.
+- Editor permite escolher o tipo do novo slide, trocar o tipo do slide atual e renomear o bloco.
+- Live com modo, dificuldade, temas múltiplos, idioma, tela do aluno, tradução e auto-avanço.
+- Competição com níveis/fases, temas, ordem, idioma, eliminação e pódio.
+- D20 com temas/dificuldade; Roleta com rodadas/clique; Passa com temas/idioma.
+- Todos os Verdadeiro/Falso e opções podem ser respondidos na `/tela`, com avanço automático.
+- P6 A3 reescrita com checkpoint/respawn, código completo, tempos coerentes e fechamento.
+
 ## [1.0.2] — 2026-11-13
 
 ### Conteúdo

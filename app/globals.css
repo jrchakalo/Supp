@@ -452,23 +452,17 @@
   }
 }
 
-/* Global cursor policy: the pointer is hidden everywhere except typing fields.
-   CursorToggle / Ctrl+Alt+C toggles the .hide-cursor class on <html>. */
-.hide-cursor,
-.hide-cursor * {
-  cursor: none !important;
+/* The pointer is always visible. Only real typing fields show the insertion
+   caret; everything else keeps caret-color transparent. */
+html,
+body {
+  caret-color: transparent;
 }
 
-.hide-cursor input:not([type='range']):not([type='color']):not([type='file']),
-.hide-cursor textarea,
-.hide-cursor [contenteditable='true'] {
-  cursor: text !important;
-}
-
-.hide-cursor select,
-.hide-cursor input[type='range'],
-.hide-cursor input[type='color'],
-.hide-cursor input[type='file'] {
-  cursor: pointer !important;
+input,
+textarea,
+select,
+[contenteditable='true'] {
+  caret-color: auto;
 }
 

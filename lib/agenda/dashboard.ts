@@ -1,7 +1,7 @@
 import type { AgendaOccurrence } from './types';
 import { isoDate, parseLocalDate } from './calendar';
 
-const BLOCKED = new Set(['cancelled', 'holiday']);
+const BLOCKED = new Set(['cancelled', 'holiday', 'missed']);
 
 export function findOngoing(
   occurrences: AgendaOccurrence[],

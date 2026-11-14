@@ -40,6 +40,7 @@ import {
   type AulaMessage,
   type AulaWelcomeContent,
 } from '@/lib/aula/sync';
+import { sessionExists } from '@/lib/aula/session';
 
 type LivePhase = 'lobby' | 'question' | 'reveal' | 'gameover';
 type LiveConnection = 'idle' | 'connecting' | 'connected' | 'error';
@@ -626,9 +627,11 @@ function CompPodium({ ranking }: { ranking: AulaCompScore[] }) {
 function CompSpectator({
   message,
   ranking,
+  onAnswer,
 }: {
   message: AulaCompMessage;
   ranking: AulaCompScore[] | null;
+  onAnswer?: (answer: boolean) => void;
 }) {
   const previousScoresRef = useRef<Record<string, number> | null>(null);
 
@@ -660,6 +663,11 @@ function CompSpectator({
         <div className="flex items-center gap-2 text-[clamp(0.85rem,1.4vw,1.25rem)] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
           <Trophy className="h-[1.2em] w-[1.2em]" aria-hidden="true" />
           Competição da turma
+          {message.phaseLabel ? (
+            <span className="text-[0.55em] tracking-wide text-[var(--muted)]">
+              {message.phaseLabel}
+            </span>
+          ) : null}
         </div>
         {message.round && message.totalRounds ? (
           <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1 text-[clamp(0.7rem,1.1vw,1rem)] font-black uppercase tracking-wide text-[var(--muted)]">
@@ -677,7 +685,24 @@ function CompSpectator({
             {message.text}
           </h1>
 
-          {message.revealed ? (
+          {message.phaseOver ? (
+            <div className="rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-4">
+              <p className="text-[clamp(1.2rem,2.5vw,2rem)] font-black">
+                Fase concluída
+              </p>
+              <p className="mt-2 text-sm font-bold text-[var(--muted)]">
+                Continuam: {(message.alive ?? []).join(', ') || 'ninguém'}
+              </p>
+              {(message.eliminated ?? []).length > 0 ? (
+                <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
+                  Saíram: {(message.eliminated ?? []).join(', ')}
+                </p>
+              ) : null}
+              <p className="mt-3 text-[11px] font-black uppercase tracking-wide text-[var(--accent)]">
+                Próxima fase em instantes…
+              </p>
+            </div>
+          ) : message.revealed ? (
             <>
               <p
                 className={`text-[clamp(2.2rem,6vw,5.5rem)] font-black leading-none ${
@@ -693,9 +718,24 @@ function CompSpectator({
               ) : null}
             </>
           ) : (
-            <p className="text-[clamp(0.9rem,1.5vw,1.3rem)] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-              Responda: TRUE ou FALSE
-            </p>
+            <div className="mx-auto grid w-full max-w-xl grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onAnswer?.(true)}
+                disabled={!onAnswer}
+                className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-4 text-[clamp(1rem,2vw,1.6rem)] font-black text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--ink)]"
+              >
+                VERDADEIRO
+              </button>
+              <button
+                type="button"
+                onClick={() => onAnswer?.(false)}
+                disabled={!onAnswer}
+                className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-4 text-[clamp(1rem,2vw,1.6rem)] font-black text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--ink)]"
+              >
+                FALSO
+              </button>
+            </div>
           )}
         </div>
 
@@ -733,6 +773,10 @@ export default function TvPage() {
   const [code, setCode] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [codeError, setCodeError] = useState('');
+  const [roomStatus, setRoomStatus] = useState<'idle' | 'checking' | 'valid' | 'missing'>(
+    'idle'
+  );
+  const roomCheckRef = useRef<number | null>(null);
   const [nonce, setNonce] = useState(0);
 
   const [connection, setConnection] = useState<AulaConnectionStatus>('idle');
@@ -839,6 +883,11 @@ export default function TvPage() {
   const markTeacherOnline = useCallback(() => {
     teacherSeenRef.current = true;
     setTeacherOnline(true);
+    setRoomStatus('valid');
+    if (roomCheckRef.current) {
+      window.clearTimeout(roomCheckRef.current);
+      roomCheckRef.current = null;
+    }
     if (teacherAbsenceRef.current) {
       window.clearTimeout(teacherAbsenceRef.current);
       teacherAbsenceRef.current = null;
@@ -851,6 +900,12 @@ export default function TvPage() {
       window.clearTimeout(teacherAbsenceRef.current);
       teacherAbsenceRef.current = null;
     }
+    if (roomCheckRef.current) {
+      window.clearTimeout(roomCheckRef.current);
+      roomCheckRef.current = null;
+    }
+    verifyRef.current += 1;
+    setRoomStatus('idle');
     teacherSeenRef.current = false;
     setTeacherOnline(false);
     clearSavedTelaState();
@@ -1149,6 +1204,59 @@ export default function TvPage() {
     }
   }, []);
 
+  const verifyRef = useRef(0);
+
+  const failRoom = useCallback(() => {
+    if (roomCheckRef.current) {
+      window.clearTimeout(roomCheckRef.current);
+      roomCheckRef.current = null;
+    }
+    verifyRef.current += 1;
+    teacherSeenRef.current = false;
+    setTeacherOnline(false);
+    clearSavedTelaState();
+    clearSavedQuizState();
+    quizRoomRef.current = null;
+    setQuizRoom(null);
+    forgetLive();
+    resetWarmup();
+    setWelcomeContent(null);
+    setSlide(null);
+    setSlideImage(undefined);
+    setWelcome(false);
+    setConnection('idle');
+    setCode('');
+    setCodeInput('');
+    setRoomStatus('missing');
+    setCodeError('Sala não encontrada. Confira o código na tela do professor.');
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('c');
+      url.searchParams.delete('code');
+      window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+    }
+  }, [forgetLive, resetWarmup]);
+
+  const verifyRoom = useCallback(
+    async (next: string) => {
+      const token = ++verifyRef.current;
+      setRoomStatus('checking');
+      const exists = await sessionExists(next);
+      if (token !== verifyRef.current) return;
+      if (exists === true) {
+        setRoomStatus('valid');
+        return;
+      }
+      if (roomCheckRef.current) window.clearTimeout(roomCheckRef.current);
+      roomCheckRef.current = window.setTimeout(() => {
+        roomCheckRef.current = null;
+        if (token !== verifyRef.current) return;
+        if (!teacherSeenRef.current) failRoom();
+      }, 7000);
+    },
+    [failRoom]
+  );
+
   /* Boot: read ?c=CODE, watch fullscreen, restore a saved quiz. */
   useEffect(() => {
     setMounted(true);
@@ -1159,18 +1267,13 @@ export default function TvPage() {
     if (initial) {
       setCode(initial);
       setCodeInput(initial);
-      if (readSavedQuizState(initial)) {
-        restoreQuizState(initial);
-      } else {
-        const savedSlide = readSavedTelaState(initial);
-        if (savedSlide) applySlide(savedSlide.slide, savedSlide.imageUrl);
-      }
+      void verifyRoom(initial);
     }
 
     const onFullscreenChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, [applySlide, restoreQuizState]);
+  }, [verifyRoom]);
 
   /* Aula channel: slides + quiz switches. */
   useEffect(() => {
@@ -1293,7 +1396,7 @@ export default function TvPage() {
 
   const openCode = useCallback(() => {
     const next = sanitizeRoomCode(codeInput);
-    if (!next) {
+    if (!next || next.length !== 5) {
       setCodeError('Digite o código de 5 caracteres que aparece na tela do professor.');
       return;
     }
@@ -1307,6 +1410,8 @@ export default function TvPage() {
     forgetLive();
     resetWarmup();
     teacherSeenRef.current = false;
+    setRoomStatus('checking');
+    void verifyRoom(next);
     if (teacherAbsenceRef.current) {
       window.clearTimeout(teacherAbsenceRef.current);
       teacherAbsenceRef.current = null;
@@ -1320,7 +1425,7 @@ export default function TvPage() {
       url.searchParams.set('c', next);
       window.history.replaceState(null, '', `${url.pathname}${url.search}`);
     }
-  }, [code, codeInput, forgetLive, resetWarmup, showWelcome]);
+  }, [code, codeInput, forgetLive, resetWarmup, showWelcome, verifyRoom]);
 
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) {
@@ -1406,7 +1511,7 @@ export default function TvPage() {
                   placeholder="ABCDE"
                   autoComplete="off"
                   autoCapitalize="characters"
-                  maxLength={6}
+                  maxLength={5}
                   autoFocus
                   aria-label="Código da sessão do telão"
                   className="mt-2 w-full rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-4 py-3 text-center text-2xl font-black tracking-[0.35em] text-[var(--ink)] outline-none focus:border-[var(--accent)]"
@@ -1431,8 +1536,35 @@ export default function TvPage() {
               </p>
             </section>
           </div>
+        ) : roomStatus === 'checking' ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+            <span className="h-10 w-10 animate-pulse rounded-full bg-[var(--surface-2)]" />
+            <p className="text-sm font-black uppercase tracking-[0.2em] text-[var(--accent)]">
+              Conectando à sala {code}
+            </p>
+            <p className="max-w-md text-xs font-semibold text-[var(--muted)]">
+              Confirmando o código com o professor…
+            </p>
+            <button
+              type="button"
+              onClick={returnToConnect}
+              className="mt-2 rounded-xl border-2 border-[var(--line)] px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[var(--muted)]"
+            >
+              Trocar código
+            </button>
+          </div>
         ) : warmup === 'passa' && passaGame ? (
-          <PassaStage state={passaGame} />
+          <PassaStage
+            state={passaGame}
+            onAnswer={(optionIndex) =>
+              aulaChannelRef.current?.send({
+                type: 'command',
+                game: 'passa',
+                action: 'answer',
+                optionIndex,
+              })
+            }
+          />
         ) : warmup === 'wheel' && wheelGame ? (
           <WheelStage
             state={wheelGame}
@@ -1444,13 +1576,50 @@ export default function TvPage() {
                 nonce: Date.now(),
               })
             }
+            onAnswer={(answer) =>
+              aulaChannelRef.current?.send({
+                type: 'command',
+                game: 'wheel',
+                action: 'answer',
+                answer,
+              })
+            }
           />
         ) : warmup === 'd20' && d20Game ? (
-          <D20Stage state={d20Game} />
+          <D20Stage
+            state={d20Game}
+            onAnswer={(answer) =>
+              aulaChannelRef.current?.send({
+                type: 'command',
+                game: 'd20',
+                action: 'answer',
+                answer,
+              })
+            }
+            onPick={(number) =>
+              aulaChannelRef.current?.send({
+                type: 'command',
+                game: 'd20',
+                action: 'pick',
+                number,
+              })
+            }
+          />
         ) : warmup === 'd20' && d20 ? (
           <D20Spectator message={d20} revealed={d20Revealed} />
         ) : warmup === 'comp' && comp ? (
-          <CompSpectator message={comp} ranking={compRanking} />
+          <CompSpectator
+            message={comp}
+            ranking={compRanking}
+            onAnswer={(answer) =>
+              aulaChannelRef.current?.send({
+                type: 'command',
+                game: 'comp',
+                action: 'answer',
+                answer,
+              })
+            }
+          />
         ) : quizRoom ? (
           <LiveSpectator
             phase={livePhase}

@@ -2,6 +2,7 @@ import { getSupabaseClient } from '../live/supabase';
 import type { Slide } from '../passaporte-lessons';
 import type {
   D20GameMessage,
+  GameCommandMessage,
   PassaGameMessage,
   WheelCommandMessage,
   WheelEndMessage,
@@ -119,6 +120,14 @@ export type AulaCompMessage = {
   scores: AulaCompScore[];
   round?: number;
   totalRounds?: number;
+  /** Phase ladder (competition "análoga"). */
+  phaseLabel?: string;
+  phaseIndex?: number;
+  totalPhases?: number;
+  alive?: string[];
+  eliminated?: string[];
+  phaseOver?: boolean;
+  champion?: string | null;
 };
 
 /** Warm-up competition: final ranking, shown as the TV podium. */
@@ -172,6 +181,7 @@ export type AulaMessage =
   | PassaGameMessage
   | D20GameMessage
   | WheelCommandMessage
+  | GameCommandMessage
   | WheelEndMessage;
 
 export type AulaConnectionStatus =

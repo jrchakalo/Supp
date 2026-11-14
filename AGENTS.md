@@ -73,8 +73,9 @@ Migração/seeds: `node scripts/<script>.mjs` (sempre dry-run primeiro).
 
 ## 6. UI
 
-- **Cursor escondido** em todas as telas; visível apenas em `input`, `textarea`, `select`,
-  `[contenteditable]` e controles nativos que precisam. Toggle de acessibilidade.
+- **Cursor do mouse sempre visível**; o caret de digitação aparece apenas em `input`, `textarea`,
+  `select` e `[contenteditable]`. Não esconder o ponteiro em slides/jogos. Cliques fora de campos
+  devem tirar o foco de inputs antigos.
 - Slides em 16:9 com unidades `cqw`; prévia do professor = TV.
 - Textos longos na colinha (minimizável), nunca na TV.
 - `teacherNote` nunca vai para a TV.

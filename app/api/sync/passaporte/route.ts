@@ -11,6 +11,7 @@ import {
   type ReportRow,
 } from '@/lib/passaporte/map';
 import { adminSelect, adminUpsert } from '@/lib/supabase/admin';
+import { classOccursOn } from '@/lib/agenda/calendar';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,7 @@ export const maxDuration = 60;
 type ClassDbRow = {
   id: string;
   platform_class_id: string;
+  short_code: string;
   start_time: string;
   end_time: string;
   weekday: number;
@@ -131,7 +133,7 @@ async function runSync(request: NextRequest) {
   await adminUpsert('pp_classes', classRows, 'platform_class_id');
 
   const dbClasses = await adminSelect<ClassDbRow[]>(
-    'pp_classes?select=id,platform_class_id,start_time,end_time,weekday,active'
+    'pp_classes?select=id,platform_class_id,short_code,start_time,end_time,weekday,active'
   );
   const classByPlatform = new Map(dbClasses.map((row) => [row.platform_class_id, row]));
   const classById = new Map(dbClasses.map((row) => [row.id, row]));
@@ -190,6 +192,7 @@ async function runSync(request: NextRequest) {
       const date = addDaysIso(today, offset);
       if (weekdayOf(date) !== classroom.weekday) continue;
       if (isOff(date, rules)) continue;
+      if (!classOccursOn(classroom.short_code, date)) continue;
       const key = `${classroom.id}|${date}`;
       if (seen.has(key)) continue;
       futureSlots.push({

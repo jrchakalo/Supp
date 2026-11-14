@@ -36,6 +36,38 @@ export type WheelCommandMessage = {
   nonce: number;
 };
 
+export type WheelAnswerCommand = {
+  type: 'command';
+  game: 'wheel';
+  action: 'answer';
+  answer: boolean;
+};
+
+export type D20Command =
+  | { type: 'command'; game: 'd20'; action: 'answer'; answer: boolean }
+  | { type: 'command'; game: 'd20'; action: 'pick'; number: number };
+
+export type PassaCommand = {
+  type: 'command';
+  game: 'passa';
+  action: 'answer';
+  optionIndex: number;
+};
+
+export type CompCommand = {
+  type: 'command';
+  game: 'comp';
+  action: 'answer';
+  answer: boolean;
+};
+
+export type GameCommandMessage =
+  | WheelCommandMessage
+  | WheelAnswerCommand
+  | D20Command
+  | PassaCommand
+  | CompCommand;
+
 export type WheelEndMessage = {
   type: 'gameEnd';
 };

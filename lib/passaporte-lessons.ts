@@ -110,6 +110,8 @@ export type Lesson = {
   status?: string;
   /** Persisted room code so a reload/another device keeps the same QR. */
   sessionCode?: string | null;
+  /** Short class code, used for the alternating-week filter. */
+  classCode?: string | null;
 };
 
 export type QuizDeck = { id: string; title: string; questions: LiveQuestion[] };

@@ -6,7 +6,15 @@ import confetti from 'canvas-confetti';
 import { Dices, Trophy } from 'lucide-react';
 import type { D20GameState } from '@/lib/aula/games';
 
-export default function D20Stage({ state }: { state: D20GameState }) {
+export default function D20Stage({
+  state,
+  onAnswer,
+  onPick,
+}: {
+  state: D20GameState;
+  onAnswer?: (answer: boolean) => void;
+  onPick?: (number: number) => void;
+}) {
   const celebratedRef = useRef(-1);
   useEffect(() => {
     if (
@@ -53,19 +61,22 @@ export default function D20Stage({ state }: { state: D20GameState }) {
             {Array.from({ length: 20 }, (_, index) => index + 1).map((number) => {
               const active = state.number === number;
               return (
-                <motion.div
+                <motion.button
                   key={number}
+                  type="button"
+                  onClick={() => onPick?.(number)}
+                  disabled={state.phase !== 'board' || !onPick}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: number * 0.015 }}
-                  className={`flex aspect-square items-center justify-center rounded-2xl border-2 text-[clamp(1.2rem,2.4vw,2.4rem)] font-black ${
+                  className={`flex aspect-square items-center justify-center rounded-2xl border-2 text-[clamp(1.2rem,2.4vw,2.4rem)] font-black transition disabled:cursor-default ${
                     active
                       ? 'border-[var(--accent)] bg-[var(--accent)] text-[#071018] shadow-[0_0_28px_rgba(255,209,102,0.45)]'
-                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--ink)]'
+                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--ink)] hover:border-[var(--accent)]'
                   }`}
                 >
                   {number}
-                </motion.div>
+                </motion.button>
               );
             })}
           </div>
@@ -89,24 +100,30 @@ export default function D20Stage({ state }: { state: D20GameState }) {
                 {state.question?.text ?? 'Sem pergunta'}
               </h2>
               <div className="mt-5 grid grid-cols-2 gap-2">
-                <div
-                  className={`rounded-2xl border-2 px-4 py-3 text-center text-lg font-black ${
+                <button
+                  type="button"
+                  onClick={() => onAnswer?.(true)}
+                  disabled={state.revealed || !onAnswer}
+                  className={`rounded-2xl border-2 px-4 py-3 text-center text-lg font-black transition disabled:cursor-default ${
                     state.revealed && state.question?.answer === true
                       ? 'border-emerald-400 bg-emerald-500/15 text-emerald-300'
-                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--muted)]'
+                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]'
                   }`}
                 >
                   VERDADEIRO
-                </div>
-                <div
-                  className={`rounded-2xl border-2 px-4 py-3 text-center text-lg font-black ${
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAnswer?.(false)}
+                  disabled={state.revealed || !onAnswer}
+                  className={`rounded-2xl border-2 px-4 py-3 text-center text-lg font-black transition disabled:cursor-default ${
                     state.revealed && state.question?.answer === false
                       ? 'border-emerald-400 bg-emerald-500/15 text-emerald-300'
-                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--muted)]'
+                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]'
                   }`}
                 >
                   FALSO
-                </div>
+                </button>
               </div>
               {state.revealed ? (
                 <div className="mt-4 rounded-2xl border border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-3">
@@ -125,7 +142,7 @@ export default function D20Stage({ state }: { state: D20GameState }) {
                 </div>
               ) : (
                 <p className="mt-4 text-xs font-semibold text-[var(--muted)]">
-                  O professor marca a resposta no notebook.
+                  Clique em VERDADEIRO ou FALSO na TV. A próxima rodada começa sozinha.
                 </p>
               )}
             </div>

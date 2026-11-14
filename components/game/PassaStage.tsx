@@ -10,9 +10,10 @@ import type { PassaGameState } from '@/lib/aula/games';
 
 type PassaStageProps = {
   state: PassaGameState;
+  onAnswer?: (optionIndex: number) => void;
 };
 
-export default function PassaStage({ state }: PassaStageProps) {
+export default function PassaStage({ state, onAnswer }: PassaStageProps) {
   const [clock, setClock] = useState(() => Date.now());
   const celebratedRef = useRef<string>('');
 
@@ -134,19 +135,22 @@ export default function PassaStage({ state }: PassaStageProps) {
                 const chosen = state.chosenIndex === index;
                 const wrongChosen = state.revealed && chosen && !correct;
                 return (
-                  <motion.div
+                  <motion.button
                     key={`${option}-${index}`}
+                    type="button"
+                    onClick={() => onAnswer?.(index)}
+                    disabled={state.revealed || !onAnswer}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.04 }}
-                    className={`flex min-h-[4.2rem] min-w-0 items-center gap-3 rounded-2xl px-4 py-2.5 text-white shadow-[var(--tile-shadow)] ${
+                    className={`flex min-h-[4.2rem] min-w-0 items-center gap-3 rounded-2xl px-4 py-2.5 text-left text-white shadow-[var(--tile-shadow)] transition disabled:cursor-default ${
                       correct
                         ? 'ring-4 ring-emerald-400'
                         : wrongChosen
                           ? 'opacity-55 ring-4 ring-rose-400'
                           : state.revealed
                             ? 'opacity-65'
-                            : ''
+                            : 'hover:ring-2 hover:ring-white/40'
                     }`}
                     style={{ backgroundColor: style.bg }}
                   >
@@ -156,7 +160,7 @@ export default function PassaStage({ state }: PassaStageProps) {
                     <span className="min-w-0 flex-1 break-words text-[clamp(0.95rem,1.6vw,1.35rem)] font-black leading-tight">
                       {option}
                     </span>
-                  </motion.div>
+                  </motion.button>
                 );
               })}
             </div>

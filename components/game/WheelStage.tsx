@@ -42,9 +42,10 @@ function polar(cx: number, cy: number, radius: number, angle: number) {
 type WheelStageProps = {
   state: WheelGameState;
   onSpin: () => void;
+  onAnswer?: (answer: boolean) => void;
 };
 
-export default function WheelStage({ state, onSpin }: WheelStageProps) {
+export default function WheelStage({ state, onSpin, onAnswer }: WheelStageProps) {
   const categoryCount = Math.max(1, state.categories.length);
   const segmentAngle = 360 / categoryCount;
   const segments = state.categories.map((category, index) => {
@@ -207,24 +208,30 @@ export default function WheelStage({ state, onSpin }: WheelStageProps) {
                 {state.question?.text ?? 'Sem pergunta'}
               </h2>
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                <div
-                  className={`rounded-2xl border-2 px-4 py-3 text-center text-lg font-black ${
+                <button
+                  type="button"
+                  onClick={() => onAnswer?.(true)}
+                  disabled={state.revealed || !onAnswer}
+                  className={`rounded-2xl border-2 px-4 py-3 text-center text-lg font-black transition disabled:cursor-default ${
                     state.revealed && state.question?.answer === true
                       ? 'border-emerald-400 bg-emerald-500/15 text-emerald-300'
-                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--muted)]'
+                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]'
                   }`}
                 >
                   VERDADEIRO
-                </div>
-                <div
-                  className={`rounded-2xl border-2 px-4 py-3 text-center text-lg font-black ${
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAnswer?.(false)}
+                  disabled={state.revealed || !onAnswer}
+                  className={`rounded-2xl border-2 px-4 py-3 text-center text-lg font-black transition disabled:cursor-default ${
                     state.revealed && state.question?.answer === false
                       ? 'border-emerald-400 bg-emerald-500/15 text-emerald-300'
-                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--muted)]'
+                      : 'border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--ink)]'
                   }`}
                 >
                   FALSO
-                </div>
+                </button>
               </div>
 
               {state.revealed ? (
@@ -244,7 +251,7 @@ export default function WheelStage({ state, onSpin }: WheelStageProps) {
                 </div>
               ) : (
                 <p className="mt-4 text-xs font-semibold text-[var(--muted)]">
-                  O professor marca a resposta no notebook.
+                  Clique em VERDADEIRO ou FALSO na TV. A próxima rodada começa sozinha.
                 </p>
               )}
             </div>
