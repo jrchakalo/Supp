@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
   const occurrenceId = typeof body?.occurrenceId === 'string' ? body.occurrenceId : '';
   const contentId = typeof body?.contentId === 'string' ? body.contentId : '';
   const sessionCode = typeof body?.sessionCode === 'string' ? body.sessionCode : '';
-  const action = body?.action === 'end' ? 'end' : 'start';
+  const action =
+    body?.action === 'end' ? 'end' : body?.action === 'open' ? 'open' : 'start';
 
   if (!occurrenceId) {
     return NextResponse.json({ error: 'Aula não informada.' }, { status: 400 });
@@ -70,22 +71,25 @@ export async function POST(request: NextRequest) {
 
     const patch: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
-      started_at: occurrence.started_at ?? new Date().toISOString(),
       ended_at: null,
     };
 
     const code = sanitizeRoomCode(sessionCode);
     if (code) patch.session_code = code;
 
-    /* Freeze the first snapshot only: later edits during the lesson must not
-       mutate what was given. */
-    if (!occurrence.snapshot) {
-      const checked = validateSegments(body?.snapshot);
-      if (checked.ok) {
-        patch.snapshot = checked.segments;
-        patch.snapshot_hash = createHash('sha256')
-          .update(JSON.stringify(checked.segments))
-          .digest('hex');
+    /* Opening the welcome screen only reserves the code. The snapshot is
+       frozen when the teacher actually starts the lesson, so previews and E2E
+       runs cannot pin stale content to a future occurrence. */
+    if (action === 'start') {
+      patch.started_at = occurrence.started_at ?? new Date().toISOString();
+      if (!occurrence.snapshot) {
+        const checked = validateSegments(body?.snapshot);
+        if (checked.ok) {
+          patch.snapshot = checked.segments;
+          patch.snapshot_hash = createHash('sha256')
+            .update(JSON.stringify(checked.segments))
+            .digest('hex');
+        }
       }
     }
 

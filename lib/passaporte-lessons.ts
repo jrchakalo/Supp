@@ -77,6 +77,21 @@ export type Slide =
       teacherNote?: string;
     };
 
+/**
+ * Texto-base do class report, escrito junto com a aula. O professor só
+ * confirma a presença e o tom (bom desempenho) no intervalo.
+ */
+export type ClassReportTemplate = {
+  /** Ex.: "Projeto 6 ; Aula 3 -" ou "Unit 2 ; Lesson 2:". */
+  prefix: string;
+  /** Frase de ~80 caracteres sobre o que a turma aprendeu. */
+  learning: string;
+  /** Frase de ~80 caracteres sobre a atividade realizada. */
+  activity: string;
+  /** Terceira frase, opcional, quando a turma teve bom desempenho. */
+  praise?: string;
+};
+
 export type Segment = {
   id: string;
   label: string;
@@ -84,6 +99,8 @@ export type Segment = {
   talk: string[];
   do: string[];
   slides: Slide[];
+  /** Presente no bloco de intervalo das aulas novas. */
+  classReport?: ClassReportTemplate;
 };
 
 /** Texts shown on the welcome screen before the lesson starts. */
@@ -112,6 +129,8 @@ export type Lesson = {
   sessionCode?: string | null;
   /** Short class code, used for the alternating-week filter. */
   classCode?: string | null;
+  /** Saved class report text for this occurrence, when it exists. */
+  classReportText?: string | null;
 };
 
 export type QuizDeck = { id: string; title: string; questions: LiveQuestion[] };

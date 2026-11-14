@@ -126,7 +126,9 @@ export function useLiveHost(options: LiveHostOptions) {
   const questionMessage = useCallback(
     (current: HostQuestion, seqIndex: number, at: number, timeoutMs: number): QuestionStartMessage => {
       const translate =
-        optionsRef.current.translateAtHalf && Boolean(current.textPt)
+        optionsRef.current.language === 'en' &&
+        optionsRef.current.translateAtHalf &&
+        Boolean(current.textPt)
           ? {
               textPt: current.textPt,
               optionsPt: current.optionsPt,

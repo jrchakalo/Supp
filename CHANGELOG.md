@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.5] — 2026-11-14
+
+### Aulas de 14/11 e class report
+
+- P6 A3, P5 A3 e Word II reescritas com tempos realistas (150 min), casos, código completo,
+  missão de sala e quiz com 🎯.
+- C2-02 ganhou um bloco **local** “Projeto 6 + projeto final”, sem alterar o canônico global.
+- Class report no intervalo: modal com presença, duas frases padrão e terceira frase opcional
+  (“bom desempenho”), salvo na ocorrência e exibido no slide de intervalo.
+- Abrir a aula apenas reserva o código; o snapshot só congela em **Iniciar aula**. Snapshots
+  antigos de aulas futuras foram limpos.
+- Tradução na metade do Live funciona de English para Português; em Português o toggle fica
+  indisponível.
+- Aulas que alternam por semana recebem conteúdo na **semana certa** (C2-03 em 21/11,
+  C2-04/C1-02 em 23/11).
+- Reiniciar uma sessão limpa `ended_at` (v1.0.4).
+
 ## [1.0.3] — 2026-11-14
 
 ### Correções de produto

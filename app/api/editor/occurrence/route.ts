@@ -21,13 +21,22 @@ type AuditEntry = {
   reason: string;
 };
 
-function readAudit(notes: string | null): { legacyNotes?: string; audit: AuditEntry[] } {
+function readAudit(notes: string | null): {
+  legacyNotes?: string;
+  audit: AuditEntry[];
+  classReport?: unknown;
+} {
   if (!notes) return { audit: [] };
   try {
-    const parsed = JSON.parse(notes) as { legacyNotes?: unknown; audit?: unknown };
+    const parsed = JSON.parse(notes) as {
+      legacyNotes?: unknown;
+      audit?: unknown;
+      classReport?: unknown;
+    };
     return {
       legacyNotes: typeof parsed.legacyNotes === 'string' ? parsed.legacyNotes : undefined,
       audit: Array.isArray(parsed.audit) ? (parsed.audit as AuditEntry[]).slice(-40) : [],
+      classReport: parsed.classReport,
     };
   } catch {
     return { legacyNotes: notes, audit: [] };
@@ -105,6 +114,7 @@ export async function POST(request: NextRequest) {
       const audit = readAudit(occurrence.notes);
       patch.notes = JSON.stringify({
         ...(audit.legacyNotes ? { legacyNotes: audit.legacyNotes } : {}),
+        ...(audit.classReport ? { classReport: audit.classReport } : {}),
         audit: [
           ...audit.audit,
           {

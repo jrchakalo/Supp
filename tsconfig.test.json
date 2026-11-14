@@ -11,5 +11,5 @@
     "esModuleInterop": true,
     "types": ["node"]
   },
-  "include": ["lib/agenda/**/*.ts", "lib/live/room.ts", "lib/content/**/*.ts"]
+  "include": ["lib/agenda/**/*.ts", "lib/live/room.ts", "lib/content/**/*.ts", "lib/aula/class-report.ts"]
 }

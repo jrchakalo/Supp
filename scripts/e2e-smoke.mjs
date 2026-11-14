@@ -154,10 +154,11 @@ async function run() {
   log('greeting has text', greeting.length > 0, greeting.slice(0, 40));
 
   const lessonFound = await professor.evaluate(`(() => {
+    document.querySelectorAll('details').forEach((details) => { details.open = true; });
     const button =
       document.querySelector('details[open] article button') ??
       Array.from(document.querySelectorAll('article button')).find((el) =>
-        /iniciar aula/i.test(el.innerText)
+        /abrir|iniciar aula/i.test(el.innerText)
       );
     if (!button) return false;
     button.click();
