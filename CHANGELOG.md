@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.7] — 2026-11-14
+
+### Feedbacks comportamentais e publicação na Passaporte
+
+- Cada aluno presente recebe por padrão **Colaboração +80** e **Autocontrole +80**.
+- O toggle **Bom desempenho** adiciona **Criatividade +80** em todos os presentes.
+- Clicar no nome abre a ficha do aluno: frequência, material didático, abas
+  **Positivo** (até 5) e **Precisa melhorar** (até 3), com os mesmos valores da plataforma.
+- O botão **Salvar** grava no Supp e, com **Publicar na Passaporte** ligado, cria/atualiza o
+  class report real com `studentInfos`, `feedbacks`, `frequency` e `has_material`.
+- Payload da publicação validado em dry-run contra a turma real; nenhum relatório de teste foi
+  criado na plataforma.
+- O slide do class report continua fora do telão.
+
 ## [1.0.6] — 2026-11-14
 
 ### C2-02, chamada e privacidade do relatório

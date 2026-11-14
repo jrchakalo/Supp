@@ -38,6 +38,33 @@ test('normalizes student ids for the attendance toggles', () => {
   assert.deepEqual(report.normalizeStudentIds(null), []);
 });
 
+test('normalizes students, feedbacks and material', () => {
+  const students = report.normalizeStudents([
+    {
+      id: 'a',
+      name: ' Ana ',
+      present: true,
+      feedbacks: ['Collaboration', 'Self-Control', 'Unknown'],
+      hasMaterial: true,
+    },
+    { id: 'b', name: 'Bruno', present: false, feedbacks: [], hasMaterial: false },
+    { id: 'c', name: '' },
+  ]);
+  assert.equal(students.length, 2);
+  assert.equal(students[0].name, 'Ana');
+  assert.deepEqual(students[0].feedbacks, ['Collaboration', 'Self-Control']);
+  assert.equal(students[0].hasMaterial, true);
+  assert.equal(students[1].present, false);
+});
+
+test('exposes the platform behavioral feedback catalog', () => {
+  const collaboration = report.feedbackByValue('Collaboration');
+  assert.equal(collaboration.label, 'Colaboração');
+  assert.equal(collaboration.points, 80);
+  assert.equal(report.feedbackByValue('Creativity').points, 80);
+  assert.equal(report.feedbackByValue('Disrespect').nature, 'bad');
+});
+
 test('rejects malformed templates', () => {
   assert.equal(report.isValidTemplate(template), true);
   assert.equal(report.isValidTemplate({ prefix: 'x' }), false);
