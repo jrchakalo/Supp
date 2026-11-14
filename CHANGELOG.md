@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.6] — 2026-11-14
+
+### C2-02, chamada e privacidade do relatório
+
+- C2-02 reestruturada: depois do aquecimento entra o resumo do Projeto 6/ODS, o slide
+  “Projeto 6 = projeto final” e um bloco novo com o **mapa da Aula 2** em passo a passo
+  (posições, peças e script da Lava), porque a turma não teve as Aulas 1 e 2 normalmente.
+- Tempos reajustados para 150 min: 10/15/5/28/10/22/15/25/10/10.
+- O slide do class report **saiu da TV**; o texto base fica apenas no modal do professor.
+- A chamada do class report agora usa os **nomes reais da turma** na Passaporte, com um
+  toggle por aluno; a presença é salva com `studentId` e nome.
+- O relatório continua marcando `given`/`no_students` na ocorrência.
+
 ## [1.0.5] — 2026-11-14
 
 ### Aulas de 14/11 e class report
