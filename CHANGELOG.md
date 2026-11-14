@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.8] — 2026-11-14
+
+### Aula de Word e plataforma
+
+- Word II reescrita em português: duas páginas de exemplo (bagunçada × profissional),
+  documento **novo** para escrever antes de formatar, autoavaliação sem avaliação entre colegas.
+- Removido o recap de Word I do conteúdo global.
+- Quiz em inglês com tradução em português aparecendo após 10 segundos.
+- Class report agora publica o **horário da turma** (07:00–09:30), não o horário UTC da ocorrência.
+- Roleta, D20, Competição e Passa Repassa não avançam sozinhos: a resposta fica na tela até
+  clicar na roleta, em outro número (D20), em Próximo (Competição/Passa).
+- Live mostra **Pergunta X de Y** no cockpit do professor e no `/tela`.
+
 ## [1.0.7] — 2026-11-14
 
 ### Feedbacks comportamentais e publicação na Passaporte

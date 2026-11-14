@@ -15,7 +15,7 @@ export default function LiveHostPanel({
   host: LiveHost;
   onExit: () => void;
 }) {
-  const { phase, question, reveal, players, msLeft, answered, code } = host;
+  const { phase, question, reveal, players, msLeft, answered, code, seq, total } = host;
   const secondsLeft = Math.ceil(msLeft / 1000);
 
   return (
@@ -39,6 +39,11 @@ export default function LiveHostPanel({
               <Users className="h-3.5 w-3.5" aria-hidden="true" />
               {players.length} aluno{players.length === 1 ? '' : 's'}
             </span>
+            {total > 0 ? (
+              <span className="rounded-full border border-[var(--accent-2)]/60 bg-[var(--surface-2)] px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-[var(--accent-2)]">
+                Pergunta {Math.min(seq + 1, total)} de {total}
+              </span>
+            ) : null}
           </p>
           {phase === 'lobby' ? (
             <p className="mt-1 text-xs font-semibold text-[var(--muted)]">

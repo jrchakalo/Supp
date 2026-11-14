@@ -26,6 +26,9 @@ export function buildQuizSlides(deckId: string): Slide[] {
       subtitle: 'Escolha uma opção',
       question: question.text,
       options: question.options,
+      textPt: question.textPt,
+      optionsPt: question.optionsPt,
+      translationDelayMs: 10000,
     });
 
     slides.push({
@@ -36,6 +39,9 @@ export function buildQuizSlides(deckId: string): Slide[] {
       options: question.options,
       correctIndex: question.correctIndex,
       explanation: question.explanation,
+      textPt: question.textPt,
+      optionsPt: question.optionsPt,
+      translationDelayMs: 0,
     });
   });
 

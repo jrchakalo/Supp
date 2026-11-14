@@ -60,6 +60,8 @@ export type LobbyMessage = {
 export type QuestionStartMessage = {
   kind: 'question';
   seq: number;
+  /** How many questions the run has, so the TV can show "1 de 12". */
+  total?: number;
   questionId: string;
   text: string;
   options: string[];
@@ -76,6 +78,7 @@ export type QuestionStartMessage = {
 export type RevealMessage = {
   kind: 'reveal';
   seq: number;
+  total?: number;
   questionId: string;
   text: string;
   options: string[];

@@ -65,7 +65,7 @@ export default function D20Stage({
                   key={number}
                   type="button"
                   onClick={() => onPick?.(number)}
-                  disabled={state.phase !== 'board' || !onPick}
+                  disabled={(state.phase !== 'board' && state.phase !== 'revealed') || !onPick}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: number * 0.015 }}
