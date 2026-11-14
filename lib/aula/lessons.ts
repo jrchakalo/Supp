@@ -1,6 +1,7 @@
 import type { Lesson, Segment } from '../passaporte-lessons';
 import { CONTENT_MODEL } from '../flags';
 import { resolveSegments, resolveTitle, resolveTotalMin } from '../content/resolve';
+import { classOccursOn } from '../agenda/calendar';
 
 /**
  * Loads the institutional lesson content of `/professor` at runtime from
@@ -146,6 +147,13 @@ async function fetchV2Lessons(): Promise<Lesson[]> {
     const content = occurrence.content_id ? contentById.get(occurrence.content_id) : undefined;
     if (!content && !Array.isArray(occurrence.snapshot)) continue;
     const classroom = occurrence.class_id ? classById.get(occurrence.class_id) : undefined;
+    if (
+      classroom &&
+      (occurrence.status === 'planned' || occurrence.status === 'unplanned') &&
+      !classOccursOn(classroom.short_code, occurrence.date)
+    ) {
+      continue;
+    }
     const frozenSegments = Array.isArray(occurrence.snapshot) ? occurrence.snapshot : null;
     const override = frozenSegments
       ? undefined
@@ -173,6 +181,7 @@ async function fetchV2Lessons(): Promise<Lesson[]> {
       contentId: content?.id ?? '',
       status: occurrence.status,
       sessionCode: occurrence.session_code,
+      classCode: classroom?.short_code ?? null,
       deckId: content?.deck_id ?? '',
       title: resolveTitle(content?.title ?? 'Aula arquivada', patch, classPatch),
       turma: formatTurma(occurrence, classroom),

@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ClassicCategoryId } from '../types';
+import type { ClassicCategoryId, DifficultyId, ModeId } from '../types';
+import type { Language } from '../i18n';
 import { localizeLiveQuestions } from '../i18n';
 import { getSupabaseClient } from './supabase';
 import {
@@ -28,7 +29,6 @@ import { readStorage, removeStorage, writeStorage } from '../storage';
  * the same Realtime channel. No second tab and no iframe.
  */
 
-const DIFFICULTY = 'medium' as const;
 const STORAGE_NAME = 'live-embed-host';
 const REVEAL_ADVANCE_MS = 7000;
 
@@ -65,7 +65,13 @@ type Snapshot = {
 export type LiveHostOptions = {
   questionCount: 8 | 12 | 16;
   seconds: 15 | 20 | 30;
+  difficulty: DifficultyId;
+  mode: ModeId;
+  language: Language;
   categories?: ClassicCategoryId[];
+  showQuestionOnPlayer: boolean;
+  translateAtHalf: boolean;
+  autoAdvance: boolean;
 };
 
 export function useLiveHost(options: LiveHostOptions) {
@@ -84,7 +90,7 @@ export function useLiveHost(options: LiveHostOptions) {
   const [startedAt, setStartedAt] = useState(0);
   const [msLeft, setMsLeft] = useState(0);
   const [answered, setAnswered] = useState(0);
-  const [autoAdvance, setAutoAdvance] = useState(true);
+  const [autoAdvance, setAutoAdvance] = useState(options.autoAdvance);
   const [revealCountdown, setRevealCountdown] = useState(7);
   const [scoresVersion, setScoresVersion] = useState(0);
 
@@ -118,15 +124,26 @@ export function useLiveHost(options: LiveHostOptions) {
   }, []);
 
   const questionMessage = useCallback(
-    (current: HostQuestion, seqIndex: number, at: number, timeoutMs: number): QuestionStartMessage => ({
-      kind: 'question',
-      seq: seqIndex,
-      questionId: current.id,
-      text: current.text,
-      options: current.options,
-      timeoutMs,
-      startedAt: at,
-    }),
+    (current: HostQuestion, seqIndex: number, at: number, timeoutMs: number): QuestionStartMessage => {
+      const translate =
+        optionsRef.current.translateAtHalf && Boolean(current.textPt)
+          ? {
+              textPt: current.textPt,
+              optionsPt: current.optionsPt,
+              translateAtMs: Math.round(timeoutMs / 2),
+            }
+          : {};
+      return {
+        kind: 'question',
+        seq: seqIndex,
+        questionId: current.id,
+        text: current.text,
+        options: current.options,
+        timeoutMs,
+        startedAt: at,
+        ...translate,
+      };
+    },
     []
   );
 
@@ -243,23 +260,25 @@ export function useLiveHost(options: LiveHostOptions) {
 
   const startGame = useCallback(() => {
     if (statusRef.current !== 'live') return;
+    const options = optionsRef.current;
     const source = buildQuestionRun(
-      'classic',
-      DIFFICULTY,
-      optionsRef.current.questionCount,
-      optionsRef.current.categories,
-      readRecentLiveIds('classic')
+      options.mode,
+      options.difficulty,
+      options.questionCount,
+      options.categories,
+      readRecentLiveIds(options.mode)
     );
-    const localized = localizeLiveQuestions(source, 'pt');
+    const localized = localizeLiveQuestions(source, options.language);
     if (localized.length === 0) return;
     const run = localized.map((item) => ({
       ...prepareQuestion(item),
       explanation: item.explanation,
     }));
     rememberLiveRun(
-      'classic',
+      options.mode,
       localized.map((item) => item.id)
     );
+    setAutoAdvance(options.autoAdvance);
 
     runRef.current = run;
     setTotal(run.length);
@@ -386,13 +405,14 @@ export function useLiveHost(options: LiveHostOptions) {
           kind: 'lobby',
           code: roomCode,
           config: {
-            mode: 'classic',
-            language: 'pt',
+            mode: optionsRef.current.mode,
+            language: optionsRef.current.language,
             theme: 'dark',
-            difficulty: DIFFICULTY,
+            difficulty: optionsRef.current.difficulty,
             questionCount: optionsRef.current.questionCount,
             secondsPerQuestion: optionsRef.current.seconds,
-            showQuestionOnPlayer: true,
+            showQuestionOnPlayer: optionsRef.current.showQuestionOnPlayer,
+            translateAtHalf: optionsRef.current.translateAtHalf,
             categories: optionsRef.current.categories,
           },
         });
@@ -459,7 +479,7 @@ export function useLiveHost(options: LiveHostOptions) {
           statusRef.current = 'live';
           setStatus('live');
           setJoinUrl(
-            `${window.location.origin}/join?code=${roomCode}&mode=classic&theme=dark`
+            `${window.location.origin}/join?code=${roomCode}&mode=${optionsRef.current.mode}&theme=dark`
           );
           await channel.track({ name: 'HOST' });
 
@@ -488,7 +508,7 @@ export function useLiveHost(options: LiveHostOptions) {
           setQuestion(snap.question);
           setScoresVersion((version) => version + 1);
           setAnswered(repliesRef.current.length);
-          setAutoAdvance(snap.autoAdvance !== false);
+          setAutoAdvance(snap.autoAdvance ?? optionsRef.current.autoAdvance);
 
           if (snap.phase === 'question' && snap.question) {
             const remaining = snap.startedAt + snap.timeoutMs - Date.now();

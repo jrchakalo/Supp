@@ -61,7 +61,7 @@ export default function TodayClasses({
 
       {sorted.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-dashed border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-5 text-sm font-semibold text-[var(--muted)]">
-          Sem aulas hoje. A próxima aparece no cartão acima.
+          Sem aulas hoje. Aproveite a folga!
         </p>
       ) : (
         <div className="mt-4 space-y-2">

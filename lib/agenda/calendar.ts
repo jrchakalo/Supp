@@ -1,7 +1,7 @@
 import type { AgendaOccurrence, CalendarRule } from './types';
 
 export const DAY_START_MINUTES = 7 * 60;
-export const DAY_END_MINUTES = 19 * 60;
+export const DAY_END_MINUTES = 18 * 60;
 export const PIXELS_PER_HOUR = 40;
 export const AGENDA_HEIGHT =
   ((DAY_END_MINUTES - DAY_START_MINUTES) / 60) * PIXELS_PER_HOUR;
@@ -133,8 +133,8 @@ export type PositionedOccurrence = {
 };
 
 /**
- * Lays out a day's occurrences in lanes. The whole day shares the same lane
- * count (simple and stable for a school agenda with at most two overlaps).
+ * Lays out a day's occurrences in lanes. Overlaps are grouped in clusters, so
+ * an overlap at 09:30 does not squeeze an isolated 15:30 class into half width.
  */
 export function layoutDay(occurrences: AgendaOccurrence[]): PositionedOccurrence[] {
   const sorted = [...occurrences]
@@ -142,20 +142,42 @@ export function layoutDay(occurrences: AgendaOccurrence[]): PositionedOccurrence
     .filter(({ start, end }) => end > DAY_START_MINUTES && start < DAY_END_MINUTES)
     .sort((a, b) => a.start - b.start || a.end - b.end);
 
-  const laneEnds: number[] = [];
-  const placed = sorted.map(({ occurrence, start, end }) => {
-    let lane = laneEnds.findIndex((lastEnd) => lastEnd <= start);
-    if (lane === -1) {
-      lane = laneEnds.length;
-      laneEnds.push(end);
+  const clusters: Array<Array<{ occurrence: AgendaOccurrence; start: number; end: number }>> = [];
+  for (const event of sorted) {
+    const current = clusters[clusters.length - 1];
+    const clusterEnd = current?.reduce((max, item) => Math.max(max, item.end), 0) ?? 0;
+    if (!current || event.start >= clusterEnd) {
+      clusters.push([event]);
     } else {
-      laneEnds[lane] = end;
+      current.push(event);
     }
-    return { occurrence, lane, start, end };
-  });
+  }
 
-  const lanes = Math.max(1, laneEnds.length);
-  return placed.map(({ occurrence, lane, start, end }) => {
+  const placed: Array<{
+    occurrence: AgendaOccurrence;
+    lane: number;
+    lanes: number;
+    start: number;
+    end: number;
+  }> = [];
+
+  for (const cluster of clusters) {
+    const laneEnds: number[] = [];
+    const clusterPlaced = cluster.map(({ occurrence, start, end }) => {
+      let lane = laneEnds.findIndex((lastEnd) => lastEnd <= start);
+      if (lane === -1) {
+        lane = laneEnds.length;
+        laneEnds.push(end);
+      } else {
+        laneEnds[lane] = end;
+      }
+      return { occurrence, lane, start, end };
+    });
+    const lanes = Math.max(1, laneEnds.length);
+    for (const event of clusterPlaced) placed.push({ ...event, lanes });
+  }
+
+  return placed.map(({ occurrence, lane, lanes, start, end }) => {
     const clampedStart = Math.max(start, DAY_START_MINUTES);
     const clampedEnd = Math.min(end, DAY_END_MINUTES);
     return {
@@ -166,4 +188,31 @@ export function layoutDay(occurrences: AgendaOccurrence[]): PositionedOccurrence
       height: Math.max(26, ((clampedEnd - clampedStart) / 60) * PIXELS_PER_HOUR),
     };
   });
+}
+
+/**
+ * Some classes share the same weekday/time and alternate week by week. The
+ * anchor is the Monday of week A; reports confirm the 14-day cadence.
+ */
+const PARITY_ANCHOR = '2026-10-05';
+const CLASS_WEEK_PARITY: Record<string, 0 | 1> = {
+  'C1-01': 0,
+  'C2-01': 0,
+  'C2-03': 0,
+  'C2-04': 1,
+  'C1-02': 1,
+  'C2-02': 1,
+};
+
+export function weekParity(iso: string): 0 | 1 {
+  const days = Math.floor(
+    (parseLocalDate(iso).getTime() - parseLocalDate(PARITY_ANCHOR).getTime()) / 86_400_000
+  );
+  const weeks = Math.floor(days / 7);
+  return (((weeks % 2) + 2) % 2) as 0 | 1;
+}
+
+export function classOccursOn(shortCode: string, iso: string): boolean {
+  const parity = CLASS_WEEK_PARITY[shortCode];
+  return parity === undefined || parity === weekParity(iso);
 }

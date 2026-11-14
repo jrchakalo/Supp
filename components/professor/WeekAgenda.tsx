@@ -7,6 +7,8 @@ import type { Lesson } from '@/lib/passaporte-lessons';
 import type { AgendaData, AgendaOccurrence } from '@/lib/agenda/types';
 import {
   AGENDA_HEIGHT,
+  DAY_END_MINUTES,
+  DAY_START_MINUTES,
   PIXELS_PER_HOUR,
   formatRange,
   isOffDay,
@@ -44,13 +46,14 @@ function eventClasses(status: string): string {
     case 'given':
       return 'border-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/15';
     case 'no_students':
-      return 'border-slate-400 bg-slate-500/10';
+      return 'border-amber-400 bg-amber-500/10 hover:bg-amber-500/15';
     case 'planned':
       return 'border-sky-400 bg-sky-500/10 hover:bg-sky-500/15';
     case 'unplanned':
       return 'border-dashed border-sky-400/60 bg-sky-500/5';
-    case 'cancelled':
     case 'missed':
+      return 'border-rose-400 bg-rose-500/10 hover:bg-rose-500/15';
+    case 'cancelled':
       return 'border-slate-500 bg-slate-500/10 opacity-60';
     default:
       return 'border-[var(--line)] bg-[var(--surface-2)]';
@@ -225,11 +228,16 @@ export default function WeekAgenda({
 
           <div className="grid grid-cols-[56px_repeat(7,minmax(0,1fr))]">
             <div className="relative border-l border-[var(--line-soft)]" style={{ height: AGENDA_HEIGHT }}>
-              {Array.from({ length: 13 }, (_, index) => 7 + index).map((hour) => (
+              {Array.from(
+                { length: DAY_END_MINUTES / 60 - DAY_START_MINUTES / 60 },
+                (_, index) => DAY_START_MINUTES / 60 + index
+              ).map((hour) => (
                 <span
                   key={hour}
                   className="absolute right-1 -translate-y-1/2 text-[9px] font-bold text-[var(--muted)]"
-                  style={{ top: (hour - 7) * PIXELS_PER_HOUR + 2 }}
+                  style={{
+                    top: (hour - DAY_START_MINUTES / 60) * PIXELS_PER_HOUR + 2,
+                  }}
                 >
                   {String(hour).padStart(2, '0')}:00
                 </span>
@@ -303,6 +311,13 @@ export default function WeekAgenda({
                         <span className="mt-0.5 line-clamp-2 block text-[9px] font-bold leading-tight text-[var(--ink)]">
                           {title}
                         </span>
+                        {occurrence.status === 'no_students' ||
+                        occurrence.status === 'cancelled' ||
+                        occurrence.status === 'missed' ? (
+                          <span className="mt-0.5 block truncate text-[8px] font-black uppercase tracking-wide text-[var(--muted)]">
+                            {statusLabel(occurrence.status)}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -327,7 +342,9 @@ export default function WeekAgenda({
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-semibold text-[var(--muted)]">
         <Legend color="bg-emerald-400" label="Dada" />
         <Legend color="bg-sky-400" label="Prevista" />
-        <Legend color="bg-slate-400" label="Sem alunos / cancelada" />
+        <Legend color="bg-amber-400" label="Sem alunos" />
+        <Legend color="bg-rose-400" label="Não dada" />
+        <Legend color="bg-slate-400" label="Cancelada" />
         <span className="inline-flex items-center gap-1">
           <span className="h-2 w-2 rounded-full border border-dashed border-sky-400" />
           A planejar

@@ -1,34 +1,23 @@
 'use client';
 
 import { useEffect } from 'react';
-import { applyCursorVisibility, isCursorVisible, setCursorVisible } from '@/lib/cursor';
 
 /**
- * Hides the mouse pointer across the app by default, keeping it only on typing
- * fields (see the `.hide-cursor` rules in globals.css). `Ctrl+Alt+C` toggles it.
+ * Keeps the mouse pointer visible everywhere. The only caret allowed is the
+ * text insertion caret inside real typing fields; clicking anywhere else blurs
+ * a stale focused input so it cannot keep blinking over a game/slide.
  */
 export default function CursorPolicy() {
   useEffect(() => {
-    applyCursorVisibility(isCursorVisible());
-
-    const onToggle = (event: Event) => {
-      const detail = (event as CustomEvent<boolean>).detail;
-      if (typeof detail === 'boolean') applyCursorVisibility(detail);
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const active = document.activeElement;
+      if (active instanceof HTMLElement) active.blur();
     };
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.altKey && event.key.toLowerCase() === 'c') {
-        event.preventDefault();
-        setCursorVisible(!isCursorVisible());
-      }
-    };
-
-    window.addEventListener('supp:cursor', onToggle);
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('supp:cursor', onToggle);
-      window.removeEventListener('keydown', onKeyDown);
-    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
   }, []);
 
   return null;

@@ -1,4 +1,5 @@
 import type { AgendaData } from './types';
+import { classOccursOn } from './calendar';
 
 const REQUEST_TIMEOUT_MS = 8000;
 
@@ -44,5 +45,13 @@ export async function fetchAgendaData(): Promise<AgendaData> {
     select<AgendaData['contents'][number]>('pp_content?select=id,title&limit=200'),
   ]);
 
-  return { occurrences, classes, rules, contents };
+  const codeById = new Map(classes.map((row) => [row.id, row.short_code]));
+  const visible = occurrences.filter((occurrence) => {
+    if (!occurrence.class_id) return true;
+    if (occurrence.status !== 'planned' && occurrence.status !== 'unplanned') return true;
+    const code = codeById.get(occurrence.class_id);
+    return code ? classOccursOn(code, occurrence.date) : true;
+  });
+
+  return { occurrences: visible, classes, rules, contents };
 }

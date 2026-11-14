@@ -28,7 +28,6 @@ import { QRCodeSVG } from 'qrcode.react';
 import { FLASH_DEFAULT_SECONDS, SlideStage } from '@/components/aula/SlideView';
 import { QUIZ_LESSON_ID, buildQuizSlides } from '@/components/aula/quizSlides';
 import Greeting from '@/components/professor/Greeting';
-import CursorToggle from '@/components/professor/CursorToggle';
 import ProfessorNav from '@/components/professor/ProfessorNav';
 import WeekAgenda from '@/components/professor/WeekAgenda';
 import NextClassCard from '@/components/professor/NextClassCard';
@@ -41,10 +40,19 @@ import { fetchLessons } from '@/lib/aula/lessons';
 import { PASSAPORTE_DECKS } from '@/lib/passaporte-decks';
 import { CLASSIC_CATEGORIES } from '@/lib/classic-questions';
 import { categoryCopy } from '@/lib/i18n/game-copy';
-import { getDeck } from '@/lib/game';
+import { localizeLiveQuestion, localizeQuestion } from '@/lib/i18n';
+import { getDeck, shuffle } from '@/lib/game';
 import { GAMES_V2 } from '@/lib/flags';
-import { CLASSIC_ALL_CATEGORIES, getClassicDeck } from '@/lib/classic-questions';
-import type { ClassicCategoryId, DifficultyId } from '@/lib/types';
+import { CLASSIC_ALL_CATEGORIES, getClassicDeck, getClassicRunDeck } from '@/lib/classic-questions';
+import { buildCompetitionPhases, buildTiebreakPhase } from '@/lib/competition';
+import type {
+  ClassicCategoryId,
+  CompetitionLevelId,
+  CompetitionPhase,
+  DifficultyId,
+  Question,
+  StudentOrder,
+} from '@/lib/types';
 import type { WheelGameState } from '@/lib/aula/games';
 import WheelControl from '@/components/game/WheelControl';
 import LiveHostPanel from '@/components/live/LiveHostPanel';
@@ -409,16 +417,13 @@ export default function AulaPage() {
     if (!at || Date.now() - at > 10 * 60_000) void syncNowRef.current();
   }, [authed]);
 
-  const ongoing = useMemo(
-    () => findOngoing(agenda?.occurrences ?? [], now),
-    [agenda, now]
-  );
-  const next = useMemo(() => findNext(agenda?.occurrences ?? [], now), [agenda, now]);
-  const featured = ongoing ?? next;
   const todayOccurrences = useMemo(
     () => occurrencesForDate(agenda?.occurrences ?? [], today),
     [agenda, today]
   );
+  const ongoing = useMemo(() => findOngoing(todayOccurrences, now), [todayOccurrences, now]);
+  const next = useMemo(() => findNext(todayOccurrences, now), [todayOccurrences, now]);
+  const featured = ongoing ?? next;
   const featuredClass = featured?.class_id
     ? agenda?.classes.find((row) => row.id === featured.class_id)
     : undefined;
@@ -462,17 +467,36 @@ export default function AulaPage() {
   const [warmupModal, setWarmupModal] = useState<WarmupKind>('none');
   const [liveCount, setLiveCount] = useState<8 | 12 | 16>(12);
   const [liveSeconds, setLiveSeconds] = useState<QuizSeconds>(20);
-  const [liveTheme, setLiveTheme] = useState<ClassicCategoryId | 'all'>('all');
+  const [liveCategories, setLiveCategories] =
+    useState<ClassicCategoryId[]>(CLASSIC_ALL_CATEGORIES);
+  const [liveDifficulty, setLiveDifficulty] = useState<DifficultyId>('medium');
+  const [liveMode, setLiveMode] = useState<'classic' | 'halloween'>('classic');
+  const [liveLanguage, setLiveLanguage] = useState<'pt' | 'en'>('pt');
+  const [liveShowQuestion, setLiveShowQuestion] = useState(true);
+  const [liveTranslate, setLiveTranslate] = useState(false);
+  const [liveAuto, setLiveAuto] = useState(true);
   const liveHost = useLiveHost({
     questionCount: liveCount,
     seconds: liveSeconds,
-    categories: liveTheme === 'all' ? undefined : [liveTheme],
+    difficulty: liveDifficulty,
+    mode: liveMode,
+    language: liveLanguage,
+    categories: liveCategories.length > 0 ? liveCategories : undefined,
+    showQuestionOnPlayer: liveShowQuestion,
+    translateAtHalf: liveTranslate,
+    autoAdvance: liveAuto,
   });
   const [d20, setD20] = useState<AulaD20Message | null>(null);
   const [d20Revealed, setD20Revealed] = useState(false);
   const [compNames, setCompNames] = useState<string[]>([]);
   const [compNameInput, setCompNameInput] = useState('');
   const [compRounds, setCompRounds] = useState(3);
+  const [compLevel, setCompLevel] = useState<CompetitionLevelId>('medium');
+  const [compProgressive, setCompProgressive] = useState<2 | 3>(2);
+  const [compOrder, setCompOrder] = useState<StudentOrder>('sequential');
+  const [compCategories, setCompCategories] =
+    useState<ClassicCategoryId[]>(CLASSIC_ALL_CATEGORIES);
+  const [compLanguage, setCompLanguage] = useState<'pt' | 'en'>('pt');
   const [compMessage, setCompMessage] = useState<AulaCompMessage | null>(null);
   const [compRanking, setCompRanking] = useState<AulaCompScore[] | null>(null);
   const [wheelGame, setWheelGame] = useState<WheelGameState | null>(null);
@@ -487,7 +511,14 @@ export default function AulaPage() {
   const [passaTeam2, setPassaTeam2] = useState('Time 2');
   const [passaTarget, setPassaTarget] = useState<5 | 10 | 15>(5);
   const [passaDifficulty, setPassaDifficulty] = useState<DifficultyId>('medium');
+  const [passaCategories, setPassaCategories] =
+    useState<ClassicCategoryId[]>(CLASSIC_ALL_CATEGORIES);
+  const [passaLanguage, setPassaLanguage] = useState<'pt' | 'en'>('pt');
   const [d20Game, setD20Game] = useState<D20GameState | null>(null);
+  const [d20Categories, setD20Categories] =
+    useState<ClassicCategoryId[]>(CLASSIC_ALL_CATEGORIES);
+  const [d20Difficulty, setD20Difficulty] = useState<DifficultyId>('medium');
+  const d20UsedRef = useRef<Set<string>>(new Set());
 
   const channelRef = useRef<AulaChannel | null>(null);
   const sessionRestoredRef = useRef(false);
@@ -510,12 +541,30 @@ export default function AulaPage() {
   const compRankingRef = useRef<AulaCompScore[] | null>(null);
   const compScoresRef = useRef<Record<string, number>>({});
   const compTurnRef = useRef(0);
+  const compPhasesRef = useRef<CompetitionPhase[]>([]);
+  const compAliveRef = useRef<string[]>([]);
+  const compPhaseIndexRef = useRef(0);
+  const compPhaseOrderRef = useRef<string[]>([]);
+  const compPhaseQuestionsRef = useRef<Map<string, Question>>(new Map());
+  const compResultsRef = useRef<Array<{ student: string; correct: boolean }>>([]);
+  const compUsedIdsRef = useRef<Set<string>>(new Set());
+  const compTiebreakRef = useRef(0);
   const wheelGameRef = useRef<WheelGameState | null>(null);
   const wheelUsedRef = useRef<Set<string>>(new Set());
   const wheelSpinTimerRef = useRef<number | null>(null);
   const passaGameRef = useRef<PassaGameState | null>(null);
   const passaUsedRef = useRef<Set<string>>(new Set());
   const d20GameRef = useRef<D20GameState | null>(null);
+  const wheelAnswerRef = useRef<((answer: boolean) => void) | null>(null);
+  const d20AnswerRef = useRef<((answer: boolean) => void) | null>(null);
+  const compAnswerRef = useRef<((answer: boolean) => void) | null>(null);
+  const passaAnswerRef = useRef<((optionIndex: number) => void) | null>(null);
+  const pickD20Ref = useRef<((number: number) => void) | null>(null);
+  const autoAdvanceRef = useRef<number | null>(null);
+  const nextWheelRef = useRef<(() => void) | null>(null);
+  const nextD20Ref = useRef<(() => void) | null>(null);
+  const nextCompRef = useRef<(() => void) | null>(null);
+  const nextPassaRef = useRef<(() => void) | null>(null);
   const teacherPresenceIdRef = useRef('');
 
   useEffect(() => {
@@ -904,8 +953,19 @@ export default function AulaPage() {
           syncTv();
           return;
         }
-        if (message.type === 'command' && message.game === 'wheel' && message.action === 'spin') {
-          setWheelSpinRequest((value) => value + 1);
+        if (message.type === 'command' && message.game === 'wheel') {
+          if (message.action === 'spin') setWheelSpinRequest((value) => value + 1);
+          if (message.action === 'answer') wheelAnswerRef.current?.(message.answer);
+        }
+        if (message.type === 'command' && message.game === 'd20') {
+          if (message.action === 'answer') d20AnswerRef.current?.(message.answer);
+          if (message.action === 'pick') pickD20Ref.current?.(message.number);
+        }
+        if (message.type === 'command' && message.game === 'passa') {
+          passaAnswerRef.current?.(message.optionIndex);
+        }
+        if (message.type === 'command' && message.game === 'comp') {
+          compAnswerRef.current?.(message.answer);
         }
       },
       onStatus: (status) => {
@@ -983,6 +1043,24 @@ export default function AulaPage() {
     channelRef.current?.send(message);
   }, []);
 
+  const clearAutoAdvance = useCallback(() => {
+    if (autoAdvanceRef.current) {
+      window.clearTimeout(autoAdvanceRef.current);
+      autoAdvanceRef.current = null;
+    }
+  }, []);
+
+  const scheduleAutoAdvance = useCallback(
+    (callback: () => void, delayMs = 2600) => {
+      clearAutoAdvance();
+      autoAdvanceRef.current = window.setTimeout(() => {
+        autoAdvanceRef.current = null;
+        callback();
+      }, delayMs);
+    },
+    [clearAutoAdvance]
+  );
+
   /* Heartbeat: the projector shows "professor desconectado" only after 15 s
      without a ping/presence, and keeps the last slide on screen. */
   useEffect(() => {
@@ -1021,6 +1099,7 @@ export default function AulaPage() {
 
   /** Clears every warm-up overlay, locally and on the projector. */
   const resetWarmupState = useCallback(() => {
+    clearAutoAdvance();
     warmupRef.current = 'none';
     setWarmup('none');
     d20Ref.current = null;
@@ -1046,7 +1125,7 @@ export default function AulaPage() {
     liveQuizRef.current = null;
     setLiveQuizCode(null);
     setWarmupModal('none');
-  }, []);
+  }, [clearAutoAdvance]);
 
   const goToBeat = useCallback(
     (index: number) => {
@@ -1485,6 +1564,7 @@ export default function AulaPage() {
     warmupRef.current = 'd20';
     setWarmup('d20');
     setWarmupModal('none');
+    d20UsedRef.current.clear();
     broadcastD20Game({
       seq: 1,
       phase: 'board',
@@ -1504,9 +1584,15 @@ export default function AulaPage() {
     (number: number) => {
       const game = d20GameRef.current;
       if (!game || game.phase !== 'board') return;
-      const deck = getDeck('classic', 'medium');
+      const deck = getClassicRunDeck(d20Difficulty, d20Categories);
       if (deck.length === 0) return;
-      const pick = deck[Math.floor(Math.random() * deck.length)] ?? deck[0];
+      let pool = deck.filter((item) => !d20UsedRef.current.has(item.id));
+      if (pool.length === 0) {
+        d20UsedRef.current.clear();
+        pool = deck;
+      }
+      const pick = pool[Math.floor(Math.random() * pool.length)] ?? pool[0];
+      d20UsedRef.current.add(pick.id);
       broadcastD20Game({
         ...game,
         phase: 'question',
@@ -1521,7 +1607,7 @@ export default function AulaPage() {
         lastAnswerCorrect: null,
       });
     },
-    [broadcastD20Game]
+    [d20Categories, d20Difficulty, broadcastD20Game]
   );
 
   const randomD20 = useCallback(() => {
@@ -1545,11 +1631,13 @@ export default function AulaPage() {
         streak,
         bestStreak: Math.max(game.bestStreak, streak),
       });
+      scheduleAutoAdvance(() => nextD20Ref.current?.(), 2600);
     },
-    [broadcastD20Game]
+    [broadcastD20Game, scheduleAutoAdvance]
   );
 
   const nextD20Game = useCallback(() => {
+    clearAutoAdvance();
     const game = d20GameRef.current;
     if (!game || game.phase !== 'revealed') return;
     if (game.round >= game.maxRounds) {
@@ -1567,9 +1655,12 @@ export default function AulaPage() {
     });
   }, [broadcastD20Game]);
 
+  nextD20Ref.current = nextD20Game;
+
   const newD20Game = useCallback(() => {
     const game = d20GameRef.current;
     if (!game) return;
+    d20UsedRef.current.clear();
     broadcastD20Game({
       ...game,
       phase: 'board',
@@ -1594,34 +1685,32 @@ export default function AulaPage() {
     startD20Game();
   }, [startD20Game]);
 
-  const drawCompQuestion = useCallback(
-    (flatTurn: number) => {
-      const names = compNamesRef.current;
-      const rounds = compRoundsRef.current;
-      const deck = getDeck('classic', 'medium');
-      if (names.length === 0 || deck.length === 0) return;
-
-      const pick = deck[Math.floor(Math.random() * deck.length)] ?? deck[0];
-      const student = names[flatTurn % names.length] ?? names[0];
-      const round = Math.floor(flatTurn / names.length) + 1;
-      const scores = names.map((name) => ({
+  const askCompQuestion = useCallback(
+    (phase: CompetitionPhase, phaseIndex: number, alive: string[]) => {
+      const student = compPhaseOrderRef.current[compTurnRef.current];
+      const question = compPhaseQuestionsRef.current.get(student ?? '');
+      if (!student || !question) return;
+      const local = localizeQuestion(question, compLanguage);
+      const scores = compNamesRef.current.map((name) => ({
         name,
         score: compScoresRef.current[name] ?? 0,
       }));
-
       const message: AulaCompMessage = {
         type: 'comp',
         student,
-        text: pick.text,
-        answer: pick.answer,
-        explanation: pick.explanation,
+        text: local.text,
+        answer: local.answer,
+        explanation: local.explanation,
         revealed: false,
         scores,
-        round,
-        totalRounds: rounds,
+        round: phaseIndex + 1,
+        totalRounds: compPhasesRef.current.length,
+        phaseLabel: phase.label,
+        phaseIndex,
+        totalPhases: compPhasesRef.current.length,
+        alive,
+        eliminated: compNamesRef.current.filter((name) => !alive.includes(name)),
       };
-
-      compTurnRef.current = flatTurn;
       compMessageRef.current = message;
       setCompMessage(message);
       compRankingRef.current = null;
@@ -1630,8 +1719,44 @@ export default function AulaPage() {
       setWarmup('comp');
       broadcast(message);
     },
-    [broadcast]
+    [broadcast, compLanguage]
   );
+
+  const startCompPhase = useCallback(
+    (phaseIndex: number, alive: string[], tiebreak?: CompetitionPhase) => {
+      const phases = compPhasesRef.current;
+      const phase = tiebreak ?? phases[phaseIndex];
+      if (!phase || alive.length === 0) return;
+      const order = compOrder === 'random' ? shuffle([...alive]) : [...alive];
+      const deck = getClassicDeck(phase.difficulty, compCategories);
+      const tierDeck = deck.filter((question) => (question.tier ?? 2) === phase.tier);
+      let pool = (tierDeck.length > 0 ? tierDeck : deck).filter(
+        (question) => !compUsedIdsRef.current.has(question.id)
+      );
+      if (pool.length === 0) {
+        compUsedIdsRef.current.clear();
+        pool = tierDeck.length > 0 ? tierDeck : deck;
+      }
+      if (pool.length === 0) return;
+
+      const questions = new Map<string, Question>();
+      order.forEach((name, index) => {
+        const question = pool[index % pool.length];
+        compUsedIdsRef.current.add(question.id);
+        questions.set(name, question);
+      });
+      compAliveRef.current = alive;
+      compPhaseIndexRef.current = phaseIndex;
+      compPhaseOrderRef.current = order;
+      compPhaseQuestionsRef.current = questions;
+      compResultsRef.current = [];
+      compTurnRef.current = 0;
+      askCompQuestion(phase, phaseIndex, alive);
+    },
+    [askCompQuestion, compCategories, compOrder]
+  );
+  const startCompPhaseRef = useRef(startCompPhase);
+  startCompPhaseRef.current = startCompPhase;
 
   const startCompWarmup = useCallback(() => {
     const names = compNames.map((name) => name.trim()).filter(Boolean);
@@ -1646,12 +1771,23 @@ export default function AulaPage() {
     resetWarmupState();
 
     compNamesRef.current = names;
-    compRoundsRef.current = compRounds;
     compScoresRef.current = Object.fromEntries(names.map((name) => [name, 0]));
-    compTurnRef.current = 0;
+    compAliveRef.current = names;
+    compUsedIdsRef.current.clear();
+    compTiebreakRef.current = 0;
+    compPhasesRef.current = buildCompetitionPhases(compLevel, compProgressive);
     setWarmupModal('none');
-    drawCompQuestion(0);
-  }, [broadcast, compNames, compRounds, drawCompQuestion, resetWarmupState]);
+    setWarmup('comp');
+    warmupRef.current = 'comp';
+    startCompPhase(0, names);
+  }, [
+    broadcast,
+    compLevel,
+    compNames,
+    compProgressive,
+    resetWarmupState,
+    startCompPhase,
+  ]);
 
   const markComp = useCallback(
     (correct: boolean) => {
@@ -1664,6 +1800,10 @@ export default function AulaPage() {
           [message.student]: (compScoresRef.current[message.student] ?? 0) + 1,
         };
       }
+      compResultsRef.current = [
+        ...compResultsRef.current,
+        { student: message.student, correct },
+      ];
 
       const scores = compNamesRef.current.map((name) => ({
         name,
@@ -1673,17 +1813,35 @@ export default function AulaPage() {
       compMessageRef.current = next;
       setCompMessage(next);
       broadcast(next);
+      scheduleAutoAdvance(() => nextCompRef.current?.(), 2600);
     },
-    [broadcast]
+    [broadcast, scheduleAutoAdvance]
   );
 
   const nextCompTurn = useCallback(() => {
-    const names = compNamesRef.current;
-    const totalTurns = names.length * compRoundsRef.current;
+    clearAutoAdvance();
+    const order = compPhaseOrderRef.current;
+    const phases = compPhasesRef.current;
+    const phaseIndex = compPhaseIndexRef.current;
     const next = compTurnRef.current + 1;
 
-    if (next >= totalTurns) {
-      const ranking = names
+    if (next < order.length) {
+      compTurnRef.current = next;
+      askCompQuestion(phases[phaseIndex], phaseIndex, compAliveRef.current);
+      return;
+    }
+
+    const survivors = order.filter((name) =>
+      compResultsRef.current.some((result) => result.student === name && result.correct)
+    );
+    const eliminated = compAliveRef.current.filter((name) => !survivors.includes(name));
+    const scores = compNamesRef.current.map((name) => ({
+      name,
+      score: compScoresRef.current[name] ?? 0,
+    }));
+
+    if (survivors.length <= 1) {
+      const ranking = compNamesRef.current
         .map((name) => ({ name, score: compScoresRef.current[name] ?? 0 }))
         .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
       compRankingRef.current = ranking;
@@ -1692,8 +1850,51 @@ export default function AulaPage() {
       return;
     }
 
-    drawCompQuestion(next);
-  }, [broadcast, drawCompQuestion]);
+    const phase = phases[phaseIndex];
+    const last = phaseIndex >= phases.length - 1;
+    if (last) {
+      compTiebreakRef.current += 1;
+      compAliveRef.current = survivors;
+      startCompPhaseRef.current(
+        phaseIndex,
+        survivors,
+        buildTiebreakPhase(phase, compTiebreakRef.current)
+      );
+      return;
+    }
+
+    const summary: AulaCompMessage = {
+      ...(compMessageRef.current ?? {
+        type: 'comp',
+        student: '',
+        text: '',
+        answer: true,
+        revealed: true,
+        scores,
+      }),
+      revealed: true,
+      phaseOver: true,
+      alive: survivors,
+      eliminated,
+      scores,
+      phaseLabel: phase.label,
+      phaseIndex,
+      totalPhases: phases.length,
+      round: phaseIndex + 1,
+      totalRounds: phases.length,
+    };
+    compMessageRef.current = summary;
+    setCompMessage(summary);
+    compAliveRef.current = survivors;
+    compPhaseIndexRef.current = phaseIndex + 1;
+    broadcast(summary);
+    scheduleAutoAdvance(
+      () => startCompPhaseRef.current(phaseIndex + 1, survivors),
+      4000
+    );
+  }, [askCompQuestion, broadcast, scheduleAutoAdvance]);
+
+  nextCompRef.current = nextCompTurn;
 
   const addCompName = useCallback(() => {
     const name = compNameInput.trim().slice(0, 24);
@@ -1828,11 +2029,13 @@ export default function AulaPage() {
           total: game.score.total + 1,
         },
       });
+      scheduleAutoAdvance(() => nextWheelRef.current?.(), 2800);
     },
-    [broadcastWheel]
+    [broadcastWheel, scheduleAutoAdvance]
   );
 
   const nextWheel = useCallback(() => {
+    clearAutoAdvance();
     const game = wheelGameRef.current;
     if (!game) return;
 
@@ -1865,9 +2068,12 @@ export default function AulaPage() {
       revealed: false,
       lastAnswerCorrect: null,
     });
-  }, [broadcastWheel]);
+  }, [broadcastWheel, clearAutoAdvance]);
+
+  nextWheelRef.current = nextWheel;
 
   const endWheel = useCallback(() => {
+    clearAutoAdvance();
     if (wheelSpinTimerRef.current) {
       window.clearTimeout(wheelSpinTimerRef.current);
       wheelSpinTimerRef.current = null;
@@ -1906,23 +2112,24 @@ export default function AulaPage() {
   );
 
   const drawPassaQuestion = useCallback((): PassaQuestion | null => {
-    const deck = getLiveDeck('classic', passaDifficulty, CLASSIC_ALL_CATEGORIES);
+    const deck = getLiveDeck('classic', passaDifficulty, passaCategories);
     const fresh = deck.filter((item) => !passaUsedRef.current.has(item.id));
     const pool = fresh.length > 0 ? fresh : deck;
     if (pool.length === 0) return null;
 
     const raw = pool[Math.floor(Math.random() * pool.length)];
     passaUsedRef.current.add(raw.id);
-    const prepared = prepareQuestion(raw);
+    const localized = localizeLiveQuestion(raw, passaLanguage);
+    const prepared = prepareQuestion(localized);
     return {
-      id: raw.id,
+      id: localized.id,
       text: prepared.text,
       options: prepared.options,
       correctIndex: prepared.correctIndex,
-      explanation: raw.explanation,
-      category: raw.category,
+      explanation: localized.explanation,
+      category: localized.category,
     };
-  }, [passaDifficulty]);
+  }, [passaCategories, passaDifficulty, passaLanguage]);
 
   const startPassaWarmup = useCallback(() => {
     if (warmupRef.current === 'live' || liveQuizRef.current) {
@@ -1983,6 +2190,7 @@ export default function AulaPage() {
           },
           winner: scores[game.activeTeam] >= game.target ? game.activeTeam : null,
         });
+        scheduleAutoAdvance(() => nextPassaRef.current?.(), 2800);
         return;
       }
 
@@ -2007,11 +2215,13 @@ export default function AulaPage() {
         deadline: null,
         lastResult: { team: null, stolen: false, correct: false },
       });
+      scheduleAutoAdvance(() => nextPassaRef.current?.(), 2800);
     },
-    [broadcastPassa]
+    [broadcastPassa, scheduleAutoAdvance]
   );
 
   const nextPassa = useCallback(() => {
+    clearAutoAdvance();
     const game = passaGameRef.current;
     if (!game || game.phase !== 'reveal') return;
     if (game.winner !== null) {
@@ -2038,6 +2248,41 @@ export default function AulaPage() {
       deadline: Date.now() + 20_000,
     });
   }, [broadcastPassa, drawPassaQuestion]);
+
+  nextPassaRef.current = nextPassa;
+
+  const answerWheelFromTv = useCallback(
+    (answer: boolean) => {
+      const game = wheelGameRef.current;
+      if (!game?.question || game.phase !== 'question') return;
+      answerWheel(answer === game.question.answer);
+    },
+    [answerWheel]
+  );
+
+  const answerD20FromTv = useCallback(
+    (answer: boolean) => {
+      const game = d20GameRef.current;
+      if (!game?.question || game.phase !== 'question') return;
+      revealD20Game(answer === game.question.answer);
+    },
+    [revealD20Game]
+  );
+
+  const answerCompFromTv = useCallback(
+    (answer: boolean) => {
+      const message = compMessageRef.current;
+      if (!message || message.revealed) return;
+      markComp(answer === message.answer);
+    },
+    [markComp]
+  );
+
+  wheelAnswerRef.current = answerWheelFromTv;
+  d20AnswerRef.current = answerD20FromTv;
+  compAnswerRef.current = answerCompFromTv;
+  passaAnswerRef.current = answerPassa;
+  pickD20Ref.current = pickD20Number;
 
   const newPassa = useCallback(() => {
     const game = passaGameRef.current;
@@ -2208,26 +2453,144 @@ export default function AulaPage() {
 
               <fieldset className="mt-4">
                 <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                  Tema
+                  Modo
                 </legend>
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {LIVE_THEMES.map((item) => (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(['classic', 'halloween'] as const).map((value) => (
                     <button
-                      key={item.id}
+                      key={value}
                       type="button"
-                      aria-pressed={liveTheme === item.id}
-                      onClick={() => setLiveTheme(item.id)}
+                      aria-pressed={liveMode === value}
+                      onClick={() => setLiveMode(value)}
                       className={
-                        liveTheme === item.id
-                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--ink)]'
-                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--muted)] transition hover:border-[var(--line)]'
+                        liveMode === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--muted)]'
                       }
                     >
-                      {item.label}
+                      {value === 'classic' ? 'Clássico' : 'Halloween'}
                     </button>
                   ))}
                 </div>
               </fieldset>
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Dificuldade
+                </legend>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {(['easy', 'medium', 'hard'] as DifficultyId[]).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={liveDifficulty === value}
+                      onClick={() => setLiveDifficulty(value)}
+                      className={
+                        liveDifficulty === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--muted)]'
+                      }
+                    >
+                      {value === 'easy' ? 'Fácil' : value === 'medium' ? 'Médio' : 'Difícil'}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              {liveMode === 'classic' ? (
+                <fieldset className="mt-4">
+                  <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Temas
+                  </legend>
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {CLASSIC_CATEGORIES.map((item) => {
+                      const active = liveCategories.includes(item.id);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() =>
+                            setLiveCategories((current) =>
+                              current.includes(item.id)
+                                ? current.filter((id) => id !== item.id)
+                                : [...current, item.id]
+                            )
+                          }
+                          className={
+                            active
+                              ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--ink)]'
+                              : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--muted)]'
+                          }
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              ) : null}
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Idioma da pergunta
+                </legend>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(['pt', 'en'] as const).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={liveLanguage === value}
+                      onClick={() => setLiveLanguage(value)}
+                      className={
+                        liveLanguage === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--muted)]'
+                      }
+                    >
+                      {value === 'pt' ? 'Português' : 'English'}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                {[
+                  {
+                    id: 'show',
+                    label: 'Pergunta no celular',
+                    value: liveShowQuestion,
+                    toggle: () => setLiveShowQuestion((value) => !value),
+                  },
+                  {
+                    id: 'translate',
+                    label: 'Tradução na metade',
+                    value: liveTranslate,
+                    toggle: () => setLiveTranslate((value) => !value),
+                  },
+                  {
+                    id: 'auto',
+                    label: 'Auto-avanço',
+                    value: liveAuto,
+                    toggle: () => setLiveAuto((value) => !value),
+                  },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="switch"
+                    aria-checked={item.value}
+                    onClick={item.toggle}
+                    className={
+                      item.value
+                        ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-[11px] font-black text-[var(--ink)]'
+                        : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-[11px] font-black text-[var(--muted)]'
+                    }
+                  >
+                    {item.label}: {item.value ? 'on' : 'off'}
+                  </button>
+                ))}
+              </div>
 
               <button
                 type="button"
@@ -2305,6 +2668,61 @@ export default function AulaPage() {
                       }
                     >
                       {value === 'easy' ? 'Fácil' : value === 'medium' ? 'Médio' : 'Difícil'}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Temas
+                </legend>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {CLASSIC_CATEGORIES.map((item) => {
+                    const active = passaCategories.includes(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() =>
+                          setPassaCategories((current) =>
+                            current.includes(item.id)
+                              ? current.filter((id) => id !== item.id)
+                              : [...current, item.id]
+                          )
+                        }
+                        className={
+                          active
+                            ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--ink)]'
+                            : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--muted)]'
+                        }
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Idioma da pergunta
+                </legend>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(['pt', 'en'] as const).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={passaLanguage === value}
+                      onClick={() => setPassaLanguage(value)}
+                      className={
+                        passaLanguage === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--muted)]'
+                      }
+                    >
+                      {value === 'pt' ? 'Português' : 'English'}
                     </button>
                   ))}
                 </div>
@@ -2412,8 +2830,62 @@ export default function AulaPage() {
             <>
               <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
                 Abre o tabuleiro 4×5 na TV. Clique em um número ou role o D20; a pergunta
-                True/False aparece e você marca Acertou/Errou por aqui.
+                True/False aparece e a TV pode responder. Acertou/Errou e Próxima também
+                funcionam por aqui.
               </p>
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Dificuldade
+                </legend>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {(['easy', 'medium', 'hard'] as DifficultyId[]).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setD20Difficulty(value)}
+                      aria-pressed={d20Difficulty === value}
+                      className={
+                        d20Difficulty === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-sm font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-sm font-black text-[var(--muted)]'
+                      }
+                    >
+                      {value === 'easy' ? 'Fácil' : value === 'medium' ? 'Médio' : 'Difícil'}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Temas
+                </legend>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {CLASSIC_CATEGORIES.map((category) => {
+                    const active = d20Categories.includes(category.id);
+                    return (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() =>
+                          setD20Categories((current) =>
+                            current.includes(category.id)
+                              ? current.filter((id) => id !== category.id)
+                              : [...current, category.id]
+                          )
+                        }
+                        aria-pressed={active}
+                        className={
+                          active
+                            ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--ink)]'
+                            : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--muted)]'
+                        }
+                      >
+                        {category.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
               <button
                 type="button"
                 onClick={startD20Warmup}
@@ -2481,22 +2953,133 @@ export default function AulaPage() {
 
               <fieldset className="mt-4">
                 <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-                  Rodadas
+                  Nível
                 </legend>
-                <div className="mt-2 grid grid-cols-4 gap-2">
-                  {COMP_ROUNDS.map((value) => (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(['easy', 'medium', 'hard', 'progressive'] as CompetitionLevelId[]).map(
+                    (value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={compLevel === value}
+                        onClick={() => setCompLevel(value)}
+                        className={
+                          compLevel === value
+                            ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--ink)]'
+                            : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--muted)]'
+                        }
+                      >
+                        {value === 'easy'
+                          ? 'Fácil'
+                          : value === 'medium'
+                            ? 'Médio'
+                            : value === 'hard'
+                              ? 'Difícil'
+                              : 'Progressivo'}
+                      </button>
+                    )
+                  )}
+                </div>
+              </fieldset>
+
+              {compLevel === 'progressive' ? (
+                <fieldset className="mt-4">
+                  <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Rodadas por dificuldade
+                  </legend>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {([2, 3] as const).map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={compProgressive === value}
+                        onClick={() => setCompProgressive(value)}
+                        className={
+                          compProgressive === value
+                            ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--ink)]'
+                            : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--muted)]'
+                        }
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              ) : null}
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Ordem dos alunos
+                </legend>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(['sequential', 'random'] as StudentOrder[]).map((value) => (
                     <button
                       key={value}
                       type="button"
-                      aria-pressed={compRounds === value}
-                      onClick={() => setCompRounds(value)}
+                      aria-pressed={compOrder === value}
+                      onClick={() => setCompOrder(value)}
                       className={
-                        compRounds === value
-                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2 py-2.5 text-sm font-black text-[var(--ink)]'
-                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-2.5 text-sm font-black text-[var(--muted)] transition hover:border-[var(--line)]'
+                        compOrder === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--muted)]'
                       }
                     >
-                      {value}
+                      {value === 'sequential' ? 'Na ordem' : 'Aleatória'}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Temas
+                </legend>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {CLASSIC_CATEGORIES.map((item) => {
+                    const active = compCategories.includes(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() =>
+                          setCompCategories((current) =>
+                            current.includes(item.id)
+                              ? current.filter((id) => id !== item.id)
+                              : [...current, item.id]
+                          )
+                        }
+                        className={
+                          active
+                            ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--ink)]'
+                            : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-2 py-2 text-xs font-black text-[var(--muted)]'
+                        }
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <fieldset className="mt-4">
+                <legend className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Idioma da pergunta
+                </legend>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(['pt', 'en'] as const).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={compLanguage === value}
+                      onClick={() => setCompLanguage(value)}
+                      className={
+                        compLanguage === value
+                          ? 'rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--ink)]'
+                          : 'rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-black text-[var(--muted)]'
+                      }
+                    >
+                      {value === 'pt' ? 'Português' : 'English'}
                     </button>
                   ))}
                 </div>
@@ -2632,10 +3215,22 @@ export default function AulaPage() {
 
     const renderLessonGroup = (group: { date: string; items: Lesson[] }) => {
       const badge = lessonDayBadge(group.date, today);
+      const defaultOpen =
+        group.date !== '' && (group.date === today || group.date === addDaysIso(today, 1));
       return (
-        <section key={group.date || 'sem-data'}>
-          <div className="mb-3 flex flex-wrap items-end justify-between gap-2 border-b border-[var(--line-soft)] pb-2">
+        <details
+          key={group.date || 'sem-data'}
+          className="group"
+          open={defaultOpen}
+        >
+          <summary className="mb-3 flex cursor-pointer list-none flex-wrap items-end justify-between gap-2 border-b border-[var(--line-soft)] pb-2">
             <div className="flex flex-wrap items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="text-lg font-black text-[var(--muted)] transition group-open:rotate-90"
+              >
+                ›
+              </span>
               {badge ? (
                 <span
                   className={clsx(
@@ -2655,9 +3250,9 @@ export default function AulaPage() {
             <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">
               {group.items.length} {group.items.length === 1 ? 'aula' : 'aulas'}
             </span>
-          </div>
+          </summary>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 pb-2 sm:grid-cols-2">
             {group.items.map((lesson) => {
               const isToday = today !== '' && lesson.date === today;
               return (
@@ -2692,7 +3287,7 @@ export default function AulaPage() {
               );
             })}
           </div>
-        </section>
+        </details>
       );
     };
 
@@ -2708,7 +3303,6 @@ export default function AulaPage() {
               }
             />
             <div className="flex flex-wrap items-center gap-2">
-              <CursorToggle />
               <button
                 type="button"
                 onClick={logout}
@@ -2747,18 +3341,20 @@ export default function AulaPage() {
                 />
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-                <NextClassCard
-                  occurrence={featured}
-                  classroom={featuredClass}
-                  title={featuredTitle}
-                  isNow={Boolean(ongoing)}
-                  now={now}
-                  today={today}
-                  hasLesson={Boolean(featuredLesson)}
-                  onOpen={() => featured && openOccurrence(featured.id)}
-                  onPlan={planLesson}
-                />
+              <div className="mt-4 space-y-4">
+                {featured ? (
+                  <NextClassCard
+                    occurrence={featured}
+                    classroom={featuredClass}
+                    title={featuredTitle}
+                    isNow={Boolean(ongoing)}
+                    now={now}
+                    today={today}
+                    hasLesson={Boolean(featuredLesson)}
+                    onOpen={() => featured && openOccurrence(featured.id)}
+                    onPlan={planLesson}
+                  />
+                ) : null}
                 <TodayClasses
                   occurrences={todayOccurrences}
                   classes={agenda.classes}
@@ -2815,12 +3411,20 @@ export default function AulaPage() {
             <div className="mt-8 space-y-10">
               {lessonGroups.upcoming.map(renderLessonGroup)}
               {lessonGroups.past.length ? (
-                <div className="space-y-8">
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-[var(--muted)]">
-                    Aulas anteriores
-                  </p>
-                  {lessonGroups.past.map(renderLessonGroup)}
-                </div>
+                <details className="group">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 border-b border-[var(--line-soft)] pb-2 text-xs font-black uppercase tracking-[0.22em] text-[var(--muted)]">
+                    <span
+                      aria-hidden="true"
+                      className="text-base transition group-open:rotate-90"
+                    >
+                      ›
+                    </span>
+                    Aulas anteriores ({lessonGroups.past.length})
+                  </summary>
+                  <div className="mt-6 space-y-8">
+                    {lessonGroups.past.map(renderLessonGroup)}
+                  </div>
+                </details>
               ) : null}
             </div>
           )}

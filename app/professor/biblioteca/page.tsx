@@ -45,10 +45,6 @@ function LibraryContentPage() {
   const [data, setData] = useState<LibraryData | null>(null);
   const [error, setError] = useState(false);
   const [discipline, setDiscipline] = useState('all');
-  const [trackFilter, setTrackFilter] = useState('all');
-  const [durationFilter, setDurationFilter] = useState<'all' | 'short' | 'medium' | 'long'>(
-    'all'
-  );
   const [query, setQuery] = useState('');
   const [preview, setPreview] = useState<LibraryContent | null>(null);
   const [assign, setAssign] = useState<LibraryContent | null>(null);
@@ -99,16 +95,11 @@ function LibraryContentPage() {
     const search = query.trim().toLowerCase();
     const filtered = (data?.contents ?? []).filter((content) => {
       if (discipline !== 'all' && content.discipline !== discipline) return false;
-      if (trackFilter !== 'all' && (content.track ?? '') !== trackFilter) return false;
-      const total = content.total_min ?? 150;
-      if (durationFilter === 'short' && total >= 120) return false;
-      if (durationFilter === 'medium' && (total < 120 || total > 180)) return false;
-      if (durationFilter === 'long' && total <= 180) return false;
       if (!search) return true;
       return (
         content.title.toLowerCase().includes(search) ||
         content.id.toLowerCase().includes(search) ||
-        (content.track ?? '').toLowerCase().includes(search)
+        unitLabel(content).toLowerCase().includes(search)
       );
     });
 
@@ -126,7 +117,7 @@ function LibraryContentPage() {
         units: Array.from(byUnit.entries()).map(([label, contents]) => ({ label, contents })),
       };
     }).filter((group) => group.units.length > 0);
-  }, [data, discipline, trackFilter, durationFilter, query]);
+  }, [data, discipline, query]);
 
   const duplicateContent = async (content: LibraryContent) => {
     setDuplicatingId(content.id);
@@ -233,38 +224,6 @@ function LibraryContentPage() {
             ))}
           </select>
 
-          <select
-            value={trackFilter}
-            onChange={(event) => setTrackFilter(event.target.value)}
-            className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-bold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
-            aria-label="Filtrar por trilha"
-          >
-            <option value="all">Todas as trilhas</option>
-            {Array.from(
-              new Set((data?.contents ?? []).map((item) => item.track).filter(Boolean))
-            )
-              .sort()
-              .map((track) => (
-                <option key={track} value={track ?? ''}>
-                  {track}
-                </option>
-              ))}
-          </select>
-
-          <select
-            value={durationFilter}
-            onChange={(event) =>
-              setDurationFilter(event.target.value as 'all' | 'short' | 'medium' | 'long')
-            }
-            className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-bold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
-            aria-label="Filtrar por duração"
-          >
-            <option value="all">Qualquer duração</option>
-            <option value="short">Até 2h</option>
-            <option value="medium">2h a 3h</option>
-            <option value="long">Mais de 3h</option>
-          </select>
-
           <label className="relative min-w-[220px] flex-1">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]"
@@ -273,7 +232,7 @@ function LibraryContentPage() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar por título, ID ou trilha…"
+              placeholder="Buscar por título, ID ou projeto…"
               aria-label="Buscar aulas"
               className="w-full rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] py-2 pl-9 pr-3 text-xs font-semibold text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
             />
@@ -303,22 +262,36 @@ function LibraryContentPage() {
             Nenhuma aula encontrada com esses filtros.
           </p>
         ) : (
-          <div className="mt-6 space-y-8">
+          <div className="mt-6 space-y-6">
             {groups.map((group) => (
-              <section key={group.discipline.id}>
-                <div className="mb-3 flex items-end justify-between gap-2 border-b border-[var(--line-soft)] pb-1.5">
-                  <h2 className="text-lg font-black">{group.discipline.label}</h2>
+              <details key={group.discipline.id} open className="group">
+                <summary className="mb-3 flex cursor-pointer list-none items-end justify-between gap-2 border-b border-[var(--line-soft)] pb-1.5">
+                  <span className="flex items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="text-lg font-black text-[var(--muted)] transition group-open:rotate-90"
+                    >
+                      ›
+                    </span>
+                    <h2 className="text-lg font-black">{group.discipline.label}</h2>
+                  </span>
                   <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--muted)]">
                     {group.units.reduce((total, unit) => total + unit.contents.length, 0)} aulas
                   </span>
-                </div>
+                </summary>
 
-                <div className="space-y-5">
+                <div className="space-y-4">
                   {group.units.map((unit) => (
-                    <div key={unit.label}>
-                      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                    <details key={unit.label} open className="group/unit">
+                      <summary className="mb-2 flex cursor-pointer list-none items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                        <span
+                          aria-hidden="true"
+                          className="text-sm transition group-open/unit:rotate-90"
+                        >
+                          ›
+                        </span>
                         {unit.label}
-                      </p>
+                      </summary>
                       <div className="grid gap-3 md:grid-cols-2">
                         {unit.contents.map((content) => (
                           <article
@@ -407,10 +380,10 @@ function LibraryContentPage() {
                           </article>
                         ))}
                       </div>
-                    </div>
+                    </details>
                   ))}
                 </div>
-              </section>
+              </details>
             ))}
           </div>
         )}

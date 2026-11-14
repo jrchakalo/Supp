@@ -39,6 +39,73 @@ function lines(value: string): string[] {
     .filter(Boolean);
 }
 
+const SLIDE_KINDS: Array<{ value: Slide['kind']; label: string }> = [
+  { value: 'cover', label: 'Capa' },
+  { value: 'bullets', label: 'Bullets' },
+  { value: 'case', label: 'Caso' },
+  { value: 'code', label: 'Código' },
+  { value: 'table', label: 'Tabela' },
+  { value: 'flash', label: 'Imagem flash' },
+  { value: 'big', label: 'Frase grande' },
+  { value: 'quiz', label: 'Quiz (lista)' },
+  { value: 'question', label: 'Pergunta' },
+  { value: 'answer', label: 'Resposta' },
+];
+
+function defaultSlide(kind: Slide['kind'], title = 'Novo slide'): Slide {
+  switch (kind) {
+    case 'cover':
+      return { kind, title, subtitle: 'Subtítulo', chips: ['Tema'] };
+    case 'case':
+      return {
+        kind,
+        title,
+        prompt: 'Descreva o caso…',
+        options: [
+          { text: 'Opção A' },
+          { text: 'Opção B' },
+          { text: 'Opção C' },
+          { text: 'Opção D' },
+        ],
+        correct: 0,
+      };
+    case 'code':
+      return { kind, title, code: '// cole o código aqui' };
+    case 'table':
+      return {
+        kind,
+        title,
+        head: ['Coluna 1', 'Coluna 2'],
+        rows: [['', ''], ['', '']],
+      };
+    case 'flash':
+      return { kind, title, seconds: 3 };
+    case 'big':
+      return { kind, title, lines: ['Linha 1', 'Linha 2'] };
+    case 'quiz':
+      return { kind, title, bullets: ['Pergunta 1', 'Pergunta 2', 'Pergunta 3'] };
+    case 'question':
+      return {
+        kind,
+        title,
+        question: 'Pergunta?',
+        options: ['Opção A', 'Opção B', 'Opção C', 'Opção D'],
+      };
+    case 'answer':
+      return {
+        kind,
+        title,
+        question: 'Pergunta?',
+        options: ['Opção A', 'Opção B', 'Opção C', 'Opção D'],
+        correctIndex: 0,
+        explanation: 'Explique a resposta.',
+      };
+    case 'bullets':
+    default:
+      return { kind: 'bullets', title, bullets: ['Novo item'] };
+  }
+}
+
 function Field({
   label,
   value,
@@ -308,6 +375,7 @@ function EditorContent() {
     segments: Segment[];
     at: number;
   } | null>(null);
+  const [newSlideKind, setNewSlideKind] = useState<Slide['kind']>('bullets');
   const segmentsRef = useRef<Segment[]>([]);
   const initializedRef = useRef(false);
 
@@ -438,11 +506,7 @@ function EditorContent() {
 
   const addSlide = () => {
     if (!segment) return;
-    const nextSlide: Slide = {
-      kind: 'bullets',
-      title: 'Novo slide',
-      bullets: ['Novo item'],
-    };
+    const nextSlide = defaultSlide(newSlideKind);
     const next = segments.map((current, index) => {
       if (index !== selected.segmentIndex) return current;
       const slides = [...current.slides];
@@ -451,6 +515,24 @@ function EditorContent() {
     });
     apply(next);
     setSelected({ segmentIndex: selected.segmentIndex, slideIndex: selected.slideIndex + 1 });
+  };
+
+  const changeSlideKind = (kind: Slide['kind']) => {
+    if (!slide) return;
+    const title = 'title' in slide ? slide.title : 'Novo slide';
+    const next = defaultSlide(kind, title);
+    apply(
+      segments.map((current, index) =>
+        index === selected.segmentIndex
+          ? {
+              ...current,
+              slides: current.slides.map((item, slideIndex) =>
+                slideIndex === selected.slideIndex ? next : item
+              ),
+            }
+          : current
+      )
+    );
   };
 
   const duplicateSlide = () => {
@@ -887,6 +969,50 @@ function EditorContent() {
                   </div>
                 </div>
 
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field
+                    label="Nome do bloco"
+                    value={segment.label}
+                    onChange={(value) => updateSegment({ label: value })}
+                  />
+                  <Field
+                    label="Minutos do bloco"
+                    value={String(segment.minutes)}
+                    onChange={(value) => updateSegment({ minutes: Number(value) || 0 })}
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="flex min-w-[180px] flex-1 flex-col gap-1 text-[10px] font-black uppercase tracking-wide text-[var(--muted)]">
+                    Tipo do slide
+                    <select
+                      value={slide.kind}
+                      onChange={(event) => changeSlideKind(event.target.value as Slide['kind'])}
+                      className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-sm font-semibold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+                    >
+                      {SLIDE_KINDS.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex min-w-[170px] flex-col gap-1 text-[10px] font-black uppercase tracking-wide text-[var(--muted)]">
+                    Novo slide
+                    <select
+                      value={newSlideKind}
+                      onChange={(event) => setNewSlideKind(event.target.value as Slide['kind'])}
+                      className="rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-sm font-semibold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+                    >
+                      {SLIDE_KINDS.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
                 <Field
                   label="Título"
                   value={String(slideData?.title ?? '')}
@@ -912,16 +1038,6 @@ function EditorContent() {
                 />
 
                 <div className="grid gap-3 rounded-xl border border-[var(--line-soft)] bg-[var(--surface-2)]/50 p-3 sm:grid-cols-2">
-                  <Field
-                    label="Nome do bloco"
-                    value={segment.label}
-                    onChange={(value) => updateSegment({ label: value })}
-                  />
-                  <Field
-                    label="Minutos do bloco"
-                    value={String(segment.minutes)}
-                    onChange={(value) => updateSegment({ minutes: Number(value) || 0 })}
-                  />
                   <TextArea
                     label="O que falar (talk)"
                     value={segment.talk.join('\n')}

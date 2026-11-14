@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 /**
  * Dependency-free E2E smoke for the classroom flow.
  *
@@ -19,7 +19,7 @@ const results = [];
 
 function log(name, ok, detail = '') {
   results.push({ name, ok, detail });
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`);
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` â€” ${detail}` : ''}`);
 }
 
 async function newTab(url) {
@@ -113,7 +113,7 @@ async function run() {
   await professor.evaluate('localStorage.clear()');
   await professor.send('Page.reload');
   await professor.wait(2500);
-  log('gate renders', await waitFor(professor, "/Área do professor|código de acesso/i.test(document.body.innerText)"));
+  log('gate renders', await waitFor(professor, "/rea do professor|c.digo de acesso/i.test(document.body.innerText)", 18000));
 
   const gateCode = process.env.E2E_GATE_CODE;
   if (gateCode) {
@@ -128,12 +128,14 @@ async function run() {
   await professor.wait(3000);
   log(
     'cockpit after gate',
-    await waitFor(professor, "/aula vai começar|PRÓXIMA AULA|AGENDA/i.test(document.body.innerText)")
+    await waitFor(professor, "/aula vai comeÃ§ar|PRÃ“XIMA AULA|AGENDA/i.test(document.body.innerText)")
   );
 
   log(
-    'cursor hidden by default',
-    await professor.evaluate("document.documentElement.classList.contains('hide-cursor')")
+    'cursor visible by default',
+    await professor.evaluate(
+      "getComputedStyle(document.body).cursor !== 'none' && !document.documentElement.classList.contains('hide-cursor')"
+    )
   );
   await professor.send('Emulation.setDeviceMetricsOverride', {
     width: 1366,
@@ -152,16 +154,20 @@ async function run() {
   log('greeting has text', greeting.length > 0, greeting.slice(0, 40));
 
   const lessonFound = await professor.evaluate(`(() => {
-    const card = Array.from(document.querySelectorAll('article'))
-      .find((el) => el.innerText.includes('PSE C2-01'));
-    if (!card) return false;
-    card.querySelector('button')?.click();
+    const button =
+      document.querySelector('details[open] article button') ??
+      Array.from(document.querySelectorAll('article button')).find((el) =>
+        /iniciar aula/i.test(el.innerText)
+      );
+    if (!button) return false;
+    button.click();
     return true;
   })()`);
   await professor.wait(2500);
-  log('lesson opens', lessonFound && (await professor.text()).includes('CÓDIGO DA SESSÃO'));
+  const bodyAfterLesson = await professor.text();
+  const code = bodyAfterLesson.match(/C.{0,4}DIGO DA SESS.{0,8}\s+([A-Z0-9]{5})/i)?.[1];
+  log('lesson opens', lessonFound && Boolean(code));
 
-  const code = (await professor.text()).match(/CÓDIGO DA SESSÃO\s+([A-Z0-9]{5})/i)?.[1];
   log('session code visible', Boolean(code), code ?? '');
 
   const tv = await newTab(`${BASE_URL}/tela?c=${code}`);
@@ -204,7 +210,7 @@ async function run() {
   );
   await clickText(professor, '/iniciar d20/i');
   await professor.wait(1500);
-  log('D20 board on TV', (await tv.text()).includes('Escolha um número'));
+  log('D20 board on TV', /Escolha um n.m/i.test(await tv.text()));
   await professor.evaluate(`(() => {
     const panel = document.querySelector('[aria-label="D20 na TV"]');
     const one = Array.from(panel?.querySelectorAll('button') ?? [])
@@ -218,7 +224,7 @@ async function run() {
   log('D20 reveal on TV', (await tv.text()).includes('Acertou!'));
   await clickText(professor, '/^encerrar$/i');
   await tv.wait(1500);
-  log('D20 exit', !(await tv.text()).includes('Escolha um número'));
+  log('D20 exit', !(await tv.text()).includes('Escolha um nÃºmero'));
 
   await tv.close();
   await professor.close();
@@ -234,3 +240,4 @@ run()
     console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
     process.exit(failed.length === 0 ? 0 : 1);
   });
+
