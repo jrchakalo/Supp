@@ -33,6 +33,11 @@ test('normalizes, dedupes and trims attendance', () => {
   assert.deepEqual(names, ['Ana', 'Bruno']);
 });
 
+test('normalizes student ids for the attendance toggles', () => {
+  assert.deepEqual(report.normalizeStudentIds(['a', 'a', '', 'b', 3]), ['a', 'b']);
+  assert.deepEqual(report.normalizeStudentIds(null), []);
+});
+
 test('rejects malformed templates', () => {
   assert.equal(report.isValidTemplate(template), true);
   assert.equal(report.isValidTemplate({ prefix: 'x' }), false);
@@ -46,6 +51,7 @@ test('reads the stored report and ignores malformed notes', () => {
       classReport: {
         text: 'Relatório salvo.',
         present: ['Ana'],
+        presentStudentIds: ['student-1'],
         goodPerformance: true,
         at: '2026-11-14T00:00:00.000Z',
       },
@@ -53,6 +59,7 @@ test('reads the stored report and ignores malformed notes', () => {
   );
   assert.equal(stored.text, 'Relatório salvo.');
   assert.deepEqual(stored.present, ['Ana']);
+  assert.deepEqual(stored.presentStudentIds, ['student-1']);
   assert.equal(report.readStoredClassReport('not json'), null);
   assert.equal(report.readStoredClassReport(JSON.stringify({ audit: [] })), null);
 });

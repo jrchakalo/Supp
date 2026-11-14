@@ -5,6 +5,7 @@ import {
   composeClassReport,
   isValidTemplate,
   normalizeAttendance,
+  normalizeStudentIds,
   readStoredClassReport,
 } from '@/lib/aula/class-report';
 
@@ -68,12 +69,14 @@ export async function POST(request: NextRequest) {
     occurrenceId?: unknown;
     template?: unknown;
     present?: unknown;
+    presentStudentIds?: unknown;
     goodPerformance?: unknown;
   } | null;
 
   const occurrenceId = typeof body?.occurrenceId === 'string' ? body.occurrenceId.trim() : '';
   const template = body?.template;
   const present = normalizeAttendance(body?.present);
+  const presentStudentIds = normalizeStudentIds(body?.presentStudentIds);
   const goodPerformance = body?.goodPerformance === true;
 
   if (!occurrenceId || !isValidTemplate(template)) {
@@ -95,6 +98,7 @@ export async function POST(request: NextRequest) {
     const classReport = {
       text,
       present,
+      presentStudentIds,
       goodPerformance,
       at: new Date().toISOString(),
     };

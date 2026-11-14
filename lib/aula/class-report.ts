@@ -15,6 +15,7 @@ export type ClassReportInput = {
 export type StoredClassReport = {
   text: string;
   present: string[];
+  presentStudentIds?: string[];
   goodPerformance: boolean;
   at: string;
 };
@@ -38,6 +39,12 @@ export function normalizeAttendance(present: unknown): string[] {
     if (names.length >= 60) break;
   }
   return names;
+}
+
+export function normalizeStudentIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids = value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  return Array.from(new Set(ids)).slice(0, 100);
 }
 
 export function isValidTemplate(value: unknown): value is ClassReportTemplate {
@@ -74,6 +81,7 @@ export function readStoredClassReport(notes: unknown): StoredClassReport | null 
     return {
       text: report.text,
       present: normalizeAttendance(report.present),
+      presentStudentIds: normalizeStudentIds(report.presentStudentIds),
       goodPerformance: report.goodPerformance === true,
       at: typeof report.at === 'string' ? report.at : '',
     };

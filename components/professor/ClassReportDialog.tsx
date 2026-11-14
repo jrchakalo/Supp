@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ClipboardCheck, ClipboardCopy, X } from 'lucide-react';
+import { Check, ClipboardCheck, ClipboardCopy, RotateCw, X } from 'lucide-react';
 import type { ClassReportTemplate } from '@/lib/passaporte-lessons';
-import { composeClassReport, normalizeAttendance } from '@/lib/aula/class-report';
+import { composeClassReport, normalizeAttendance, normalizeStudentIds } from '@/lib/aula/class-report';
 
 type Props = {
   open: boolean;
@@ -16,17 +16,20 @@ type Props = {
   onSaved: (text: string) => void;
 };
 
-function rosterKey(classCode: string): string {
-  return `class-report-roster:${classCode}`;
-}
+type RosterStudent = { id: string; name: string };
+type SavedReport = {
+  text?: string;
+  present?: string[];
+  presentStudentIds?: string[];
+  goodPerformance?: boolean;
+};
 
-function readRoster(classCode: string): string[] {
+function readFallback(classCode: string): string[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = window.localStorage.getItem(rosterKey(classCode));
+    const raw = window.localStorage.getItem(`class-report-roster:${classCode}`);
     if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    return normalizeAttendance(parsed);
+    return normalizeAttendance(JSON.parse(raw));
   } catch {
     return [];
   }
@@ -42,53 +45,119 @@ export default function ClassReportDialog({
   savedText,
   onSaved,
 }: Props) {
-  const [names, setNames] = useState('');
+  const [roster, setRoster] = useState<RosterStudent[]>([]);
+  const [rosterState, setRosterState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [presentIds, setPresentIds] = useState<Set<string>>(new Set());
+  const [fallbackNames, setFallbackNames] = useState('');
   const [good, setGood] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState('');
   const [copied, setCopied] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!open) return;
-    setNames(readRoster(classCode).join('\n'));
+    setRoster([]);
+    setRosterState('loading');
+    setPresentIds(new Set());
+    setFallbackNames(readFallback(classCode).join('\n'));
     setGood(false);
     setError('');
     setResult(savedText ?? '');
     setCopied(false);
 
     let cancelled = false;
-    if (!savedText) {
-      fetch(`/api/class-report?occurrenceId=${encodeURIComponent(occurrenceId)}`)
-        .then((response) => response.json())
-        .then((payload: { report?: { text?: string; present?: string[]; goodPerformance?: boolean } } | null) => {
-          if (cancelled || !payload?.report?.text) return;
-          setResult(payload.report.text);
-          setNames((payload.report.present ?? []).join('\n'));
-          setGood(payload.report.goodPerformance === true);
-        })
-        .catch(() => undefined);
-    }
+    const load = async () => {
+      const [rosterResponse, reportResponse] = await Promise.allSettled([
+        fetch(`/api/class-roster?occurrenceId=${encodeURIComponent(occurrenceId)}`).then(
+          async (response) => ({ ok: response.ok, payload: await response.json().catch(() => null) })
+        ),
+        fetch(`/api/class-report?occurrenceId=${encodeURIComponent(occurrenceId)}`).then(
+          async (response) => ({ ok: response.ok, payload: await response.json().catch(() => null) })
+        ),
+      ]);
+      if (cancelled) return;
+
+      const saved =
+        reportResponse.status === 'fulfilled' && reportResponse.value.ok
+          ? (reportResponse.value.payload?.report as SavedReport | null)
+          : null;
+      if (saved?.text) {
+        setResult(saved.text);
+        setGood(saved.goodPerformance === true);
+      }
+
+      if (rosterResponse.status === 'fulfilled' && rosterResponse.value.ok) {
+        const students = Array.isArray(rosterResponse.value.payload?.students)
+          ? (rosterResponse.value.payload.students as RosterStudent[])
+          : [];
+        setRoster(students);
+        setRosterState('ready');
+        const savedIds = normalizeStudentIds(saved?.presentStudentIds);
+        const savedNames = new Set(
+          normalizeAttendance(saved?.present).map((name) => name.toLowerCase())
+        );
+        if (savedIds.length > 0) {
+          setPresentIds(new Set(savedIds));
+        } else if (savedNames.size > 0) {
+          setPresentIds(
+            new Set(
+              students
+                .filter((student) => savedNames.has(student.name.toLowerCase()))
+                .map((student) => student.id)
+            )
+          );
+        } else {
+          setPresentIds(new Set(students.map((student) => student.id)));
+        }
+        return;
+      }
+
+      setRosterState('error');
+      if (saved?.present?.length) {
+        setFallbackNames(normalizeAttendance(saved.present).join('\n'));
+      }
+    };
+
+    void load();
     return () => {
       cancelled = true;
     };
-  }, [open, classCode, occurrenceId, savedText]);
+  }, [open, occurrenceId, classCode, savedText, retry]);
 
+  const fallbackPresent = useMemo(
+    () => normalizeAttendance(fallbackNames.split(/\r?\n/)),
+    [fallbackNames]
+  );
   const present = useMemo(
-    () => normalizeAttendance(names.split(/\r?\n/)),
-    [names]
+    () =>
+      rosterState === 'ready'
+        ? roster.filter((student) => presentIds.has(student.id)).map((student) => student.name)
+        : fallbackPresent,
+    [rosterState, roster, presentIds, fallbackPresent]
   );
   const preview = useMemo(
-    () =>
-      composeClassReport({
-        template,
-        present,
-        goodPerformance: good,
-      }),
+    () => composeClassReport({ template, present, goodPerformance: good }),
     [template, present, good]
   );
 
   if (!open) return null;
+
+  const toggleStudent = (id: string) => {
+    setPresentIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setResult('');
+  };
+
+  const setAll = (value: boolean) => {
+    setPresentIds(new Set(value ? roster.map((student) => student.id) : []));
+    setResult('');
+  };
 
   const copy = async () => {
     try {
@@ -111,6 +180,7 @@ export default function ClassReportDialog({
           occurrenceId,
           template,
           present,
+          presentStudentIds: rosterState === 'ready' ? Array.from(presentIds) : [],
           goodPerformance: good,
         }),
       });
@@ -122,7 +192,10 @@ export default function ClassReportDialog({
         return;
       }
       if (typeof window !== 'undefined' && present.length > 0) {
-        window.localStorage.setItem(rosterKey(classCode), JSON.stringify(present));
+        window.localStorage.setItem(
+          `class-report-roster:${classCode}`,
+          JSON.stringify(present)
+        );
       }
       setResult(payload.text);
       onSaved(payload.text);
@@ -156,7 +229,7 @@ export default function ClassReportDialog({
               Class report do intervalo
             </h2>
             <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
-              Marque quem veio. O texto base já foi escrito junto com a aula.
+              Marque quem veio. Os nomes vêm da chamada da plataforma.
             </p>
           </div>
           <button
@@ -169,36 +242,109 @@ export default function ClassReportDialog({
           </button>
         </div>
 
-        <label className="mt-4 block">
-          <span className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
-            Alunos presentes (um por linha)
-          </span>
-          <textarea
-            value={names}
-            onChange={(event) => {
-              setNames(event.target.value);
-              setResult('');
-            }}
-            rows={4}
-            placeholder={'Ana\nBruno\nCarla'}
-            className="mt-1.5 w-full rounded-2xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2 text-sm font-semibold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
-          />
-        </label>
+        <div className="mt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+              Chamada da turma
+            </span>
+            <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[var(--muted)]">
+              {rosterState === 'ready'
+                ? `${present.length} de ${roster.length} presentes`
+                : `${present.length} presente${present.length === 1 ? '' : 's'}`}
+            </span>
+          </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[var(--muted)]">
-            {present.length} presente{present.length === 1 ? '' : 's'}
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              setNames('');
-              setResult('');
-            }}
-            className="rounded-lg border border-[var(--line-soft)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[var(--muted)]"
-          >
-            Ninguém veio
-          </button>
+          {rosterState === 'loading' ? (
+            <p className="mt-3 rounded-2xl border border-dashed border-[var(--line-soft)] px-3 py-4 text-xs font-semibold text-[var(--muted)]">
+              Carregando os nomes da turma…
+            </p>
+          ) : rosterState === 'error' ? (
+            <div className="mt-3 rounded-2xl border-2 border-[var(--danger)]/40 bg-[var(--surface-2)] p-3">
+              <p className="text-xs font-bold text-[var(--ink)]">
+                Não foi possível carregar a chamada da plataforma.
+              </p>
+              <p className="mt-1 text-[11px] font-semibold text-[var(--muted)]">
+                Confira a conexão. Enquanto isso, digite os nomes presentes:
+              </p>
+              <textarea
+                value={fallbackNames}
+                onChange={(event) => {
+                  setFallbackNames(event.target.value);
+                  setResult('');
+                }}
+                rows={4}
+                placeholder={'Ana\nBruno'}
+                className="mt-2 w-full rounded-xl border-2 border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold text-[var(--ink)] outline-none focus:border-[var(--accent)]"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setRosterState('loading');
+                  setError('');
+                  setRetry((value) => value + 1);
+                }}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-[var(--line-soft)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[var(--muted)]"
+              >
+                <RotateCw className="h-3 w-3" aria-hidden="true" />
+                Tentar de novo
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                {roster.map((student) => {
+                  const checked = presentIds.has(student.id);
+                  return (
+                    <button
+                      key={student.id}
+                      type="button"
+                      role="switch"
+                      aria-checked={checked}
+                      onClick={() => toggleStudent(student.id)}
+                      className={
+                        checked
+                          ? 'flex items-center gap-2 rounded-xl border-2 border-[var(--accent)] bg-[var(--surface-2)] px-2.5 py-2 text-left'
+                          : 'flex items-center gap-2 rounded-xl border border-[var(--line-soft)] bg-[var(--surface)] px-2.5 py-2 text-left opacity-65'
+                      }
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={
+                          checked
+                            ? 'flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-[var(--accent)] text-[#071018]'
+                            : 'h-5 w-5 shrink-0 rounded-md border-2 border-[var(--line)]'
+                        }
+                      >
+                        {checked ? <Check className="h-3.5 w-3.5" /> : null}
+                      </span>
+                      <span className="min-w-0 flex-1 text-[11px] font-black leading-tight text-[var(--ink)]">
+                        {student.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAll(true)}
+                  className="rounded-lg border border-[var(--line-soft)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[var(--muted)]"
+                >
+                  Todos presentes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAll(false)}
+                  className="rounded-lg border border-[var(--line-soft)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-[var(--muted)]"
+                >
+                  Ninguém
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
             role="switch"
