@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.14] — 2026-11-15
+
+### Agenda: feriado no centro e almoço só em dia de trabalho
+
+- O selo **Hoje** voltou para o topo do dia.
+- O **nome do feriado** passou para a faixa central (12:00–13:00) da coluna, sem
+  encostar no selo “Hoje”.
+- O tracejado do almoço agora aparece **somente nos dias de trabalho**, entre 12:00
+  e 13:00, sem rótulo.
+- Dias de folga continuam com o tracejado cobrindo o dia inteiro, sem duplicação.
+
 ## [1.0.13] — 2026-11-15
 
 ### Agenda: marcador de almoço e selo “Hoje”
