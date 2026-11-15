@@ -4247,7 +4247,7 @@ export default function AulaPage() {
                 </button>
               ) : null}
 
-              {mode === 'lesson' && segment?.classReport ? (
+              {mode === 'lesson' && reportTemplate ? (
                 <button
                   type="button"
                   onClick={() => setClassReportOpen(true)}
