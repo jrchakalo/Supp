@@ -26,6 +26,7 @@ type WeekAgendaProps = {
   lessons: Lesson[];
   now: Date;
   onOpenOccurrence: (occurrenceId: string) => void;
+  onWeekChange?: (week: { start: string; end: string }) => void;
   onRefresh?: () => void;
   refreshing?: boolean;
   updatedAt?: number | null;
@@ -92,6 +93,7 @@ export default function WeekAgenda({
   lessons,
   now,
   onOpenOccurrence,
+  onWeekChange,
   onRefresh,
   refreshing,
   updatedAt,
@@ -109,6 +111,11 @@ export default function WeekAgenda({
   }, [monthKey]);
 
   const week = weeks[Math.min(Math.max(weekIndex, 0), weeks.length - 1)];
+
+  useEffect(() => {
+    onWeekChange?.({ start: week.start, end: week.end });
+  }, [week.start, week.end, onWeekChange]);
+
   const classById = useMemo(
     () => new Map(data.classes.map((row) => [row.id, row])),
     [data.classes]

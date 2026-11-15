@@ -120,3 +120,24 @@ test('holidayFor exposes the official name, scope and source', () => {
   assert.equal(holidays.holidayFor('2026-02-16').optional, true);
   assert.equal(holidays.holidayFor('2026-11-16'), undefined);
 });
+
+test('class parity follows the 14-day class reports (week of 16/11)', () => {
+  assert.equal(calendar.weekParity('2026-11-16'), 0);
+  assert.equal(calendar.weekParity('2026-11-23'), 1);
+
+  // Biweekly: week A (16/11) vs week B (23/11).
+  for (const code of ['C1-01', 'C2-01', 'C2-03', 'C2-07']) {
+    assert.equal(calendar.classOccursOn(code, '2026-11-16'), true, `${code} A`);
+    assert.equal(calendar.classOccursOn(code, '2026-11-23'), false, `${code} B`);
+  }
+  for (const code of ['C1-02', 'C1-03', 'C2-02', 'C2-04', 'C2-05', 'C2-08']) {
+    assert.equal(calendar.classOccursOn(code, '2026-11-16'), false, `${code} A`);
+    assert.equal(calendar.classOccursOn(code, '2026-11-23'), true, `${code} B`);
+  }
+
+  // Weekly exceptions: PSE, Info Bilíngue and C2-06 (1:15).
+  for (const code of ['C2-06', 'Info 09', 'Info 10', 'PSE C2-01', 'PSE C2-02', 'Teens 02']) {
+    assert.equal(calendar.classOccursOn(code, '2026-11-16'), true, `${code} A`);
+    assert.equal(calendar.classOccursOn(code, '2026-11-23'), true, `${code} B`);
+  }
+});

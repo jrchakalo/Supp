@@ -195,15 +195,20 @@ export function layoutDay(occurrences: AgendaOccurrence[]): PositionedOccurrence
 /**
  * Some classes share the same weekday/time and alternate week by week. The
  * anchor is the Monday of week A; reports confirm the 14-day cadence.
+ * Weekly exceptions: PSE (C2-01, C2-02, Teens), Info Bilíngue and C2-06 (1:15).
  */
 const PARITY_ANCHOR = '2026-10-05';
 const CLASS_WEEK_PARITY: Record<string, 0 | 1> = {
   'C1-01': 0,
   'C2-01': 0,
   'C2-03': 0,
-  'C2-04': 1,
+  'C2-07': 0,
   'C1-02': 1,
+  'C1-03': 1,
   'C2-02': 1,
+  'C2-04': 1,
+  'C2-05': 1,
+  'C2-08': 1,
 };
 
 export function weekParity(iso: string): 0 | 1 {

@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.15] — 2026-11-15
+
+### Agenda: cadência quinzenal e lista da semana
+
+- A cadência quinzenal passou a cobrir **todas** as turmas de Coding, conferida nos
+  class reports: C1-03, C2-05 e C2-08 na semana B; C2-07 na semana A. Continuam
+  semanais apenas **PSE (C2-01, C2-02 e Teens)**, **Info Bilíngue** e **C2-06** (1h15).
+- Semana 16–22/11 corrigida: entram C1-01, Info 10, C2-01, Teens 02, C2-07, C2-06,
+  PSE C2-01, PSE C2-02, C2-03 e Info 09; saem C1-03, C2-05, C2-08 e C2-02, que
+  tiveram aula na semana anterior.
+- **“Aulas por dia”** agora mostra apenas a semana exibida na agenda (mesmo com aulas
+  das próximas semanas já prontas); semanas anteriores ficam no bloco recolhível.
+
 ## [1.0.14] — 2026-11-15
 
 ### Agenda: feriado no centro e almoço só em dia de trabalho

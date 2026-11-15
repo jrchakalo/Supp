@@ -117,6 +117,13 @@ function addDaysIso(iso: string, days: number): string {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
+/** Monday of the week that contains `iso`. */
+function mondayOfIso(iso: string): string {
+  const date = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return iso;
+  return addDaysIso(iso, -((date.getDay() + 6) % 7));
+}
+
 /** "quinta-feira, 12 de novembro" (weekday + day + month). */
 function formatLessonDay(iso: string): string {
   const parts = iso.split('-').map(Number);
@@ -315,9 +322,13 @@ export default function AulaPage() {
   const [lessonsLoading, setLessonsLoading] = useState(false);
   const [lessonsError, setLessonsError] = useState(false);
   const [lessonsNonce, setLessonsNonce] = useState(0);
+  /* Week currently shown in the agenda; "Aulas por dia" follows it. */
+  const [visibleWeek, setVisibleWeek] = useState<{ start: string; end: string } | null>(
+    null
+  );
 
-  /* Group the lesson bank by day: upcoming (today first, ascending) and past
-     (most recent first). This keeps the picker navigable as the bank grows. */
+  /* List only the week selected in the agenda (future weeks stay hidden even
+     when their lessons are already prepared). Earlier weeks remain collapsed. */
   const lessonGroups = useMemo(() => {
     const sorted = [...(lessons ?? [])].sort(
       (a, b) =>
@@ -333,12 +344,16 @@ export default function AulaPage() {
       else byDay.set(key, [lesson]);
     }
     const groups = Array.from(byDay, ([date, items]) => ({ date, items }));
-    const upcoming = groups.filter((group) => !today || group.date >= today);
+    const weekStart = visibleWeek?.start || (today ? mondayOfIso(today) : '');
+    const weekEnd = visibleWeek?.end || (weekStart ? addDaysIso(weekStart, 6) : '');
+    const currentWeek = groups.filter(
+      (group) => weekStart !== '' && group.date >= weekStart && group.date <= weekEnd
+    );
     const past = groups
-      .filter((group) => today !== '' && group.date < today)
+      .filter((group) => weekStart !== '' && group.date !== '' && group.date < weekStart)
       .sort((a, b) => b.date.localeCompare(a.date));
-    return { upcoming, past };
-  }, [lessons, today]);
+    return { currentWeek, past };
+  }, [lessons, today, visibleWeek]);
 
   /* The greeting says "Boa aula" when a lesson is happening now. */
   const [nowTick, setNowTick] = useState(() => Date.now());
@@ -3374,6 +3389,7 @@ export default function AulaPage() {
                   lessons={lessons ?? []}
                   now={now}
                   onOpenOccurrence={openOccurrence}
+                  onWeekChange={setVisibleWeek}
                   onRefresh={syncNow}
                   refreshing={syncing}
                   updatedAt={lastSyncAt}
@@ -3419,7 +3435,7 @@ export default function AulaPage() {
               <h2 className="mt-1 text-2xl font-black">Aulas por dia</h2>
             </div>
             <p className="text-xs font-semibold text-[var(--muted)]">
-              Hoje e próximas primeiro; as anteriores ficam no fim.
+              Aulas da semana exibida na agenda; as anteriores ficam no fim.
             </p>
           </div>
 
@@ -3448,7 +3464,12 @@ export default function AulaPage() {
             </div>
           ) : (
             <div className="mt-8 space-y-10">
-              {lessonGroups.upcoming.map(renderLessonGroup)}
+              {lessonGroups.currentWeek.length === 0 ? (
+                <p className="rounded-2xl border-2 border-dashed border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-6 text-sm font-bold text-[var(--muted)]">
+                  Sem aulas na semana exibida.
+                </p>
+              ) : null}
+              {lessonGroups.currentWeek.map(renderLessonGroup)}
               {lessonGroups.past.length ? (
                 <details className="group">
                   <summary className="flex cursor-pointer list-none items-center gap-2 border-b border-[var(--line-soft)] pb-2 text-xs font-black uppercase tracking-[0.22em] text-[var(--muted)]">
