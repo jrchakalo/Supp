@@ -9,6 +9,7 @@ type OccurrenceRow = { id: string; class_id: string | null };
 type ClassRow = {
   id: string;
   short_code: string;
+  discipline: string | null;
   platform_class_id: string | null;
   platform: {
     branchCourse?: { branch_id?: string };
@@ -74,19 +75,24 @@ export async function GET(request: NextRequest) {
     }
 
     const [classroom] = await adminSelect<ClassRow[]>(
-      `pp_classes?select=id,short_code,platform_class_id,platform&id=eq.${encodeURIComponent(
+      `pp_classes?select=id,short_code,discipline,platform_class_id,platform&id=eq.${encodeURIComponent(
         occurrence.class_id
       )}&limit=1`
     );
     if (!classroom?.platform_class_id) {
       return NextResponse.json({ error: 'Turma sem vínculo com a plataforma.' }, { status: 404 });
     }
+    const feedbackTrack =
+      classroom.discipline === 'info' || classroom.discipline === 'pse-teens'
+        ? 'english'
+        : 'coding';
 
     const cached = cache.get(classroom.platform_class_id);
     if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
       return NextResponse.json({
         students: cached.students,
         classCode: classroom.short_code,
+        feedbackTrack,
         source: 'passaporte',
       });
     }
@@ -131,6 +137,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       students,
       classCode: classroom.short_code,
+      feedbackTrack,
       source: 'passaporte',
     });
   } catch {

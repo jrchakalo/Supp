@@ -65,6 +65,18 @@ test('exposes the platform behavioral feedback catalog', () => {
   assert.equal(report.feedbackByValue('Disrespect').nature, 'bad');
 });
 
+test('uses the English feedback set for Info and PSE Teens', () => {
+  const english = report.feedbackCatalog('english').map((feedback) => feedback.value);
+  assert.ok(english.includes('Homework'));
+  assert.ok(english.includes('Participation'));
+  assert.ok(english.includes('Teamwork'));
+  assert.ok(english.includes('Game Winner'));
+  assert.deepEqual(report.defaultFeedbacks('english'), ['Participation', 'Teamwork']);
+  assert.equal(report.goodFeedback('english'), 'Game Winner');
+  assert.deepEqual(report.defaultFeedbacks('coding'), ['Collaboration', 'Self-Control']);
+  assert.equal(report.goodFeedback('coding'), 'Creativity');
+});
+
 test('rejects malformed templates', () => {
   assert.equal(report.isValidTemplate(template), true);
   assert.equal(report.isValidTemplate({ prefix: 'x' }), false);
