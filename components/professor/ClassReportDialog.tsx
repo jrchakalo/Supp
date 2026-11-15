@@ -4,15 +4,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronLeft, ClipboardCheck, ClipboardCopy, RotateCw, X } from 'lucide-react';
 import type { ClassReportTemplate } from '@/lib/passaporte-lessons';
 import {
-  BEHAVIOR_FEEDBACKS,
-  DEFAULT_PRESENT_FEEDBACKS,
-  GOOD_PERFORMANCE_FEEDBACK,
   MAX_BAD_FEEDBACKS,
   MAX_GOOD_FEEDBACKS,
   composeClassReport,
+  defaultFeedbacks,
   feedbackByValue,
+  feedbackCatalog,
+  goodFeedback,
   normalizeAttendance,
   normalizeStudents,
+  type FeedbackTrack,
   type StudentAttendance,
 } from '@/lib/aula/class-report';
 
@@ -47,12 +48,12 @@ function readFallback(classCode: string): string[] {
   }
 }
 
-function defaultStudent(student: RosterStudent): StudentAttendance {
+function defaultStudent(student: RosterStudent, track: FeedbackTrack): StudentAttendance {
   return {
     id: student.id,
     name: student.name,
     present: true,
-    feedbacks: [...DEFAULT_PRESENT_FEEDBACKS],
+    feedbacks: defaultFeedbacks(track),
     hasMaterial: true,
   };
 }
@@ -69,6 +70,7 @@ export default function ClassReportDialog({
 }: Props) {
   const [students, setStudents] = useState<StudentAttendance[]>([]);
   const [rosterState, setRosterState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [track, setTrack] = useState<FeedbackTrack>('coding');
   const [fallbackNames, setFallbackNames] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<'good' | 'bad'>('good');
@@ -118,6 +120,10 @@ export default function ClassReportDialog({
         const roster = Array.isArray(rosterResponse.value.payload?.students)
           ? (rosterResponse.value.payload.students as RosterStudent[])
           : [];
+        const nextTrack: FeedbackTrack =
+          rosterResponse.value.payload?.feedbackTrack === 'english' ? 'english' : 'coding';
+        setTrack(nextTrack);
+        const allowed = new Set(feedbackCatalog(nextTrack).map((feedback) => feedback.value));
         const savedStudents = normalizeStudents(saved?.students);
         const savedIds = new Set(saved?.presentStudentIds ?? []);
         const savedNames = new Set(
@@ -131,23 +137,29 @@ export default function ClassReportDialog({
               (item) => item.name.toLowerCase() === student.name.toLowerCase()
             );
           if (previous) {
+            const feedbacks = previous.feedbacks.filter((value) => allowed.has(value));
             return {
-              ...defaultStudent(student),
+              ...defaultStudent(student, nextTrack),
               present: previous.present,
-              feedbacks: previous.feedbacks,
+              feedbacks:
+                feedbacks.length > 0
+                  ? feedbacks
+                  : previous.present
+                    ? defaultFeedbacks(nextTrack)
+                    : [],
               hasMaterial: previous.hasMaterial,
             };
           }
           if (savedIds.size > 0 || savedNames.size > 0) {
             const present = savedIds.has(student.id) || savedNames.has(student.name.toLowerCase());
             return {
-              ...defaultStudent(student),
+              ...defaultStudent(student, nextTrack),
               present,
-              feedbacks: present ? [...DEFAULT_PRESENT_FEEDBACKS] : [],
+              feedbacks: present ? defaultFeedbacks(nextTrack) : [],
               hasMaterial: present ? true : false,
             };
           }
-          return defaultStudent(student);
+          return defaultStudent(student, nextTrack);
         });
 
         setStudents(merged);
@@ -196,7 +208,7 @@ export default function ClassReportDialog({
         feedbacks: presentNext
           ? current.feedbacks.length > 0
             ? current.feedbacks
-            : [...DEFAULT_PRESENT_FEEDBACKS]
+            : defaultFeedbacks(track)
           : [],
         hasMaterial: presentNext ? current.hasMaterial ?? true : false,
       };
@@ -210,14 +222,14 @@ export default function ClassReportDialog({
     setStudents((current) =>
       current.map((student) => {
         if (!student.present) return student;
-        const has = student.feedbacks.includes(GOOD_PERFORMANCE_FEEDBACK);
+        const has = student.feedbacks.includes(goodFeedback(track));
         if (next && !has) {
-          return { ...student, feedbacks: [...student.feedbacks, GOOD_PERFORMANCE_FEEDBACK] };
+          return { ...student, feedbacks: [...student.feedbacks, goodFeedback(track)] };
         }
         if (!next && has) {
           return {
             ...student,
-            feedbacks: student.feedbacks.filter((value) => value !== GOOD_PERFORMANCE_FEEDBACK),
+            feedbacks: student.feedbacks.filter((value) => value !== goodFeedback(track)),
           };
         }
         return student;
@@ -253,7 +265,7 @@ export default function ClassReportDialog({
         feedbacks: value
           ? student.feedbacks.length > 0
             ? student.feedbacks
-            : [...DEFAULT_PRESENT_FEEDBACKS]
+            : defaultFeedbacks(track)
           : [],
         hasMaterial: value ? student.hasMaterial ?? true : false,
       }))
@@ -433,7 +445,7 @@ export default function ClassReportDialog({
                             feedbacks: value
                               ? current.feedbacks.length > 0
                                 ? current.feedbacks
-                                : [...DEFAULT_PRESENT_FEEDBACKS]
+                                : defaultFeedbacks(track)
                               : [],
                             hasMaterial: value ? current.hasMaterial ?? true : false,
                           }));
@@ -512,7 +524,7 @@ export default function ClassReportDialog({
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {BEHAVIOR_FEEDBACKS.filter((feedback) => feedback.nature === detailTab).map(
+              {feedbackCatalog(track).filter((feedback) => feedback.nature === detailTab).map(
                 (feedback) => renderFeedbackButton(detail, feedback.value)
               )}
             </div>

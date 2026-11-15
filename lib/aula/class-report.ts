@@ -22,31 +22,79 @@ export type StoredClassReport = {
 };
 
 export type FeedbackNature = 'good' | 'bad';
+export type FeedbackTrack = 'coding' | 'english';
 
 export type BehaviorFeedback = {
   value: string;
   label: string;
   nature: FeedbackNature;
   points: number;
+  track: FeedbackTrack;
 };
+
+const CODING_GOOD: BehaviorFeedback[] = [
+  { value: 'Planning', label: 'Planejamento', nature: 'good', points: 140, track: 'coding' },
+  { value: 'Collaboration', label: 'Colaboração', nature: 'good', points: 80, track: 'coding' },
+  { value: 'Self-Control', label: 'Autocontrole', nature: 'good', points: 80, track: 'coding' },
+  {
+    value: 'Collaborative Leadership',
+    label: 'Liderança Colaborativa',
+    nature: 'good',
+    points: 80,
+    track: 'coding',
+  },
+  { value: 'Creativity', label: 'Criatividade', nature: 'good', points: 80, track: 'coding' },
+];
+
+const ENGLISH_GOOD: BehaviorFeedback[] = [
+  { value: 'Homework', label: 'Homework', nature: 'good', points: 140, track: 'english' },
+  { value: 'Participation', label: 'Participation', nature: 'good', points: 80, track: 'english' },
+  { value: 'Media', label: 'Media', nature: 'good', points: 80, track: 'english' },
+  { value: 'Game Winner', label: 'Game Winner', nature: 'good', points: 80, track: 'english' },
+  { value: 'Teamwork', label: 'Teamwork', nature: 'good', points: 80, track: 'english' },
+];
+
+const BAD_FEEDBACKS: BehaviorFeedback[] = [
+  { value: 'Disrespect', label: 'Desrespeito', nature: 'bad', points: 200, track: 'coding' },
+  { value: 'Misbehavior', label: 'Mau comportamento', nature: 'bad', points: 150, track: 'coding' },
+  { value: 'Attention', label: 'Falta de atenção', nature: 'bad', points: 50, track: 'coding' },
+  {
+    value: 'Device distraction',
+    label: 'Mau uso de recursos digitais',
+    nature: 'bad',
+    points: 50,
+    track: 'coding',
+  },
+  { value: 'Disorganization', label: 'Desorganização', nature: 'bad', points: 50, track: 'coding' },
+  {
+    value: 'Intentional isolation',
+    label: 'Isolamento intencional',
+    nature: 'bad',
+    points: 50,
+    track: 'coding',
+  },
+];
 
 /** Same values and points as the Passaporte behavioral feedback form. */
 export const BEHAVIOR_FEEDBACKS: BehaviorFeedback[] = [
-  { value: 'Planning', label: 'Planejamento', nature: 'good', points: 140 },
-  { value: 'Collaboration', label: 'Colaboração', nature: 'good', points: 80 },
-  { value: 'Self-Control', label: 'Autocontrole', nature: 'good', points: 80 },
-  { value: 'Collaborative Leadership', label: 'Liderança Colaborativa', nature: 'good', points: 80 },
-  { value: 'Creativity', label: 'Criatividade', nature: 'good', points: 80 },
-  { value: 'Disrespect', label: 'Desrespeito', nature: 'bad', points: 200 },
-  { value: 'Misbehavior', label: 'Mau comportamento', nature: 'bad', points: 150 },
-  { value: 'Attention', label: 'Falta de atenção', nature: 'bad', points: 50 },
-  { value: 'Device distraction', label: 'Mau uso de recursos digitais', nature: 'bad', points: 50 },
-  { value: 'Disorganization', label: 'Desorganização', nature: 'bad', points: 50 },
-  { value: 'Intentional isolation', label: 'Isolamento intencional', nature: 'bad', points: 50 },
+  ...CODING_GOOD,
+  ...ENGLISH_GOOD,
+  ...BAD_FEEDBACKS,
 ];
 
-export const DEFAULT_PRESENT_FEEDBACKS = ['Collaboration', 'Self-Control'];
-export const GOOD_PERFORMANCE_FEEDBACK = 'Creativity';
+export function feedbackCatalog(track: FeedbackTrack): BehaviorFeedback[] {
+  const good = track === 'english' ? ENGLISH_GOOD : CODING_GOOD;
+  return [...good, ...BAD_FEEDBACKS.map((feedback) => ({ ...feedback, track }))];
+}
+
+export function defaultFeedbacks(track: FeedbackTrack): string[] {
+  return track === 'english' ? ['Participation', 'Teamwork'] : ['Collaboration', 'Self-Control'];
+}
+
+export function goodFeedback(track: FeedbackTrack): string {
+  return track === 'english' ? 'Game Winner' : 'Creativity';
+}
+
 export const MAX_GOOD_FEEDBACKS = 5;
 export const MAX_BAD_FEEDBACKS = 3;
 

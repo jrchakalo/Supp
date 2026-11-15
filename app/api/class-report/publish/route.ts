@@ -148,11 +148,21 @@ export async function POST(request: NextRequest) {
     ).json()) as PlatformBook[];
     const book = books.find((row) => row.id === bookId);
     if (!book) throw new Error('Livro atual não encontrado');
-    const lessonNumber = content?.lesson_no ?? 1;
+    const isEnglishClass =
+      classroom.discipline === 'info' || classroom.discipline === 'pse-teens';
+    const unitNumber = isEnglishClass
+      ? content?.unit_no ?? 1
+      : content?.lesson_no ?? 1;
     const unit =
-      book.bookUnits?.find((row) => row.title.toLowerCase().includes(`aula ${lessonNumber}`)) ??
-      book.bookUnits?.[Math.max(0, lessonNumber - 1)];
+      book.bookUnits?.find((row) =>
+        row.title.toLowerCase().includes(`aula ${unitNumber}`)
+      ) ??
+      book.bookUnits?.find((row) =>
+        row.title.toLowerCase().includes(`unit ${unitNumber}`)
+      ) ??
+      book.bookUnits?.[Math.max(0, unitNumber - 1)];
     if (!unit) throw new Error('Unidade do livro não encontrada');
+    const unitLesson = isEnglishClass ? Math.max(0, (content?.lesson_no ?? 1) - 1) : 0;
 
     const reports = (await (
       await fetch(
@@ -172,7 +182,7 @@ export async function POST(request: NextRequest) {
     const payload = {
       ...(existing ? { id: existing.id } : {}),
       bookId,
-      unitBooks: [{ unitBookId: unit.id, unitLessons: [0] }],
+      unitBooks: [{ unitBookId: unit.id, unitLessons: [unitLesson] }],
       classDate: `${occurrence.date}T12:00:00.000Z`,
       classId: classroom.platform_class_id,
       startClass: `${occurrence.date}T${startHm}:00.000Z`,
@@ -186,7 +196,7 @@ export async function POST(request: NextRequest) {
         frequency: student.present ? 'PRESENT' : 'ABSENT',
         has_material: student.present ? student.hasMaterial === true : false,
       })),
-      isEnglishClass: classroom.discipline === 'info',
+      isEnglishClass,
     };
 
     if (dryRun) return NextResponse.json({ ok: true, dryRun: true, payload });

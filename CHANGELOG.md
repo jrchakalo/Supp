@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.9] — 2026-11-15
+
+### Class report por tipo de curso
+
+- **Coding** mantém Planejamento/Colaboração/Autocontrole/Liderança Colaborativa/Criatividade.
+- **Info Bilíngue e PSE Teens** usam Homework/Participation/Media/Game Winner/Teamwork.
+- O modal escolhe o catálogo pela disciplina da turma (`coding` × `english`), com os mesmos
+  valores da plataforma.
+- A publicação escolhe a unidade pelo `unit_no` em cursos de inglês (Unit 1/2/3) e pelo
+  `lesson_no` em Coding (Aula 3); a lição vai em `unitLessons`.
+- Info 10 e PSE Teens 02 ganharam `classReport` no intervalo.
+- Corrige o 400 ao publicar Info/PSE: antes ia unidade errada e feedback de Coding.
+
 ## [1.0.8] — 2026-11-14
 
 ### Aula de Word e plataforma
