@@ -170,6 +170,18 @@ export const EXTRA_DECKS: Record<string, PassaporteDeck> = {
       { id: 'p6a4-06', tier: 3, text: "O Roblox Assistant serve para…", options: ["Trocar a senha","Ajudar a entender e criar scripts","Convidar amigos","Publicar o jogo"], correctIndex: 1, explanation: "Ele explica e sugere código." },
     ],
   },
+  'ib-word-3': {
+    id: 'ib-word-3',
+    title: "Word III — Desafio do módulo: a página de revista",
+    questions: [
+      { id: 'ibw3-01', tier: 1, text: "A headline is…", options: ["The big title","The page number","A picture","A table"], correctIndex: 0, explanation: "The headline stops the reader.", textPt: "Uma manchete é…", optionsPt: ["O título grande","O número da página","Uma imagem","Uma tabela"] },
+      { id: 'ibw3-02', tier: 1, text: "Why use a style instead of a bigger font?", options: ["To keep the page consistent","To type faster","To add pictures","To print"], correctIndex: 0, explanation: "Styles keep the page consistent.", textPt: "Por que usar um estilo em vez de aumentar a fonte?", optionsPt: ["Para manter a página consistente","Para digitar mais rápido","Para adicionar imagens","Para imprimir"] },
+      { id: 'ibw3-03', tier: 2, text: "To divide the text in two columns you use…", options: ["Layout → Columns","Insert → Table","Home → Bold","File → Save"], correctIndex: 0, explanation: "Columns live in the Layout tab.", textPt: "Para dividir o texto em duas colunas você usa…", optionsPt: ["Layout → Columns","Insert → Table","Home → Bold","File → Save"] },
+      { id: 'ibw3-04', tier: 2, text: "A caption is…", options: ["The text under the picture","The main title","The footer","The table"], correctIndex: 0, explanation: "The caption explains the picture.", textPt: "Uma legenda é…", optionsPt: ["O texto embaixo da imagem","O título principal","O rodapé","A tabela"] },
+      { id: 'ibw3-05', tier: 3, text: "Why export the page to PDF?", options: ["To keep the layout on any computer","To edit the text","To add pictures","To change the font"], correctIndex: 0, explanation: "PDF keeps the layout fixed.", textPt: "Por que exportar a página em PDF?", optionsPt: ["Para manter o layout em qualquer computador","Para editar o texto","Para adicionar imagens","Para mudar a fonte"] },
+      { id: 'ibw3-06', tier: 3, text: "A magazine page needs…", options: ["Headline, image, caption and text","Only a title","Only a table","Only pictures"], correctIndex: 0, explanation: "The parts work together.", textPt: "Uma página de revista precisa de…", optionsPt: ["Manchete, imagem, legenda e texto","Só um título","Só uma tabela","Só imagens"] },
+    ],
+  },
   'ib-ppt-1': {
     id: 'ib-ppt-1',
     title: "PowerPoint I — Accessing PowerPoint",
