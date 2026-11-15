@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.11] — 2026-11-15
+
+### PSE Teens sempre avança
+
+- O PSE Teens agora conta **todo relatório salvo**, inclusive “sem alunos”, para escolher a
+  próxima lição da plataforma.
+- Como a Unit 0 tem duas lições, o próximo relatório vai para **PSE Teens - Aula 2**.
+- O catálogo de feedbacks continua o de inglês (Homework/Participation/Media/Game Winner/Teamwork).
+
 ## [1.0.10] — 2026-11-15
 
 ### PSE e inglês: próxima aula disponível

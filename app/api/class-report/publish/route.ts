@@ -198,6 +198,19 @@ export async function POST(request: NextRequest) {
         (!report.studentInfos ||
           report.studentInfos.some((student) => student.frequency === 'PRESENT'))
     );
+    /* PSE Teens advances on every saved report, even a no-students one: the
+       platform only has two lessons and cannot repeat the same one. */
+    const allPrior = (reports.data ?? []).filter(
+      (report) => report.class_date.slice(0, 10) < occurrence.date
+    );
+    const allReportedPairs = new Set(
+      allPrior.flatMap(
+        (report) =>
+          report.unitBooks?.flatMap((row) =>
+            (row.unit_lesson ?? []).map((lesson) => `${row.book_unit_id}:${lesson}`)
+          ) ?? []
+      )
+    );
     const reportedUnits = new Set(
       prior.flatMap((report) => report.unitBooks?.map((row) => row.book_unit_id) ?? [])
     );
@@ -212,7 +225,23 @@ export async function POST(request: NextRequest) {
 
     /* PSE and English cannot repeat a lesson in the platform. Always pick the
        next unreported unit/lesson, independent of the content's lesson number. */
-    if (isEnglishClass) {
+    if (classroom.discipline === 'pse-teens') {
+      const next = book.bookUnits
+        ?.flatMap((row, index) => {
+          const count = Math.max(1, row.lessons?.length ?? 1);
+          return Array.from({ length: count }, (_, lesson) => ({ row, index, lesson }));
+        })
+        .find(({ row, lesson }) => !allReportedPairs.has(`${row.id}:${lesson}`));
+      if (next) {
+        unit = next.row;
+        unitLesson = next.lesson;
+        const cleaned = text.replace(
+          /^PSE\s+Teens[^;]*;\s*(?:Class|Aula)\s*\d+\s*-\s*/i,
+          ''
+        );
+        classInfo = `PSE Teens - Aula ${next.lesson + 1} - ${cleaned}`;
+      }
+    } else if (isEnglishClass) {
       const next = book.bookUnits
         ?.flatMap((row, index) => {
           const count = Math.max(1, row.lessons?.length ?? 1);
