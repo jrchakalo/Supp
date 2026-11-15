@@ -1,4 +1,5 @@
 import type { AgendaOccurrence, CalendarRule } from './types';
+import { holidayFor } from './holidays';
 
 export const DAY_START_MINUTES = 7 * 60;
 export const DAY_END_MINUTES = 18 * 60;
@@ -96,6 +97,7 @@ export function weekIndexForDate(weeks: AgendaWeek[], iso: string): number {
 }
 
 export function isOffDay(iso: string, rules: CalendarRule[]): boolean {
+  if (holidayFor(iso)) return true;
   const date = parseLocalDate(iso);
   const weekday = date.getDay();
   return rules.some((rule) => {

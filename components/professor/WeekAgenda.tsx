@@ -19,6 +19,7 @@ import {
   parseLocalDate,
   weekIndexForDate,
 } from '@/lib/agenda/calendar';
+import { holidayFor } from '@/lib/agenda/holidays';
 
 type WeekAgendaProps = {
   data: AgendaData;
@@ -195,6 +196,7 @@ export default function WeekAgenda({
             {week.days.map((day) => {
               const date = parseLocalDate(day);
               const isToday = day === today;
+              const holiday = holidayFor(day);
               const off = isOffDay(day, data.rules);
               return (
                 <div
@@ -216,7 +218,14 @@ export default function WeekAgenda({
                     {String(date.getDate()).padStart(2, '0')}/
                     {String(date.getMonth() + 1).padStart(2, '0')}
                   </p>
-                  {off ? (
+                  {holiday ? (
+                    <p
+                      title={`${holiday.name} — ${holiday.source}`}
+                      className="line-clamp-2 text-[8px] font-black uppercase leading-tight tracking-wide text-[var(--accent-2)]"
+                    >
+                      {holiday.name}
+                    </p>
+                  ) : off ? (
                     <p className="text-[9px] font-black uppercase tracking-wide text-[var(--muted)]">
                       Folga
                     </p>
@@ -247,6 +256,7 @@ export default function WeekAgenda({
             {week.days.map((day) => {
               const date = parseLocalDate(day);
               const isToday = day === today;
+              const holiday = holidayFor(day);
               const off = isOffDay(day, data.rules);
               const events = layoutDay(occurrencesByDay.get(day) ?? []);
               return (
@@ -322,7 +332,14 @@ export default function WeekAgenda({
                     );
                   })}
 
-                  {off && events.length === 0 ? (
+                  {holiday ? (
+                    <span
+                      title={`${holiday.name} — ${holiday.source}`}
+                      className="absolute inset-x-1 top-2 z-10 line-clamp-2 text-center text-[8px] font-black uppercase leading-tight tracking-wide text-[var(--accent-2)]"
+                    >
+                      {holiday.name}
+                    </span>
+                  ) : off && events.length === 0 ? (
                     <span className="absolute left-1/2 top-3 -translate-x-1/2 text-[9px] font-black uppercase tracking-wide text-[var(--muted)]">
                       Folga
                     </span>
@@ -345,6 +362,10 @@ export default function WeekAgenda({
         <Legend color="bg-amber-400" label="Sem alunos" />
         <Legend color="bg-rose-400" label="Não dada" />
         <Legend color="bg-slate-400" label="Cancelada" />
+        <span className="inline-flex items-center gap-1">
+          <span className="h-2 w-3 rounded-sm border border-[var(--line)] bg-[var(--surface-2)]" />
+          Feriado / folga
+        </span>
         <span className="inline-flex items-center gap-1">
           <span className="h-2 w-2 rounded-full border border-dashed border-sky-400" />
           A planejar
