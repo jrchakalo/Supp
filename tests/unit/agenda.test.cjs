@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const calendar = require('../../.test-build/agenda/calendar.js');
 const dashboard = require('../../.test-build/agenda/dashboard.js');
+const holidays = require('../../.test-build/agenda/holidays.js');
 
 const FRIDAY_OFF = {
   weekday: 5,
@@ -93,4 +94,29 @@ test('formatCountdown covers minutes, hours and days', () => {
   assert.equal(dashboard.formatCountdown(new Date('2026-11-16T10:25:00'), now), 'em 25 min');
   assert.equal(dashboard.formatCountdown(new Date('2026-11-16T12:15:00'), now), 'em 2h 15min');
   assert.equal(dashboard.formatCountdown(new Date('2026-11-18T10:00:00'), now), 'em 2d 0h');
+});
+
+test('agenda treats official 2026 holidays as days off', () => {
+  assert.equal(calendar.isOffDay('2026-11-20', []), true); // Consciência Negra
+  assert.equal(calendar.isOffDay('2026-03-06', []), true); // Data Magna PE
+  assert.equal(calendar.isOffDay('2026-05-18', []), true); // Aniversário de Caruaru
+  assert.equal(calendar.isOffDay('2026-06-24', []), true); // São João
+  assert.equal(calendar.isOffDay('2026-06-04', []), true); // Corpus Christi (Caruaru)
+  assert.equal(calendar.isOffDay('2026-04-03', []), true); // Paixão de Cristo
+  assert.equal(calendar.isOffDay('2026-06-29', []), false); // São Pedro saiu em 2024
+  assert.equal(calendar.isOffDay('2026-11-16', []), false);
+});
+
+test('holidayFor exposes the official name, scope and source', () => {
+  const national = holidays.holidayFor('2026-11-20');
+  assert.equal(national.name, 'Dia Nacional de Zumbi e da Consciência Negra');
+  assert.equal(national.scope, 'national');
+  assert.match(national.source, /11\.460\/2025/);
+
+  const municipal = holidays.holidayFor('2026-06-04');
+  assert.equal(municipal.scope, 'municipal');
+  assert.match(municipal.source, /7\.334\/2024/);
+
+  assert.equal(holidays.holidayFor('2026-02-16').optional, true);
+  assert.equal(holidays.holidayFor('2026-11-16'), undefined);
 });

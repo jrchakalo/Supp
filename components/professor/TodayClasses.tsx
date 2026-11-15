@@ -5,7 +5,8 @@ import { Clock, Play } from 'lucide-react';
 import type { Lesson } from '@/lib/passaporte-lessons';
 import type { AgendaClass, AgendaContent, AgendaOccurrence } from '@/lib/agenda/types';
 import { STATUS_LABEL } from '@/lib/agenda/types';
-import { formatRange } from '@/lib/agenda/calendar';
+import { formatRange, isoDate } from '@/lib/agenda/calendar';
+import { holidayFor } from '@/lib/agenda/holidays';
 
 type TodayClassesProps = {
   occurrences: AgendaOccurrence[];
@@ -44,6 +45,7 @@ export default function TodayClasses({
   const sorted = [...occurrences].sort(
     (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
   );
+  const holiday = holidayFor(isoDate(now));
 
   return (
     <section className="rounded-3xl border-2 border-[var(--line)] bg-[var(--surface)] p-5 shadow-[var(--panel-shadow)]">
@@ -61,7 +63,9 @@ export default function TodayClasses({
 
       {sorted.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-dashed border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-5 text-sm font-semibold text-[var(--muted)]">
-          Sem aulas hoje. Aproveite a folga!
+          {holiday
+            ? `Hoje é ${holiday.optional ? 'ponto facultativo' : 'feriado'}: ${holiday.name}. Aproveite!`
+            : 'Sem aulas hoje. Aproveite a folga!'}
         </p>
       ) : (
         <div className="mt-4 space-y-2">

@@ -1,5 +1,6 @@
 import type { AgendaData } from './types';
 import { classOccursOn } from './calendar';
+import { holidayFor } from './holidays';
 
 const REQUEST_TIMEOUT_MS = 8000;
 
@@ -47,8 +48,9 @@ export async function fetchAgendaData(): Promise<AgendaData> {
 
   const codeById = new Map(classes.map((row) => [row.id, row.short_code]));
   const visible = occurrences.filter((occurrence) => {
-    if (!occurrence.class_id) return true;
     if (occurrence.status !== 'planned' && occurrence.status !== 'unplanned') return true;
+    if (holidayFor(occurrence.date)) return false;
+    if (!occurrence.class_id) return true;
     const code = codeById.get(occurrence.class_id);
     return code ? classOccursOn(code, occurrence.date) : true;
   });

@@ -12,6 +12,7 @@ import {
 } from '@/lib/passaporte/map';
 import { adminSelect, adminUpsert } from '@/lib/supabase/admin';
 import { classOccursOn } from '@/lib/agenda/calendar';
+import { holidayFor } from '@/lib/agenda/holidays';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -62,6 +63,7 @@ function weekdayOf(date: string): number {
 }
 
 function isOff(date: string, rules: CalendarRule[]): boolean {
+  if (holidayFor(date)) return true;
   const weekday = weekdayOf(date);
   return rules.some((rule) => {
     if (rule.date) return rule.date === date;

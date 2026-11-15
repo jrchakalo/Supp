@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.12] — 2026-11-15
+
+### Feriados na agenda
+
+- Agenda, sync e painel passam a considerar os feriados oficiais de 2026:
+  - **Nacionais** (Portaria MGI 11.460/2025): 01/01, 03/04, 21/04, 01/05, 07/09,
+    12/10, 02/11, 15/11, 20/11 e 25/12.
+  - **Pernambuco**: 06/03 (Data Magna, Lei 16.241/2017) e 24/06 (São João).
+  - **Caruaru**: 18/05 (aniversário), 04/06 (Corpus Christi, Lei 7.334/2024),
+    24/06 (São João) e 15/09 (Nossa Senhora das Dores).
+- Carnaval, Cinzas e Corpus Christi federais aparecem como **ponto facultativo**.
+- São Pedro (29/06) não é mais feriado municipal em Caruaru desde a Lei 7.334/2024.
+- O sync não cria ocorrências nesses dias; a agenda mostra o nome do feriado e o painel
+  troca “Sem aulas” por “Hoje é feriado: …”.
+
 ## [1.0.11] — 2026-11-15
 
 ### PSE Teens sempre avança

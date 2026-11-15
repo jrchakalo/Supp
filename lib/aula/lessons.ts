@@ -2,6 +2,7 @@ import type { Lesson, Segment } from '../passaporte-lessons';
 import { CONTENT_MODEL } from '../flags';
 import { resolveSegments, resolveTitle, resolveTotalMin } from '../content/resolve';
 import { classOccursOn } from '../agenda/calendar';
+import { holidayFor } from '../agenda/holidays';
 
 /**
  * Loads the institutional lesson content of `/professor` at runtime from
@@ -147,6 +148,12 @@ async function fetchV2Lessons(): Promise<Lesson[]> {
     const content = occurrence.content_id ? contentById.get(occurrence.content_id) : undefined;
     if (!content && !Array.isArray(occurrence.snapshot)) continue;
     const classroom = occurrence.class_id ? classById.get(occurrence.class_id) : undefined;
+    if (
+      (occurrence.status === 'planned' || occurrence.status === 'unplanned') &&
+      holidayFor(occurrence.date)
+    ) {
+      continue;
+    }
     if (
       classroom &&
       (occurrence.status === 'planned' || occurrence.status === 'unplanned') &&
