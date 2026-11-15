@@ -42,6 +42,12 @@ function updatedLabel(updatedAt: number | null | undefined): string {
 
 const WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
+// Almoço: 12h–13h. Serve de faixa central do dia e de referência visual nas folgas.
+const LUNCH_START_MINUTES = 12 * 60;
+const LUNCH_TOP =
+  ((LUNCH_START_MINUTES - DAY_START_MINUTES) / 60) * PIXELS_PER_HOUR;
+const LUNCH_HEIGHT = PIXELS_PER_HOUR;
+
 function eventClasses(status: string): string {
   switch (status) {
     case 'given':
@@ -283,6 +289,22 @@ export default function WeekAgenda({
                     />
                   ) : null}
 
+                  {off ? (
+                    <div
+                      className="pointer-events-none absolute inset-x-0 border-y border-dashed border-[var(--line)]"
+                      style={{
+                        top: LUNCH_TOP,
+                        height: LUNCH_HEIGHT,
+                        backgroundImage:
+                          'repeating-linear-gradient(135deg, rgba(148,163,184,0.2) 0 5px, transparent 5px 10px)',
+                      }}
+                    >
+                      <span className="absolute bottom-0.5 right-1 text-[8px] font-black uppercase tracking-wide text-[var(--muted)]">
+                        Almoço
+                      </span>
+                    </div>
+                  ) : null}
+
                   {events.map(({ occurrence, lane, lanes, top, height }) => {
                     const classroom = occurrence.class_id
                       ? classById.get(occurrence.class_id)
@@ -345,8 +367,13 @@ export default function WeekAgenda({
                     </span>
                   ) : null}
                   {isToday ? (
-                    <span className="absolute right-1 top-1 text-[8px] font-black uppercase tracking-wide text-[var(--accent)]">
-                      Hoje
+                    <span
+                      className="pointer-events-none absolute inset-x-0 z-20 flex items-center justify-center"
+                      style={{ top: LUNCH_TOP, height: LUNCH_HEIGHT }}
+                    >
+                      <span className="rounded-md bg-[var(--accent)] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-[#071018] shadow-sm">
+                        Hoje
+                      </span>
                     </span>
                   ) : null}
                 </div>
