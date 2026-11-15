@@ -112,7 +112,7 @@ export const EXTRA_DECKS: Record<string, PassaporteDeck> = {
   },
   'ib-m1-a2': {
     id: 'ib-m1-a2',
-    title: "Info Bilíngue I — Lesson 2: Operating Systems",
+    title: "Info I — Operating Systems 2",
     questions: [
       { id: 'ibm1a2-01', tier: 1, text: "The Operating System is…", options: ["The software that controls the machine","A piece of hardware","A folder","A printer"], correctIndex: 0, explanation: "The OS controls hardware and software.", textPt: "O sistema operacional é…", optionsPt: ["O software que controla a máquina","Uma peça de hardware","Uma pasta","Uma impressora"] },
       { id: 'ibm1a2-02', tier: 1, text: "Which one is hardware?", options: ["The mouse","Windows","Notepad","A folder"], correctIndex: 0, explanation: "Hardware is what you can touch.", textPt: "Qual destes é hardware?", optionsPt: ["O mouse","O Windows","O Bloco de Notas","Uma pasta"] },
@@ -120,6 +120,18 @@ export const EXTRA_DECKS: Record<string, PassaporteDeck> = {
       { id: 'ibm1a2-04', tier: 2, text: "Ctrl + Shift + Esc opens…", options: ["The Task Manager","Word","The browser","The desktop"], correctIndex: 0, explanation: "It opens the Task Manager directly.", textPt: "Ctrl + Shift + Esc abre…", optionsPt: ["O Gerenciador de Tarefas","O Word","O navegador","A área de trabalho"] },
       { id: 'ibm1a2-05', tier: 3, text: "A program is frozen. The best first step is…", options: ["Open the Task Manager and End Task","Turn off the computer","Wait one hour","Delete the file"], correctIndex: 0, explanation: "End Task closes only the frozen program.", textPt: "Um programa travou. O melhor primeiro passo é…", optionsPt: ["Abrir o Gerenciador de Tarefas e Finalizar Tarefa","Desligar o computador","Esperar uma hora","Apagar o arquivo"] },
       { id: 'ibm1a2-06', tier: 3, text: "Where do you see which program uses the most memory?", options: ["In the Task Manager, Memory column","In Notepad","In the browser","In the Start Menu"], correctIndex: 0, explanation: "The Memory column ranks the programs.", textPt: "Onde você vê qual programa usa mais memória?", optionsPt: ["No Gerenciador de Tarefas, coluna Memória","No Bloco de Notas","No navegador","No Menu Iniciar"] },
+    ],
+  },
+  'ib-m1-a3': {
+    id: 'ib-m1-a3',
+    title: "Info I — Operating Systems 3",
+    questions: [
+      { id: 'ibm1a3-01', tier: 1, text: "A folder is…", options: ["A place that keeps files","A document","A screen","A printer"], correctIndex: 0, explanation: "Folders keep files and other folders.", textPt: "Uma pasta é…", optionsPt: ["Um lugar que guarda arquivos","Um documento","Uma tela","Uma impressora"] },
+      { id: 'ibm1a3-02', tier: 1, text: "Ctrl + X does…", options: ["Cuts the file","Copies the file","Prints the file","Deletes forever"], correctIndex: 0, explanation: "Cut removes the original so you can paste it elsewhere.", textPt: "Ctrl + X faz…", optionsPt: ["Recorta o arquivo","Copia o arquivo","Imprime o arquivo","Apaga para sempre"] },
+      { id: 'ibm1a3-03', tier: 2, text: "F2 is used to…", options: ["Rename","Delete","Copy","Print"], correctIndex: 0, explanation: "F2 renames the selected file.", textPt: "F2 serve para…", optionsPt: ["Renomear","Apagar","Copiar","Imprimir"] },
+      { id: 'ibm1a3-04', tier: 2, text: "A deleted file goes to…", options: ["The Recycle Bin","The Desktop","The browser","The cloud"], correctIndex: 0, explanation: "Delete sends the file to the Recycle Bin.", textPt: "Um arquivo apagado vai para…", optionsPt: ["A Lixeira","A área de trabalho","O navegador","A nuvem"] },
+      { id: 'ibm1a3-05', tier: 3, text: "Shift + Delete does…", options: ["Deletes forever","Copies the file","Restores the file","Moves to the Desktop"], correctIndex: 0, explanation: "There is no Recycle Bin in this case.", textPt: "Shift + Delete faz…", optionsPt: ["Apaga para sempre","Copia o arquivo","Restaura o arquivo","Move para a área de trabalho"] },
+      { id: 'ibm1a3-06', tier: 3, text: "The extension .docx tells you it is…", options: ["A Word document","An image","A song","A folder"], correctIndex: 0, explanation: "The extension names the file type.", textPt: "A extensão .docx diz que é…", optionsPt: ["Um documento do Word","Uma imagem","Uma música","Uma pasta"] },
     ],
   },
 };
