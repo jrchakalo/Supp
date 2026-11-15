@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.13] — 2026-11-15
+
+### Agenda: marcador de almoço e selo “Hoje”
+
+- O selo **Hoje** saiu da primeira faixa de horário (onde encostava no nome do feriado)
+  e passou para a faixa central do dia (12:00–13:00).
+- Dias de folga/feriado ganharam a faixa de **almoço** entre 12:00 e 13:00, com linhas
+  tracejadas, hachura e o rótulo “Almoço”.
+- A legenda continua igual; nenhuma aula ou feriado mudou de lugar.
+
 ## [1.0.12] — 2026-11-15
 
 ### Feriados na agenda
