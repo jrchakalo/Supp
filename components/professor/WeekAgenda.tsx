@@ -42,7 +42,8 @@ function updatedLabel(updatedAt: number | null | undefined): string {
 
 const WEEKDAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-// Almoço: 12h–13h. Serve de faixa central do dia e de referência visual nas folgas.
+// Almoço: 12h–13h. Faixa central do dia; nos dias de trabalho recebe o mesmo
+// tracejado das folgas, sem rótulo. Nos dias de folga o tracejado já cobre tudo.
 const LUNCH_START_MINUTES = 12 * 60;
 const LUNCH_TOP =
   ((LUNCH_START_MINUTES - DAY_START_MINUTES) / 60) * PIXELS_PER_HOUR;
@@ -289,20 +290,16 @@ export default function WeekAgenda({
                     />
                   ) : null}
 
-                  {off ? (
+                  {!off ? (
                     <div
-                      className="pointer-events-none absolute inset-x-0 border-y border-dashed border-[var(--line)]"
+                      className="pointer-events-none absolute inset-x-0"
                       style={{
                         top: LUNCH_TOP,
                         height: LUNCH_HEIGHT,
                         backgroundImage:
-                          'repeating-linear-gradient(135deg, rgba(148,163,184,0.2) 0 5px, transparent 5px 10px)',
+                          'repeating-linear-gradient(135deg, rgba(148,163,184,0.08) 0 6px, transparent 6px 12px)',
                       }}
-                    >
-                      <span className="absolute bottom-0.5 right-1 text-[8px] font-black uppercase tracking-wide text-[var(--muted)]">
-                        Almoço
-                      </span>
-                    </div>
+                    />
                   ) : null}
 
                   {events.map(({ occurrence, lane, lanes, top, height }) => {
@@ -357,9 +354,12 @@ export default function WeekAgenda({
                   {holiday ? (
                     <span
                       title={`${holiday.name} — ${holiday.source}`}
-                      className="absolute inset-x-1 top-2 z-10 line-clamp-2 text-center text-[8px] font-black uppercase leading-tight tracking-wide text-[var(--accent-2)]"
+                      className="pointer-events-none absolute inset-x-1 z-10 flex items-center justify-center"
+                      style={{ top: LUNCH_TOP, height: LUNCH_HEIGHT }}
                     >
-                      {holiday.name}
+                      <span className="line-clamp-2 text-center text-[8px] font-black uppercase leading-tight tracking-wide text-[var(--accent-2)]">
+                        {holiday.name}
+                      </span>
                     </span>
                   ) : off && events.length === 0 ? (
                     <span className="absolute left-1/2 top-3 -translate-x-1/2 text-[9px] font-black uppercase tracking-wide text-[var(--muted)]">
@@ -367,13 +367,8 @@ export default function WeekAgenda({
                     </span>
                   ) : null}
                   {isToday ? (
-                    <span
-                      className="pointer-events-none absolute inset-x-0 z-20 flex items-center justify-center"
-                      style={{ top: LUNCH_TOP, height: LUNCH_HEIGHT }}
-                    >
-                      <span className="rounded-md bg-[var(--accent)] px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-[#071018] shadow-sm">
-                        Hoje
-                      </span>
+                    <span className="absolute right-1 top-1 text-[8px] font-black uppercase tracking-wide text-[var(--accent)]">
+                      Hoje
                     </span>
                   ) : null}
                 </div>
