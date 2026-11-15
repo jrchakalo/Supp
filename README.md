@@ -42,10 +42,12 @@ O professor rola um D20 de verdade e toca no número sorteado. O app revela uma 
 
 Uma roleta com os temas escolhidos pelo professor.
 
-- Tela de configuração própria: temas, dificuldade e idioma das perguntas.
+- Tela de configuração própria: temas, dificuldade, **rodadas** e idioma das perguntas.
+- **Rodadas vazias = infinito**; com um número definido, a roleta encerra ao completar a quantidade.
+- A roleta gira ao **clicar nela**; não há botão separado de girar.
 - A roleta anima o giro e sorteia um tema; em seguida abre uma pergunta de verdadeiro ou falso daquele tema.
 - As perguntas já usadas na rodada não se repetem até o deck do tema acabar.
-- Placar de acertos, número da rodada e botão de nova rodada.
+- Placar de acertos, contador de rodadas e botão de nova rodada.
 - Ótima para warm-up: um giro, uma pergunta, a aula continua.
 
 ### Competição

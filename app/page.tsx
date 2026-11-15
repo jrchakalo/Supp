@@ -208,6 +208,8 @@ export default function GamePage() {
     'Equipe Vermelha',
   ]);
   const [passTargetScore, setPassTargetScore] = useState<PassTargetScore>(5);
+  const [wheelRoundsInput, setWheelRoundsInput] = useState('');
+  const [wheelRounds, setWheelRounds] = useState<number | null>(null);
 
   const [queue, setQueue] = useState<Question[]>(() =>
     shuffle(getClassicDeck('medium', CLASSIC_ALL_CATEGORIES))
@@ -669,11 +671,21 @@ export default function GamePage() {
 
   const startWheel = useCallback(() => {
     if (classicCategories.length === 0) return;
+    const parsed = wheelRoundsInput.trim() ? Number(wheelRoundsInput) : NaN;
+    setWheelRounds(
+      Number.isFinite(parsed) && parsed > 0 ? Math.min(50, Math.floor(parsed)) : null
+    );
     setScreen('wheel');
     void ensureAudioContext();
     startBgm();
     playTone(392, 'triangle', 0.1, 0.06);
-  }, [classicCategories.length, ensureAudioContext, playTone, startBgm]);
+  }, [
+    classicCategories.length,
+    ensureAudioContext,
+    playTone,
+    startBgm,
+    wheelRoundsInput,
+  ]);
 
   const startPassa = useCallback(() => {
     if (isClassic && classicCategories.length === 0) return;
@@ -1194,6 +1206,8 @@ export default function GamePage() {
               language={language}
               difficulty={difficulty}
               categories={classicCategories}
+              roundsInput={wheelRoundsInput}
+              onRoundsInputChange={setWheelRoundsInput}
               onDifficultyChange={setDifficulty}
               onCategoriesChange={setClassicCategories}
               onLanguageChange={setLanguage}
@@ -1208,6 +1222,7 @@ export default function GamePage() {
               mode={mode}
               difficulty={difficulty}
               categories={classicCategories}
+              rounds={wheelRounds}
               language={language}
               uiLanguage={uiLanguage}
               volume={volume}

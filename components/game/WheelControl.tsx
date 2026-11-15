@@ -1,11 +1,10 @@
 'use client';
 
-import { Play, RotateCcw, Square, Trophy } from 'lucide-react';
+import { RotateCcw, Square, Trophy } from 'lucide-react';
 import type { WheelGameState } from '@/lib/aula/games';
 
 type WheelControlProps = {
   state: WheelGameState;
-  onSpin: () => void;
   onAnswer: (correct: boolean) => void;
   onNext: () => void;
   onEnd: () => void;
@@ -13,7 +12,6 @@ type WheelControlProps = {
 
 export default function WheelControl({
   state,
-  onSpin,
   onAnswer,
   onNext,
   onEnd,
@@ -56,22 +54,12 @@ export default function WheelControl({
             </p>
           ) : (
             <p className="mt-1 text-sm font-semibold text-[var(--muted)]">
-              Clique na roleta na TV ou no botão Girar.
+              Clique na roleta na TV para girar.
             </p>
           )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {state.phase === 'idle' ? (
-            <button
-              type="button"
-              onClick={onSpin}
-              className="rounded-xl bg-[var(--cta-bg)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--cta-text)]"
-            >
-              <Play className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
-              Girar
-            </button>
-          ) : null}
           {state.phase === 'question' ? (
             <>
               <button

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, RotateCcw, Sparkles, Trophy } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Trophy } from 'lucide-react';
 import LanguageToggle from './LanguageToggle';
 import QuestionModal from './QuestionModal';
 import VolumeControl from './VolumeControl';
@@ -48,6 +48,7 @@ type WheelGameProps = {
   mode: ModeId;
   difficulty: DifficultyId;
   categories: ClassicCategoryId[];
+  rounds: number | null;
   language: Language;
   uiLanguage: Language;
   volume: number;
@@ -75,6 +76,7 @@ export default function WheelGame({
   mode,
   difficulty,
   categories,
+  rounds,
   language,
   uiLanguage,
   volume,
@@ -101,6 +103,7 @@ export default function WheelGame({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [round, setRound] = useState(0);
   const [score, setScore] = useState({ correct: 0, total: 0 });
+  const [finished, setFinished] = useState(false);
 
   const usedRef = useRef<Set<string>>(new Set());
   const spinTimerRef = useRef<number | null>(null);
@@ -126,7 +129,7 @@ export default function WheelGame({
   );
 
   const spin = useCallback(() => {
-    if (spinning || isModalOpen || wheelCategories.length === 0) return;
+    if (spinning || isModalOpen || finished || wheelCategories.length === 0) return;
 
     const index = Math.floor(Math.random() * wheelCategories.length);
     const segmentAngle = 360 / wheelCategories.length;
@@ -159,7 +162,7 @@ export default function WheelGame({
       setIsModalOpen(true);
       playTone(660, 'triangle', 0.16, 0.07);
     }, 3200);
-  }, [drawQuestion, isModalOpen, playTone, rotation, spinning, wheelCategories]);
+  }, [drawQuestion, finished, isModalOpen, playTone, rotation, spinning, wheelCategories]);
 
   const handleAnswer = useCallback(
     (guess: boolean) => {
@@ -187,7 +190,8 @@ export default function WheelGame({
     setIsModalOpen(false);
     setQuestion(null);
     setStatus(null);
-  }, []);
+    if (rounds !== null && round >= rounds) setFinished(true);
+  }, [round, rounds]);
 
   const newRound = useCallback(() => {
     usedRef.current.clear();
@@ -199,7 +203,10 @@ export default function WheelGame({
     setQuestion(null);
     setStatus(null);
     setIsModalOpen(false);
+    setFinished(false);
   }, []);
+
+  const isLastRound = rounds !== null && round >= rounds;
 
   const segmentAngle = 360 / wheelCategories.length;
   const segments = wheelCategories.map((category, index) => {
@@ -250,7 +257,7 @@ export default function WheelGame({
               {copy.badge}
             </h1>
             <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--muted)]">
-              {copy.round} {round} · {copy.result(score.correct, score.total)}
+              {copy.roundCounter(round, rounds)} · {copy.result(score.correct, score.total)}
             </p>
           </div>
         </div>
@@ -297,86 +304,109 @@ export default function WheelGame({
             <div className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1">
               <div className="h-0 w-0 border-x-[14px] border-t-[26px] border-x-transparent border-t-[var(--accent)] drop-shadow" />
             </div>
-            <motion.div
-              className="h-full w-full"
-              animate={{ rotate: rotation }}
-              transition={
-                spinning
-                  ? { duration: 3.1, ease: [0.12, 0.72, 0.12, 1] }
-                  : { duration: 0 }
-              }
+            <motion.button
+              type="button"
+              onClick={spin}
+              disabled={spinning || isModalOpen || finished || wheelCategories.length === 0}
+              aria-label={copy.spin}
+              className="block h-full w-full rounded-full disabled:cursor-default"
             >
-              <svg
-                viewBox="0 0 100 100"
-                role="img"
-                aria-label={copy.badge}
-                className="h-full w-full drop-shadow-xl"
+              <motion.div
+                className="h-full w-full"
+                animate={{ rotate: rotation }}
+                transition={
+                  spinning
+                    ? { duration: 3.1, ease: [0.12, 0.72, 0.12, 1] }
+                    : { duration: 0 }
+                }
               >
-                <circle cx="50" cy="50" r="47.5" fill="var(--line)" />
-                {segments.length === 1 ? (
-                  <circle cx="50" cy="50" r="46" fill={segments[0].color} />
-                ) : (
-                  segments.map((segment) => (
-                    <path
-                      key={segment.category}
-                      d={segment.path}
-                      fill={segment.color}
-                      stroke="rgba(255,255,255,0.8)"
-                      strokeWidth="0.45"
-                    />
-                  ))
-                )}
-                {segments.map((segment) => (
-                  <text
-                    key={`${segment.category}-label`}
-                    x={segment.textX}
-                    y={segment.textY}
-                    fill="#ffffff"
-                    fontSize={wheelCategories.length > 8 ? 2.7 : 3.3}
-                    fontWeight="900"
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    transform={`rotate(${segment.mid} ${segment.textX} ${segment.textY})`}
-                    style={{ paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.25)', strokeWidth: 0.25 }}
-                  >
-                    {segment.label}
-                  </text>
-                ))}
-                <circle cx="50" cy="50" r="10" fill="var(--surface)" stroke="var(--line)" strokeWidth="1.4" />
-                <circle cx="50" cy="50" r="6.5" fill="var(--cta-bg)" />
-              </svg>
-            </motion.div>
+                <svg
+                  viewBox="0 0 100 100"
+                  role="img"
+                  aria-label={copy.badge}
+                  className="h-full w-full drop-shadow-xl"
+                >
+                  <circle cx="50" cy="50" r="47.5" fill="var(--line)" />
+                  {segments.length === 1 ? (
+                    <circle cx="50" cy="50" r="46" fill={segments[0].color} />
+                  ) : (
+                    segments.map((segment) => (
+                      <path
+                        key={segment.category}
+                        d={segment.path}
+                        fill={segment.color}
+                        stroke="rgba(255,255,255,0.8)"
+                        strokeWidth="0.45"
+                      />
+                    ))
+                  )}
+                  {segments.map((segment) => (
+                    <text
+                      key={`${segment.category}-label`}
+                      x={segment.textX}
+                      y={segment.textY}
+                      fill="#ffffff"
+                      fontSize={wheelCategories.length > 8 ? 2.7 : 3.3}
+                      fontWeight="900"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      transform={`rotate(${segment.mid} ${segment.textX} ${segment.textY})`}
+                      style={{ paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.25)', strokeWidth: 0.25 }}
+                    >
+                      {segment.label}
+                    </text>
+                  ))}
+                  <circle cx="50" cy="50" r="10" fill="var(--surface)" stroke="var(--line)" strokeWidth="1.4" />
+                  <circle cx="50" cy="50" r="6.5" fill="var(--cta-bg)" />
+                </svg>
+              </motion.div>
+            </motion.button>
           </div>
         </section>
 
         <section className="rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] p-4 sm:p-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-            {spinning ? copy.spinning : copy.round}
-          </p>
-          <h2 className="mt-2 text-2xl font-black leading-tight text-[var(--ink)] sm:text-3xl">
-            {pickedLabel ?? (spinning ? copy.spinning : copy.help)}
-          </h2>
-          <p className="mt-2 text-sm font-semibold text-[var(--muted)]">
-            {copy.result(score.correct, score.total)}
-          </p>
+          {finished ? (
+            <div className="text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                {copy.finishedTitle}
+              </p>
+              <h2 className="mt-2 text-3xl font-black leading-tight text-[var(--ink)]">
+                {copy.result(score.correct, score.total)}
+              </h2>
+              <button
+                type="button"
+                onClick={newRound}
+                className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105"
+              >
+                <RotateCcw className="h-5 w-5" aria-hidden="true" />
+                {copy.newRound}
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                {spinning ? copy.spinning : copy.roundCounter(round, rounds)}
+              </p>
+              <h2 className="mt-2 text-2xl font-black leading-tight text-[var(--ink)] sm:text-3xl">
+                {pickedLabel ?? (spinning ? copy.spinning : copy.help)}
+              </h2>
+              <p className="mt-2 text-sm font-semibold text-[var(--muted)]">
+                {copy.result(score.correct, score.total)}
+              </p>
 
-          <motion.button
-            type="button"
-            onClick={spin}
-            disabled={spinning || wheelCategories.length === 0}
-            whileHover={spinning ? undefined : { scale: 1.02 }}
-            whileTap={spinning ? undefined : { scale: 0.97 }}
-            className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Sparkles className="h-5 w-5" aria-hidden="true" />
-            {spinning ? copy.spinning : copy.spin}
-          </motion.button>
+              {!spinning && !isModalOpen ? (
+                <p className="mt-5 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-center text-xs font-black uppercase tracking-wide text-[var(--accent)]">
+                  {copy.clickWheel}
+                </p>
+              ) : null}
 
-          {question === null && !spinning && picked ? (
-            <p className="mt-3 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-bold text-[var(--muted)]">
-              {copy.empty}
-            </p>
-          ) : null}
+              {question === null && !spinning && picked ? (
+                <p className="mt-3 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-bold text-[var(--muted)]">
+                  {copy.empty}
+                </p>
+              ) : null}
+            </>
+          )}
         </section>
       </div>
 
@@ -390,7 +420,7 @@ export default function WheelGame({
           difficulty={difficulty}
           language={language}
           status={status}
-          continueLabel={copy.next}
+          continueLabel={isLastRound ? copy.finish : copy.next}
           onAnswer={handleAnswer}
           onClose={closeQuestion}
         />

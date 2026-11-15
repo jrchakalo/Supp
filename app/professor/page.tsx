@@ -3570,7 +3570,6 @@ export default function AulaPage() {
           {warmup === 'wheel' && wheelGame ? (
             <WheelControl
               state={wheelGame}
-              onSpin={spinWheel}
               onAnswer={answerWheel}
               onNext={nextWheel}
               onEnd={endWheel}
@@ -3855,7 +3854,6 @@ export default function AulaPage() {
         {warmup === 'wheel' && wheelGame ? (
           <WheelControl
             state={wheelGame}
-            onSpin={spinWheel}
             onAnswer={answerWheel}
             onNext={nextWheel}
             onEnd={endWheel}

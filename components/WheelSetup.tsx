@@ -52,6 +52,8 @@ type WheelSetupProps = {
   language: Language;
   difficulty: DifficultyId;
   categories: ClassicCategoryId[];
+  roundsInput: string;
+  onRoundsInputChange: (value: string) => void;
   onDifficultyChange: (difficulty: DifficultyId) => void;
   onCategoriesChange: (categories: ClassicCategoryId[]) => void;
   onLanguageChange: (language: Language) => void;
@@ -64,6 +66,8 @@ export default function WheelSetup({
   language,
   difficulty,
   categories,
+  roundsInput,
+  onRoundsInputChange,
   onDifficultyChange,
   onCategoriesChange,
   onLanguageChange,
@@ -213,6 +217,24 @@ export default function WheelSetup({
                 );
               })}
             </div>
+          </section>
+
+          <section className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
+            <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+              {copy.roundsLabel}
+            </h2>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={roundsInput}
+              onChange={(event) => onRoundsInputChange(event.target.value)}
+              placeholder={copy.roundsPlaceholder}
+              className="mt-3 w-full rounded-xl border-2 border-[var(--line)] bg-[var(--surface-2)] px-3 py-2.5 text-sm font-bold text-[var(--ink)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)]"
+            />
+            <p className="mt-2 text-[11px] font-semibold leading-relaxed text-[var(--muted)]">
+              {copy.roundsHelp}
+            </p>
           </section>
 
           <section className="rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface)] p-4 sm:p-5">
