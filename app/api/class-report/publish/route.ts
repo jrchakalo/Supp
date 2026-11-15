@@ -22,7 +22,11 @@ type ClassRow = {
   start_time: string | null;
   end_time: string | null;
 };
-type ContentRow = { unit_no: number | null; lesson_no: number | null };
+type ContentRow = {
+  title: string | null;
+  unit_no: number | null;
+  lesson_no: number | null;
+};
 type PlatformClass = {
   id: string;
   currentBookId?: string;
@@ -33,9 +37,15 @@ type PlatformClass = {
 type PlatformBook = {
   id: string;
   name: string;
-  bookUnits?: Array<{ id: string; title: string; index?: number }>;
+  bookUnits?: Array<{ id: string; title: string; index?: number; lessons?: string[] }>;
 };
-type PlatformReport = { id: string; class_date: string };
+type PlatformReport = {
+  id: string;
+  class_date: string;
+  class_info?: string;
+  studentInfos?: Array<{ frequency?: string }>;
+  unitBooks?: Array<{ book_unit_id: string; unit_lesson?: number[] }>;
+};
 
 function env() {
   return {
@@ -128,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
     const [content] = occurrence.content_id
       ? await adminSelect<ContentRow[]>(
-          `pp_content?select=unit_no,lesson_no&id=eq.${encodeURIComponent(occurrence.content_id)}&limit=1`
+          `pp_content?select=title,unit_no,lesson_no&id=eq.${encodeURIComponent(occurrence.content_id)}&limit=1`
         )
       : [undefined];
 
@@ -150,19 +160,26 @@ export async function POST(request: NextRequest) {
     if (!book) throw new Error('Livro atual não encontrado');
     const isEnglishClass =
       classroom.discipline === 'info' || classroom.discipline === 'pse-teens';
-    const unitNumber = isEnglishClass
-      ? content?.unit_no ?? 1
-      : content?.lesson_no ?? 1;
-    const unit =
+    const titleLesson = /aula\s*(\d+)/i.exec(content?.title ?? '')?.[1];
+    const contentLesson = Math.max(
+      content?.lesson_no ?? 0,
+      titleLesson ? Number(titleLesson) : 0,
+      1
+    );
+    const contentUnitNumber = isEnglishClass
+      ? Math.max(content?.unit_no ?? 0, 1)
+      : contentLesson;
+    let unit =
       book.bookUnits?.find((row) =>
-        row.title.toLowerCase().includes(`aula ${unitNumber}`)
+        row.title.toLowerCase().includes(`aula ${contentUnitNumber}`)
       ) ??
       book.bookUnits?.find((row) =>
-        row.title.toLowerCase().includes(`unit ${unitNumber}`)
+        row.title.toLowerCase().includes(`unit ${contentUnitNumber}`)
       ) ??
-      book.bookUnits?.[Math.max(0, unitNumber - 1)];
+      book.bookUnits?.[Math.max(0, contentUnitNumber - 1)];
     if (!unit) throw new Error('Unidade do livro não encontrada');
-    const unitLesson = isEnglishClass ? Math.max(0, (content?.lesson_no ?? 1) - 1) : 0;
+    let unitLesson = isEnglishClass ? Math.max(0, contentLesson - 1) : 0;
+    let classInfo = text;
 
     const reports = (await (
       await fetch(
@@ -175,6 +192,50 @@ export async function POST(request: NextRequest) {
     const existing = (reports.data ?? []).find(
       (report) => report.class_date.slice(0, 10) === occurrence.date
     );
+    const prior = (reports.data ?? []).filter(
+      (report) =>
+        report.class_date.slice(0, 10) < occurrence.date &&
+        (!report.studentInfos ||
+          report.studentInfos.some((student) => student.frequency === 'PRESENT'))
+    );
+    const reportedUnits = new Set(
+      prior.flatMap((report) => report.unitBooks?.map((row) => row.book_unit_id) ?? [])
+    );
+    const reportedPairs = new Set(
+      prior.flatMap(
+        (report) =>
+          report.unitBooks?.flatMap((row) =>
+            (row.unit_lesson ?? []).map((lesson) => `${row.book_unit_id}:${lesson}`)
+          ) ?? []
+      )
+    );
+
+    /* PSE and English cannot repeat a lesson in the platform. Always pick the
+       next unreported unit/lesson, independent of the content's lesson number. */
+    if (isEnglishClass) {
+      const next = book.bookUnits
+        ?.flatMap((row, index) => {
+          const count = Math.max(1, row.lessons?.length ?? 1);
+          return Array.from({ length: count }, (_, lesson) => ({ row, index, lesson }));
+        })
+        .find(({ row, lesson }) => !reportedPairs.has(`${row.id}:${lesson}`));
+      if (next) {
+        unit = next.row;
+        unitLesson = next.lesson;
+        const unitNumber = (next.row.index ?? next.index) + 1;
+        const cleaned = text.replace(/^Unit\s*\d+\s*;\s*Lesson\s*\d+\s*:?\s*/i, '');
+        classInfo = `Unit ${unitNumber} ; Lesson ${next.lesson + 1}: ${cleaned}`;
+      }
+    } else if (classroom.discipline === 'pse') {
+      const next = book.bookUnits?.find((row) => !reportedUnits.has(row.id));
+      const nextUnit = next ?? unit;
+      const unitNumber =
+        (nextUnit.index ?? book.bookUnits?.indexOf(nextUnit) ?? contentUnitNumber - 1) + 1;
+      unit = nextUnit;
+      unitLesson = 0;
+      const cleaned = text.replace(/^PSE(?:\s+Coding)?\s*;\s*Aula\s*\d+\s*-\s*/i, '');
+      classInfo = `PSE Aula ${unitNumber} - ${cleaned}`;
+    }
 
     const startHm = classroom.start_time?.slice(0, 5) ?? utcHm(occurrence.start_at);
     const endHm = classroom.end_time?.slice(0, 5) ?? utcHm(occurrence.end_at);
@@ -187,7 +248,7 @@ export async function POST(request: NextRequest) {
       classId: classroom.platform_class_id,
       startClass: `${occurrence.date}T${startHm}:00.000Z`,
       endClass: `${occurrence.date}T${endHm}:00.000Z`,
-      classInfo: text,
+      classInfo,
       teacherId: platformClass.teacher_id,
       studentInfos: students.map((student) => ({
         studentId: student.id,
