@@ -67,7 +67,7 @@ export const EXTRA_DECKS: Record<string, PassaporteDeck> = {
     title: "P5 · Aula 6 — Testar e Avaliar: playtest e apresentação (Roblox)",
     questions: [
       { id: 'p5a6-01', tier: 1, text: "No playtest, o observador deve…", options: ["Jogar junto","Explicar tudo","Anotar sem interferir","Corrigir o jogo"], correctIndex: 2, explanation: "O observador coleta evidências." },
-      { id: 'p5a6-02', tier: 1, text: "Um feedback útil descreve…", options: ["A pessoa","O que aconteceu","O nota","O preço"], correctIndex: 1, explanation: "Fatos ajudam mais que julgamentos." },
+      { id: 'p5a6-02', tier: 1, text: "Um feedback útil descreve…", options: ["A pessoa","O que aconteceu","A nota","O preço"], correctIndex: 1, explanation: "Fatos ajudam mais que julgamentos." },
       { id: 'p5a6-03', tier: 2, text: "Bug é…", options: ["Uma sugestão","Um comportamento errado","Uma ideia nova","Um elogio"], correctIndex: 1, explanation: "Bug quebra o esperado." },
       { id: 'p5a6-04', tier: 2, text: "Por que priorizar só 3 ajustes?", options: ["Para não terminar","Para focar no que mais importa","Para ignorar o feedback","Para ganhar tempo"], correctIndex: 1, explanation: "Foco melhora a experiência." },
       { id: 'p5a6-05', tier: 3, text: "Testar de novo depois de corrigir serve para…", options: ["Confirmar a correção","Enfeitar","Copiar","Aumentar o texto"], correctIndex: 0, explanation: "O segundo teste valida o ajuste." },
