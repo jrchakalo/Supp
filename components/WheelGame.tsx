@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, RotateCcw, Trophy } from 'lucide-react';
+import { ArrowLeft, MousePointerClick, RotateCcw, Sparkles, Trophy } from 'lucide-react';
 import LanguageToggle from './LanguageToggle';
 import QuestionModal from './QuestionModal';
 import VolumeControl from './VolumeControl';
@@ -364,49 +364,92 @@ export default function WheelGame({
           </div>
         </section>
 
-        <section className="rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] p-4 sm:p-5">
-          {finished ? (
-            <div className="text-center">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                {copy.finishedTitle}
-              </p>
-              <h2 className="mt-2 text-3xl font-black leading-tight text-[var(--ink)]">
-                {copy.result(score.correct, score.total)}
-              </h2>
-              <button
-                type="button"
-                onClick={newRound}
-                className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105"
-              >
-                <RotateCcw className="h-5 w-5" aria-hidden="true" />
-                {copy.newRound}
-              </button>
-            </div>
-          ) : (
-            <>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
-                {spinning ? copy.spinning : copy.roundCounter(round, rounds)}
-              </p>
-              <h2 className="mt-2 text-2xl font-black leading-tight text-[var(--ink)] sm:text-3xl">
-                {pickedLabel ?? (spinning ? copy.spinning : copy.help)}
-              </h2>
-              <p className="mt-2 text-sm font-semibold text-[var(--muted)]">
-                {copy.result(score.correct, score.total)}
-              </p>
-
-              {!spinning && !isModalOpen ? (
-                <p className="mt-5 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-center text-xs font-black uppercase tracking-wide text-[var(--accent)]">
-                  {copy.clickWheel}
+        <section className="relative overflow-hidden rounded-2xl border-2 border-[var(--line)] bg-[var(--surface)] p-4 sm:p-5">
+          <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[var(--accent)]/10 blur-2xl" />
+          <div className="relative">
+            {finished ? (
+              <div className="text-center">
+                <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-[var(--accent)] bg-[var(--surface-2)] text-[var(--accent)]">
+                  <Trophy className="h-7 w-7" aria-hidden="true" />
+                </span>
+                <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent)]">
+                  {copy.finishedTitle}
                 </p>
-              ) : null}
+                <h2 className="mt-1 text-3xl font-black leading-tight text-[var(--ink)]">
+                  {copy.result(score.correct, score.total)}
+                </h2>
+                <button
+                  type="button"
+                  onClick={newRound}
+                  className="mt-5 flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl border-4 border-[var(--line)] bg-[var(--cta-bg)] px-6 text-base font-black uppercase tracking-wide text-[var(--cta-text)] shadow-[var(--panel-shadow)] transition hover:brightness-105"
+                >
+                  <RotateCcw className="h-5 w-5" aria-hidden="true" />
+                  {copy.newRound}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--accent)]">
+                    {spinning ? copy.spinning : copy.roundCounter(round, rounds)}
+                  </span>
+                  <span className="flex items-center gap-1.5 rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-1.5 text-xs font-black text-[var(--ink)]">
+                    <Trophy className="h-4 w-4 text-[var(--accent)]" aria-hidden="true" />
+                    {score.correct}/{score.total}
+                  </span>
+                </div>
 
-              {question === null && !spinning && picked ? (
-                <p className="mt-3 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2 text-xs font-bold text-[var(--muted)]">
-                  {copy.empty}
-                </p>
-              ) : null}
-            </>
-          )}
+                <div className="mt-5 flex items-start gap-3">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] text-[var(--accent)]">
+                    <Sparkles className="h-6 w-6" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--muted)]">
+                      {pickedLabel ? copy.round : copy.badge}
+                    </p>
+                    <h2 className="mt-1 text-2xl font-black leading-tight text-[var(--ink)] sm:text-3xl">
+                      {pickedLabel ?? (spinning ? copy.spinning : copy.readyTitle)}
+                    </h2>
+                  </div>
+                </div>
+
+                {rounds !== null ? (
+                  <div className="mt-5">
+                    <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-[var(--muted)]">
+                      <span>{copy.progress}</span>
+                      <span>
+                        {round}/{rounds}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-2 overflow-hidden rounded-full border border-[var(--line-soft)] bg-[var(--surface-2)]">
+                      <div
+                        className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
+                        style={{ width: `${Math.min(100, (round / rounds) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                {spinning ? (
+                  <p className="mt-5 text-xs font-semibold text-[var(--muted)]">
+                    {copy.spinningHint}
+                  </p>
+                ) : !isModalOpen ? (
+                  <div className="mt-5 flex items-center gap-2 rounded-xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-3 py-2.5">
+                    <MousePointerClick
+                      className="h-4 w-4 shrink-0 text-[var(--accent)]"
+                      aria-hidden="true"
+                    />
+                    <p className="text-xs font-black uppercase tracking-wide text-[var(--accent)]">
+                      {copy.clickWheel}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-5 text-xs font-semibold text-[var(--muted)]">{copy.help}</p>
+                )}
+              </>
+            )}
+          </div>
         </section>
       </div>
 
