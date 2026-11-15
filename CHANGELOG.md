@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.10] — 2026-11-15
+
+### PSE e inglês: próxima aula disponível
+
+- O class report não repete mais aula já lançada.
+- **PSE Coding**: escolhe a próxima unidade (`Aula 1..7`) que ainda não foi reportada; relatórios
+  “sem alunos” não contam.
+- **Info/PSE Teens**: escolhe a próxima lição/unidade não reportada.
+- O texto é ajustado para a aula escolhida (`PSE Aula 3 - ...`, `Unit 2 ; Lesson 2: ...`).
+- PSE C2-02 passou de Aula 2 para **Aula 3**, acompanhando a próxima disponível.
+- PSE C2-01 e PSE C2-02 têm class report no intervalo; as duas vão para a Aula 3.
+
 ## [1.0.9] — 2026-11-15
 
 ### Class report por tipo de curso
