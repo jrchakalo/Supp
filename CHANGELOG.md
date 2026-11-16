@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.16] — 2026-11-16
+
+### Quiz da aula e sorteio dos jogos
+
+- O quiz da aula usa **o deck da própria aula** nos dois modos: telão sem celulares e
+  Live com celulares. Antes, o modo com celulares abria o baralho genérico do Live
+  (inglês, todas as categorias). O modal agora mostra o título e a quantidade de
+  perguntas do deck e bloqueia o início quando a aula não tem deck.
+- D20, Live, Roleta, Passa Repassa e Competição passam a sortear sobre **toda a base**
+  de perguntas das categorias escolhidas (todas as dificuldades), com histórico
+  persistente compartilhado entre partidas. A pergunta só volta depois que o banco
+  inteiro foi usado; a dificuldade escolhida continua sendo a primeira faixa sorteada.
+- O histórico antigo do Live é migrado automaticamente.
+
 ## [1.0.15] — 2026-11-15
 
 ### Agenda: cadência quinzenal e lista da semana

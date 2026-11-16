@@ -63,76 +63,38 @@ export function getLiveDeck(
 }
 
 /**
- * Total questions available for a run. For the classic deck the host can
- * widen to the other difficulties when a single topic does not have enough
- * questions for the selected round length.
+ * Total questions available for a run. Every difficulty of the selected
+ * topics counts, so the UI can show the real bank size.
  */
 export function getLiveCapacity(
   mode: ModeId,
   difficulty: DifficultyId,
   categories?: ClassicCategoryId[]
 ): number {
-  if (mode !== 'classic') {
-    return getLiveDeck(mode, difficulty, categories).length;
-  }
-
-  const ids = new Set(
-    getLiveDeck(mode, difficulty, categories).map((question) => question.id)
-  );
-  const ordered = [
-    difficulty,
-    ...DIFFICULTY_ORDER.filter((item) => item !== difficulty),
-  ];
-
-  for (const level of ordered) {
-    if (ids.size >= 48) break;
-    for (const question of getLiveDeck(mode, level, categories)) {
-      ids.add(question.id);
-    }
-  }
-
-  return ids.size;
+  return buildLivePool(mode, difficulty, categories).length;
 }
 
 /**
- * Builds the pool for a run.
+ * Builds the pool for a run across every difficulty in the selected topics.
  *
- * Classic rooms start with the chosen difficulty and only widen to the other
- * difficulties when a single topic would otherwise run out. This keeps the
- * difficulty meaningful for multi-topic rooms while still allowing a 16-question
- * run on a niche theme without repeating a question.
+ * The preferred difficulty comes first, but the whole topic bank stays
+ * eligible so several rooms in one day do not loop back to the same subset.
  */
-function buildPool(
+export function buildLivePool(
   mode: ModeId,
   difficulty: DifficultyId,
   categories?: ClassicCategoryId[]
 ): LiveQuestion[] {
-  if (mode !== 'classic') {
-    return getLiveDeck(mode, difficulty, categories);
-  }
-
   const byId = new Map<string, LiveQuestion>();
-  const add = (questions: LiveQuestion[]) => {
-    for (const question of questions) byId.set(question.id, question);
-  };
-
-  add(getLiveDeck(mode, difficulty, categories));
-
-  const selected = new Set(categories ?? []);
   const ordered = [
     difficulty,
     ...DIFFICULTY_ORDER.filter((item) => item !== difficulty),
   ];
 
   for (const level of ordered) {
-    if (byId.size >= 48) break;
-    add(
-      classicPool(categories).filter(
-        (question) =>
-          question.difficulty === level &&
-          (!selected.size || (question.category && selected.has(question.category)))
-      )
-    );
+    for (const question of getLiveDeck(mode, level, categories)) {
+      byId.set(question.id, question);
+    }
   }
 
   return [...byId.values()];
@@ -151,17 +113,28 @@ export function buildQuestionRun(
   difficulty: DifficultyId,
   count: number,
   categories?: ClassicCategoryId[],
-  recentIds?: ReadonlySet<string>
+  recentIds?: ReadonlySet<string>,
+  preferredIds?: ReadonlySet<string>
 ): LiveQuestion[] {
-  const pool = buildPool(mode, difficulty, categories);
+  const pool = buildLivePool(mode, difficulty, categories);
   const used = new Set<string>();
   const recent = recentIds ?? new Set<string>();
+  const preferred = preferredIds ?? new Set<string>();
 
   const makeBuckets = () =>
     [1, 2, 3].map((tier) => {
       const bucket = shuffle(pool.filter((question) => question.tier === tier));
       return {
-        unseen: bucket.filter((question) => !recent.has(question.id)),
+        // Unseen questions of the chosen difficulty go first, then the rest of
+        // the unseen bank, and only then questions already seen in previous runs.
+        unseen: [
+          ...bucket.filter(
+            (question) => !recent.has(question.id) && preferred.has(question.id)
+          ),
+          ...bucket.filter(
+            (question) => !recent.has(question.id) && !preferred.has(question.id)
+          ),
+        ],
         seen: bucket.filter((question) => recent.has(question.id)),
       };
     });

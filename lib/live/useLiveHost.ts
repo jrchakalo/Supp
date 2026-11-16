@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ClassicCategoryId, DifficultyId, ModeId } from '../types';
+import type { ClassicCategoryId, DifficultyId, ModeId, LiveQuestion } from '../types';
 import type { Language } from '../i18n';
 import { localizeLiveQuestions } from '../i18n';
 import { getSupabaseClient } from './supabase';
@@ -14,6 +14,7 @@ import {
 } from './protocol';
 import {
   buildQuestionRun,
+  getLiveDeck,
   prepareQuestion,
   randomId,
   scoreForAnswer,
@@ -117,6 +118,8 @@ export function useLiveHost(options: LiveHostOptions) {
   const readyRef = useRef(false);
   const revealedIdsRef = useRef<Set<string>>(new Set());
   const lastAdvanceAtRef = useRef(0);
+  /** Lesson quiz deck: when set, the room uses it instead of the generic pool. */
+  const customPoolRef = useRef<LiveQuestion[] | null>(null);
 
   const broadcast = useCallback((payload: HostToPlayerMessage) => {
     lastMessageRef.current = payload;
@@ -265,23 +268,34 @@ export function useLiveHost(options: LiveHostOptions) {
   const startGame = useCallback(() => {
     if (statusRef.current !== 'live') return;
     const options = optionsRef.current;
-    const source = buildQuestionRun(
-      options.mode,
-      options.difficulty,
-      options.questionCount,
-      options.categories,
-      readRecentLiveIds(options.mode)
-    );
+    const custom = customPoolRef.current;
+    const source =
+      custom && custom.length > 0
+        ? custom
+        : buildQuestionRun(
+            options.mode,
+            options.difficulty,
+            options.questionCount,
+            options.categories,
+            readRecentLiveIds(options.mode),
+            new Set(
+              getLiveDeck(options.mode, options.difficulty, options.categories).map(
+                (question) => question.id
+              )
+            )
+          );
     const localized = localizeLiveQuestions(source, options.language);
     if (localized.length === 0) return;
     const run = localized.map((item) => ({
       ...prepareQuestion(item),
       explanation: item.explanation,
     }));
-    rememberLiveRun(
-      options.mode,
-      localized.map((item) => item.id)
-    );
+    if (!custom || custom.length === 0) {
+      rememberLiveRun(
+        options.mode,
+        localized.map((item) => item.id)
+      );
+    }
     setAutoAdvance(options.autoAdvance);
 
     runRef.current = run;
@@ -368,6 +382,7 @@ export function useLiveHost(options: LiveHostOptions) {
     seqRef.current = 0;
     setTotal(0);
     runRef.current = [];
+    customPoolRef.current = null;
     scoresRef.current = {};
     repliesRef.current = [];
     setScoresVersion((version) => version + 1);
@@ -376,10 +391,13 @@ export function useLiveHost(options: LiveHostOptions) {
   }, [broadcast]);
 
   const openRoom = useCallback(
-    (roomCode: string) => {
+    (roomCode: string, questions?: LiveQuestion[]) => {
       if (statusRef.current !== 'idle') return;
       const client = getSupabaseClient();
       if (!client) return;
+
+      customPoolRef.current =
+        questions && questions.length > 0 ? [...questions] : null;
 
       /* Read the snapshot before any state update: the save effect would
          otherwise overwrite it with the empty initial state. */
