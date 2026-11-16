@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const room = require('../../.test-build/live/room.js');
+const classic = require('../../.test-build/classic-questions.js');
+const liveQuestions = require('../../.test-build/classic-live-questions.js');
 
 test('sanitizeRoomCode normalizes and validates length', () => {
   assert.equal(room.sanitizeRoomCode(' ab-cd '), 'ABCD');
@@ -38,6 +40,43 @@ test('buildQuestionRun creates a unique run of the requested size', () => {
   const run = room.buildQuestionRun('classic', 'medium', 8);
   assert.equal(run.length, 8);
   assert.equal(new Set(run.map((question) => question.id)).size, 8);
+});
+
+test('live pool includes the whole bank, not only the chosen difficulty', () => {
+  const pool = room.buildLivePool('classic', 'medium');
+  assert.equal(pool.length, liveQuestions.CLASSIC_LIVE_QUESTIONS.length);
+  assert.deepEqual(
+    [...new Set(pool.map((question) => question.difficulty))].sort(),
+    ['easy', 'hard', 'medium']
+  );
+});
+
+test('buildQuestionRun skips the recent history across difficulties', () => {
+  const hard = new Set(
+    liveQuestions.CLASSIC_LIVE_QUESTIONS.filter(
+      (question) => question.difficulty === 'hard'
+    ).map((question) => question.id)
+  );
+  const recent = new Set(
+    liveQuestions.CLASSIC_LIVE_QUESTIONS.filter(
+      (question) => question.difficulty !== 'hard'
+    ).map((question) => question.id)
+  );
+  const run = room.buildQuestionRun('classic', 'medium', 8, undefined, recent);
+  assert.equal(run.length, 8);
+  assert.ok(run.every((question) => hard.has(question.id)));
+});
+
+test('classic run deck uses every difficulty of the topic', () => {
+  const deck = classic.getClassicRunDeck('medium', ['games']);
+  assert.deepEqual(
+    [...new Set(deck.map((question) => question.difficulty))].sort(),
+    ['easy', 'hard', 'medium']
+  );
+  assert.equal(
+    deck.length,
+    classic.CLASSIC_QUESTIONS.filter((question) => question.category === 'games').length
+  );
 });
 
 test('sortLeaderboard orders by total and then by name', () => {

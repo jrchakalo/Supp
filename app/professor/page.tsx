@@ -44,7 +44,7 @@ import { categoryCopy } from '@/lib/i18n/game-copy';
 import { localizeLiveQuestion, localizeQuestion } from '@/lib/i18n';
 import { getDeck, shuffle } from '@/lib/game';
 import { GAMES_V2 } from '@/lib/flags';
-import { CLASSIC_ALL_CATEGORIES, getClassicDeck, getClassicRunDeck } from '@/lib/classic-questions';
+import { CLASSIC_ALL_CATEGORIES, getClassicDeck, getClassicFullDeck, getClassicRunDeck } from '@/lib/classic-questions';
 import { buildCompetitionPhases, buildTiebreakPhase } from '@/lib/competition';
 import type {
   ClassicCategoryId,
@@ -59,7 +59,9 @@ import WheelControl from '@/components/game/WheelControl';
 import LiveHostPanel from '@/components/live/LiveHostPanel';
 import ClassReportDialog from '@/components/professor/ClassReportDialog';
 import { useLiveHost } from '@/lib/live/useLiveHost';
-import { getLiveDeck, prepareQuestion, randomRoomCode, sanitizeRoomCode } from '@/lib/live/room';
+import { buildLivePool, getLiveDeck, prepareQuestion, randomRoomCode, sanitizeRoomCode } from '@/lib/live/room';
+import { pickFresh, pickUnseen } from '@/lib/question-pick';
+import { readRecentIds, rememberIds } from '@/lib/live/history';
 import type { PassaGameState, PassaQuestion, D20GameState } from '@/lib/aula/games';
 import PassaControl from '@/components/game/PassaControl';
 import D20Control from '@/components/game/D20Control';
@@ -1510,6 +1512,8 @@ export default function AulaPage() {
   const startQuiz = useCallback(() => {
     const lesson = activeLessonRef.current;
     if (!lesson) return;
+    const quizDeck = PASSAPORTE_DECKS[lesson.deckId];
+    if (!quizDeck || quizDeck.questions.length === 0) return;
     setQuizModalOpen(false);
     if (liveHost.status !== 'idle') {
       liveHost.closeRoom();
@@ -1531,7 +1535,7 @@ export default function AulaPage() {
       setWarmup('live');
       setLiveQuizCode(sessionCode);
       broadcast({ type: 'quiz', code: sessionCode, active: true });
-      liveHost.openRoom(sessionCode);
+      liveHost.openRoom(sessionCode, quizDeck.questions);
       return;
     }
 
@@ -1624,14 +1628,15 @@ export default function AulaPage() {
       const game = d20GameRef.current;
       if (!game || (game.phase !== 'board' && game.phase !== 'revealed')) return;
       const deck = getClassicRunDeck(d20Difficulty, d20Categories);
-      if (deck.length === 0) return;
-      let pool = deck.filter((item) => !d20UsedRef.current.has(item.id));
-      if (pool.length === 0) {
-        d20UsedRef.current.clear();
-        pool = deck;
-      }
-      const pick = pool[Math.floor(Math.random() * pool.length)] ?? pool[0];
+      const preferred = getClassicDeck(d20Difficulty, d20Categories);
+      const recent = readRecentIds('classic-tf');
+      const pick =
+        pickFresh(preferred, recent, d20UsedRef.current) ??
+        pickFresh(deck, recent, d20UsedRef.current) ??
+        pickUnseen(deck, recent, d20UsedRef.current);
+      if (!pick) return;
       d20UsedRef.current.add(pick.id);
+      rememberIds('classic-tf', [pick.id]);
       broadcastD20Game({
         ...game,
         phase: 'question',
@@ -1767,22 +1772,26 @@ export default function AulaPage() {
       if (!phase || alive.length === 0) return;
       const order = compOrder === 'random' ? shuffle([...alive]) : [...alive];
       const deck = getClassicDeck(phase.difficulty, compCategories);
-      const tierDeck = deck.filter((question) => (question.tier ?? 2) === phase.tier);
-      let pool = (tierDeck.length > 0 ? tierDeck : deck).filter(
-        (question) => !compUsedIdsRef.current.has(question.id)
-      );
-      if (pool.length === 0) {
-        compUsedIdsRef.current.clear();
-        pool = tierDeck.length > 0 ? tierDeck : deck;
-      }
-      if (pool.length === 0) return;
+      const full = getClassicFullDeck(compCategories);
+      const inTier = (question: Question) => (question.tier ?? 2) === phase.tier;
+      const preferred = deck.filter(inTier);
+      const wideTier = full.filter(inTier);
+      const fallback = wideTier.length > 0 ? wideTier : full;
+      const recent = readRecentIds('classic-tf');
 
       const questions = new Map<string, Question>();
-      order.forEach((name, index) => {
-        const question = pool[index % pool.length];
+      order.forEach((name) => {
+        const question =
+          pickFresh(preferred, recent, compUsedIdsRef.current) ??
+          pickFresh(fallback, recent, compUsedIdsRef.current) ??
+          pickUnseen(preferred.length > 0 ? preferred : fallback, recent, compUsedIdsRef.current) ??
+          pickUnseen(fallback, recent, compUsedIdsRef.current);
+        if (!question) return;
         compUsedIdsRef.current.add(question.id);
+        rememberIds('classic-tf', [question.id]);
         questions.set(name, question);
       });
+      if (questions.size === 0) return;
       compAliveRef.current = alive;
       compPhaseIndexRef.current = phaseIndex;
       compPhaseOrderRef.current = order;
@@ -2032,15 +2041,19 @@ export default function AulaPage() {
       const current = wheelGameRef.current;
       if (!current || current.phase !== 'spinning') return;
       const category = categories[index];
-      const deck = getClassicDeck(wheelDifficulty, [category]);
-      const fresh = deck.filter((item) => !wheelUsedRef.current.has(item.id));
-      const pool = fresh.length > 0 ? fresh : deck;
-      const pick = pool[Math.floor(Math.random() * pool.length)];
+      const deck = getClassicRunDeck(wheelDifficulty, [category]);
+      const preferred = getClassicDeck(wheelDifficulty, [category]);
+      const recent = readRecentIds('classic-tf');
+      const pick =
+        pickFresh(preferred, recent, wheelUsedRef.current) ??
+        pickFresh(deck, recent, wheelUsedRef.current) ??
+        pickUnseen(deck, recent, wheelUsedRef.current);
       if (!pick) {
         broadcastWheel({ ...current, phase: 'over', picked: category });
         return;
       }
       wheelUsedRef.current.add(pick.id);
+      rememberIds('classic-tf', [pick.id]);
       broadcastWheel({
         ...current,
         phase: 'question',
@@ -2152,13 +2165,17 @@ export default function AulaPage() {
   );
 
   const drawPassaQuestion = useCallback((): PassaQuestion | null => {
-    const deck = getLiveDeck('classic', passaDifficulty, passaCategories);
-    const fresh = deck.filter((item) => !passaUsedRef.current.has(item.id));
-    const pool = fresh.length > 0 ? fresh : deck;
-    if (pool.length === 0) return null;
+    const deck = buildLivePool('classic', passaDifficulty, passaCategories);
+    const preferred = getLiveDeck('classic', passaDifficulty, passaCategories);
+    const recent = readRecentIds('classic-live');
+    const raw =
+      pickFresh(preferred, recent, passaUsedRef.current) ??
+      pickFresh(deck, recent, passaUsedRef.current) ??
+      pickUnseen(deck, recent, passaUsedRef.current);
+    if (!raw) return null;
 
-    const raw = pool[Math.floor(Math.random() * pool.length)];
     passaUsedRef.current.add(raw.id);
+    rememberIds('classic-live', [raw.id]);
     const localized = localizeLiveQuestion(raw, passaLanguage);
     const prepared = prepareQuestion(localized);
     return {
@@ -4333,11 +4350,14 @@ export default function AulaPage() {
 
             <div className="mt-4 rounded-2xl border-2 border-[var(--line-soft)] bg-[var(--surface-2)] px-4 py-3">
               <p className="text-sm font-black text-[var(--ink)]">
-                {deck?.questions.length ?? 12} perguntas · {deck?.title ?? activeLesson.title}
+                {deck
+                  ? `${deck.questions.length} perguntas · ${deck.title}`
+                  : 'Sem quiz cadastrado para esta aula'}
               </p>
               <p className="mt-0.5 text-[11px] font-semibold text-[var(--muted)]">
-                Baralho em inglês: a tradução em português aparece depois de 10 segundos.
-                Tempo de cada pergunta, auto-avanço e uso de celulares são os únicos ajustes.
+                {deck
+                  ? 'Perguntas do deck desta aula — o modo com celulares usa exatamente o mesmo baralho.'
+                  : 'Cadastre um deck no conteúdo desta aula para abrir o quiz.'}
               </p>
             </div>
 
@@ -4415,7 +4435,8 @@ export default function AulaPage() {
             <button
               type="button"
               onClick={startQuiz}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)]"
+              disabled={!deck}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cta-bg)] px-5 py-3.5 text-base font-black uppercase tracking-wide text-[var(--cta-text)] disabled:opacity-40"
             >
               {usePhones ? (
                 <Users className="h-5 w-5" aria-hidden="true" />

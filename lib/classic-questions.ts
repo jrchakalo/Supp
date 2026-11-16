@@ -129,30 +129,35 @@ export function getClassicDeck(
 
 const DIFFICULTY_ORDER: DifficultyId[] = ['easy', 'medium', 'hard'];
 
+/** Every topic of every difficulty — the whole true/false bank. */
+export function getClassicFullDeck(
+  categories: ClassicCategoryId[] = CLASSIC_ALL_CATEGORIES
+): Question[] {
+  const selected = new Set(
+    categories.length > 0 ? categories : CLASSIC_ALL_CATEGORIES
+  );
+  return CLASSIC_QUESTIONS.filter(
+    (question) => question.category && selected.has(question.category)
+  );
+}
+
 /**
- * Deck used by D20 rounds.
+ * Deck used by D20, wheel and the `/` games.
  *
- * A single topic has 8 questions per difficulty, which is fewer than the 20
- * rolls of a full round. When the chosen topic is too narrow, this widens to
- * the other difficulties of the same topic so a 20-round game does not repeat
- * a question before the round ends.
+ * The preferred difficulty comes first, but every other difficulty is included
+ * so a long day of games draws from the whole bank instead of looping back to
+ * the same 50 questions.
  */
 export function getClassicRunDeck(
   difficulty: DifficultyId,
-  categories: ClassicCategoryId[] = CLASSIC_ALL_CATEGORIES,
-  minimum = 20
+  categories: ClassicCategoryId[] = CLASSIC_ALL_CATEGORIES
 ): Question[] {
-  const primary = getClassicDeck(difficulty, categories);
-  if (primary.length >= minimum) return primary;
+  const byId = new Map<string, Question>();
 
-  const byId = new Map(primary.map((question) => [question.id, question]));
-  const ordered = [
+  for (const level of [
     difficulty,
     ...DIFFICULTY_ORDER.filter((item) => item !== difficulty),
-  ];
-
-  for (const level of ordered) {
-    if (byId.size >= minimum) break;
+  ]) {
     for (const question of getClassicDeck(level, categories)) {
       byId.set(question.id, question);
     }
