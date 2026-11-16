@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const resolve = require('../../.test-build/content/resolve.js');
 const validate = require('../../.test-build/content/validate.js');
+const decks = require('../../.test-build/passaporte-decks.js');
 
 const block = (id) => ({
   id,
@@ -64,4 +65,19 @@ test('validateSegments rejects malformed and oversized payloads', () => {
     validate.validateSegments([{ id: 'x', huge: 'a'.repeat(250_000) }]).ok,
     false
   );
+});
+
+test('English and Info decks carry a Portuguese translation for every question', () => {
+  for (const id of ['teens-a1', 'teens-a2', 'ib-m1-a1', 'ib-m1-a2', 'ib-word-1', 'ib-word-2']) {
+    const deck = decks.PASSAPORTE_DECKS[id];
+    assert.ok(deck, `missing deck ${id}`);
+    for (const question of deck.questions) {
+      assert.ok(question.textPt, `${id}/${question.id} missing textPt`);
+      assert.ok(
+        Array.isArray(question.optionsPt) &&
+          question.optionsPt.length === question.options.length,
+        `${id}/${question.id} optionsPt out of sync`
+      );
+    }
+  }
 });

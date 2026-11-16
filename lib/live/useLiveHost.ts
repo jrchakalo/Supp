@@ -128,9 +128,13 @@ export function useLiveHost(options: LiveHostOptions) {
 
   const questionMessage = useCallback(
     (current: HostQuestion, seqIndex: number, at: number, timeoutMs: number): QuestionStartMessage => {
+      /* Lesson quizzes (Info Bilíngue / PSE Teens) are always English with a
+         Portuguese translation at half time. Coding decks have no `textPt`, so
+         forcing the flag is harmless for them. */
+      const custom = Boolean(customPoolRef.current?.length);
       const translate =
-        optionsRef.current.language === 'en' &&
-        optionsRef.current.translateAtHalf &&
+        (custom || optionsRef.current.language === 'en') &&
+        (custom || optionsRef.current.translateAtHalf) &&
         Boolean(current.textPt)
           ? {
               textPt: current.textPt,
