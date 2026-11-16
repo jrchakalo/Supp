@@ -10,7 +10,7 @@ import { PASSAPORTE_DECKS } from '@/lib/passaporte-decks';
 
 export const QUIZ_LESSON_ID = 'quiz';
 
-export function buildQuizSlides(deckId: string): Slide[] {
+export function buildQuizSlides(deckId: string, translationDelayMs = 10000): Slide[] {
   const deck = PASSAPORTE_DECKS[deckId];
   if (!deck) return [];
 
@@ -28,7 +28,7 @@ export function buildQuizSlides(deckId: string): Slide[] {
       options: question.options,
       textPt: question.textPt,
       optionsPt: question.optionsPt,
-      translationDelayMs: 10000,
+      translationDelayMs,
     });
 
     slides.push({

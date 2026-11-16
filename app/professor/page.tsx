@@ -89,9 +89,14 @@ const QUIZ_SECONDS: QuizSeconds[] = [15, 20, 30];
 /** Generic placeholder so the projector can still render before the first beat. */
 const WAITING_SLIDE: Slide = { kind: 'cover', title: 'Aguardando o professor…' };
 
-function resolveSlide(lesson: Lesson, lessonId: string, index: number): Slide | null {
+function resolveSlide(
+  lesson: Lesson,
+  lessonId: string,
+  index: number,
+  translationDelayMs = 10000
+): Slide | null {
   if (lessonId === QUIZ_LESSON_ID) {
-    return buildQuizSlides(lesson.deckId)[index] ?? null;
+    return buildQuizSlides(lesson.deckId, translationDelayMs)[index] ?? null;
   }
   return flattenBeats(lesson)[index]?.slide ?? null;
 }
@@ -546,6 +551,9 @@ export default function AulaPage() {
   const activeLessonRef = useRef<Lesson | null>(null);
   const beatIndexRef = useRef(0);
   const quizIndexRef = useRef(0);
+  /** Half-time translation uses the question time chosen in the quiz modal. */
+  const quizSecondsRef = useRef(seconds);
+  quizSecondsRef.current = seconds;
   const modeRef = useRef<TeacherMode>('lesson');
   const phaseRef = useRef<AulaPhase>('welcome');
   const imageUrlsRef = useRef<Record<number, string>>({});
@@ -955,7 +963,7 @@ export default function AulaPage() {
       const lessonId = inQuiz ? QUIZ_LESSON_ID : lesson.id;
       const index = inQuiz ? quizIndexRef.current : beatIndexRef.current;
       const liveQuiz = liveQuizRef.current;
-      const slide = resolveSlide(lesson, lessonId, index) ?? WAITING_SLIDE;
+      const slide = resolveSlide(lesson, lessonId, index, quizSecondsRef.current * 500) ?? WAITING_SLIDE;
       const imageUrl = inQuiz ? undefined : imageUrlsRef.current[index];
 
       channelRef.current?.send({
@@ -1037,8 +1045,8 @@ export default function AulaPage() {
 
   const beats = useMemo(() => (activeLesson ? flattenBeats(activeLesson) : []), [activeLesson]);
   const quizSlides = useMemo(
-    () => (activeLesson ? buildQuizSlides(activeLesson.deckId) : []),
-    [activeLesson]
+    () => (activeLesson ? buildQuizSlides(activeLesson.deckId, seconds * 500) : []),
+    [activeLesson, seconds]
   );
 
   const beat = beats[beatIndex];
@@ -1112,7 +1120,7 @@ export default function AulaPage() {
     const inQuiz = modeRef.current === 'quiz';
     const lessonId = inQuiz ? QUIZ_LESSON_ID : lesson.id;
     const index = inQuiz ? quizIndexRef.current : beatIndexRef.current;
-    const slide = resolveSlide(lesson, lessonId, index) ?? WAITING_SLIDE;
+    const slide = resolveSlide(lesson, lessonId, index, quizSecondsRef.current * 500) ?? WAITING_SLIDE;
     const imageUrl = inQuiz ? undefined : imageUrlsRef.current[index];
     broadcast({ type: 'slide', lessonId, index, slide, imageUrl });
   }, [broadcast]);
@@ -1187,7 +1195,7 @@ export default function AulaPage() {
     (index: number) => {
       const lesson = activeLessonRef.current;
       if (!lesson) return;
-      const slides = buildQuizSlides(lesson.deckId);
+      const slides = buildQuizSlides(lesson.deckId, quizSecondsRef.current * 500);
       if (slides.length === 0) return;
 
       const next = Math.min(Math.max(Math.floor(index), 0), slides.length - 1);
@@ -1220,7 +1228,7 @@ export default function AulaPage() {
     if (!lesson) return;
 
     if (modeRef.current === 'quiz') {
-      const total = buildQuizSlides(lesson.deckId).length;
+      const total = buildQuizSlides(lesson.deckId, quizSecondsRef.current * 500).length;
       if (quizIndexRef.current < total - 1) goToQuizSlide(quizIndexRef.current + 1);
       return;
     }
@@ -1546,7 +1554,7 @@ export default function AulaPage() {
     setMode('quiz');
     setQuizIndex(0);
 
-    const slide = buildQuizSlides(lesson.deckId)[0];
+    const slide = buildQuizSlides(lesson.deckId, seconds * 500)[0];
     if (slide) {
       broadcast({ type: 'slide', lessonId: QUIZ_LESSON_ID, index: 0, slide });
     }
@@ -4285,7 +4293,7 @@ export default function AulaPage() {
                 </button>
               ) : null}
 
-              {mode === 'lesson' && reportTemplate ? (
+              {mode === 'lesson' && segment?.classReport ? (
                 <button
                   type="button"
                   onClick={() => setClassReportOpen(true)}

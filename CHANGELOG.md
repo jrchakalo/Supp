@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.17] — 2026-11-16
+
+### Class report no intervalo e tradução na metade do tempo
+
+- O botão **Gerar class report** agora aparece somente no bloco **Intervalo**
+  (antes ficava disponível em qualquer slide).
+- Quizzes de **Info Bilíngue** e **PSE Teens** mostram a tradução em português
+  exatamente na **metade do tempo** da pergunta:
+  - no telão da apresentação (quiz sem celulares), usando o tempo escolhido
+    (15s → 7,5s; 20s → 10s; 30s → 15s);
+  - no telão do **Live** (o espectador agora renderiza `PT:` e a tradução das
+    opções, como a tela do aluno já fazia);
+  - no celular do aluno, pelo `translateAtMs` do Live.
+- Os decks de **PSE Teens (Class 1 e 2)** ganharam tradução completa
+  (`textPt`/`optionsPt`); os decks de Info já tinham. Um teste garante que todos
+  os decks de inglês/Info tenham tradução alinhada.
+
 ## [1.0.16] — 2026-11-16
 
 ### Quiz da aula e sorteio dos jogos

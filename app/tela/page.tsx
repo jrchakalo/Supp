@@ -236,6 +236,7 @@ type LiveSpectatorProps = {
   gameover: { leaderboard: LiveScoreRow[] } | null;
   secondsLeft: number;
   timeRatio: number;
+  translationVisible: boolean;
   connection: LiveConnection;
 };
 
@@ -248,6 +249,7 @@ function LiveSpectator({
   gameover,
   secondsLeft,
   timeRatio,
+  translationVisible,
   connection,
 }: LiveSpectatorProps) {
   const ranked = [...(reveal?.leaderboard ?? gameover?.leaderboard ?? [])].sort(
@@ -335,6 +337,16 @@ function LiveSpectator({
           {question.text}
         </h1>
 
+        {translationVisible && question.textPt ? (
+          <p className="mt-1 text-center text-[clamp(0.9rem,1.6vw,1.5rem)] font-bold leading-snug text-[var(--accent-2)]">
+            PT: {question.textPt}
+          </p>
+        ) : question.textPt ? (
+          <p className="mt-1 text-center text-[clamp(0.7rem,1.1vw,0.95rem)] font-black uppercase tracking-[0.16em] text-[var(--muted)]">
+            Tradução na metade do tempo…
+          </p>
+        ) : null}
+
         <div className="mt-3 grid min-h-0 flex-1 grid-cols-2 gap-2 sm:gap-3">
           {question.options.map((option, index) => {
             const style = ANSWER_BUTTONS[index % ANSWER_BUTTONS.length];
@@ -352,6 +364,11 @@ function LiveSpectator({
                 </span>
                 <span className="min-w-0 flex-1 text-[clamp(1rem,2.1vw,2.3rem)] font-black leading-tight">
                   {option}
+                  {translationVisible && question.optionsPt?.[index] ? (
+                    <span className="mt-0.5 block text-[0.55em] font-semibold leading-tight opacity-90">
+                      {question.optionsPt[index]}
+                    </span>
+                  ) : null}
                 </span>
               </div>
             );
@@ -1404,6 +1421,13 @@ export default function TvPage() {
         )
       : 0;
 
+  const liveTranslationVisible = Boolean(
+    liveQuestion?.textPt &&
+      typeof liveQuestion.translateAtMs === 'number' &&
+      clock > 0 &&
+      clock >= liveQuestion.startedAt + liveQuestion.translateAtMs
+  );
+
   const openCode = useCallback(() => {
     const next = sanitizeRoomCode(codeInput);
     if (!next || next.length !== 5) {
@@ -1640,6 +1664,7 @@ export default function TvPage() {
             gameover={liveGameover}
             secondsLeft={secondsLeft}
             timeRatio={timeRatio}
+            translationVisible={liveTranslationVisible}
             connection={quizConnection}
           />
         ) : welcome ? (
