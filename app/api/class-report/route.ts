@@ -9,6 +9,7 @@ import {
   normalizeStudents,
   readStoredClassReport,
 } from '@/lib/aula/class-report';
+import { isRemovedOccurrence } from '@/lib/agenda/removed';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,6 +52,9 @@ export async function GET(request: NextRequest) {
     );
     if (!occurrence) {
       return NextResponse.json({ error: 'Aula não encontrada.' }, { status: 404 });
+    }
+    if (isRemovedOccurrence(occurrence.notes)) {
+      return NextResponse.json({ error: 'Aula removida da agenda.' }, { status: 410 });
     }
     return NextResponse.json({
       report: readStoredClassReport(occurrence.notes),
@@ -96,6 +100,9 @@ export async function POST(request: NextRequest) {
     );
     if (!occurrence) {
       return NextResponse.json({ error: 'Aula não encontrada.' }, { status: 404 });
+    }
+    if (isRemovedOccurrence(occurrence.notes)) {
+      return NextResponse.json({ error: 'Aula removida da agenda.' }, { status: 410 });
     }
     if (occurrence.status === 'cancelled') {
       return NextResponse.json({ error: 'Aula cancelada: não gera relatório.' }, { status: 409 });

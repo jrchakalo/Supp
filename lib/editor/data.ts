@@ -1,4 +1,5 @@
 import type { Segment } from '@/lib/passaporte-lessons';
+import { isRemovedOccurrence } from '@/lib/agenda/removed';
 
 export type EditorContent = {
   id: string;
@@ -22,6 +23,7 @@ export type EditorOccurrence = {
   status: string;
   content_id: string | null;
   snapshot: Segment[] | null;
+  notes?: string | null;
 };
 
 export type EditorClass = {
@@ -72,10 +74,14 @@ export async function fetchEditorData(contentId: string): Promise<EditorData | n
       `pp_content?select=id,title,discipline,track,unit_no,lesson_no,total_min,deck_id,segments,version&id=eq.${encodeURIComponent(contentId)}&limit=1`
     ),
     select<EditorOccurrence>(
-      `pp_occurrences?select=id,class_id,date,start_at,end_at,status,content_id,snapshot&content_id=eq.${encodeURIComponent(contentId)}&order=date.asc&limit=200`
+      `pp_occurrences?select=id,class_id,date,start_at,end_at,status,content_id,snapshot,notes&content_id=eq.${encodeURIComponent(contentId)}&order=date.asc&limit=200`
     ),
     select<EditorClass>('pp_classes?select=id,short_code,name,weekday&limit=200'),
   ]);
   if (!contents[0]) return null;
-  return { content: contents[0], occurrences, classes };
+  return {
+    content: contents[0],
+    occurrences: occurrences.filter((row) => !isRemovedOccurrence(row.notes)),
+    classes,
+  };
 }

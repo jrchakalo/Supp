@@ -3,6 +3,7 @@ import { CONTENT_MODEL } from '../flags';
 import { resolveSegments, resolveTitle, resolveTotalMin } from '../content/resolve';
 import { classOccursOn } from '../agenda/calendar';
 import { holidayFor } from '../agenda/holidays';
+import { fetchRemovedOccurrenceIds } from '../agenda/removed';
 
 /**
  * Loads the institutional lesson content of `/professor` at runtime from
@@ -114,7 +115,7 @@ function formatTurma(occurrence: OccurrenceRow, classroom?: ClassRow): string {
 }
 
 async function fetchV2Lessons(): Promise<Lesson[]> {
-  const [occurrences, contents, classes, overrides] = await Promise.all([
+  const [occurrences, contents, classes, overrides, removed] = await Promise.all([
     supabaseGet<OccurrenceRow>(
       'pp_occurrences?select=id,class_id,content_id,date,start_at,end_at,status,snapshot,content_version,session_code,started_at,ended_at&order=date.asc'
     ),
@@ -125,6 +126,7 @@ async function fetchV2Lessons(): Promise<Lesson[]> {
     supabaseGet<OverrideRow>(
       'pp_overrides?select=content_id,scope,scope_id,patch&slide_key=eq.__segments__&suppressed=eq.false&limit=1000'
     ),
+    fetchRemovedOccurrenceIds(),
   ]);
 
   if (occurrences.length === 0 || contents.length === 0) return [];
@@ -144,6 +146,7 @@ async function fetchV2Lessons(): Promise<Lesson[]> {
 
   const lessons: Lesson[] = [];
   for (const occurrence of occurrences) {
+    if (removed.has(occurrence.id)) continue;
     if (!Array.isArray(occurrence.snapshot) && !occurrence.content_id) continue;
     const content = occurrence.content_id ? contentById.get(occurrence.content_id) : undefined;
     if (!content && !Array.isArray(occurrence.snapshot)) continue;

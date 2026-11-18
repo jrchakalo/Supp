@@ -466,6 +466,9 @@ export default function AulaPage() {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [classReportOpen, setClassReportOpen] = useState(false);
   const [classReportSaved, setClassReportSaved] = useState('');
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState('');
   const openedFromQueryRef = useRef(false);
   const [sessionCode, setSessionCode] = useState('');
   const [tvUrl, setTvUrl] = useState('');
@@ -1435,6 +1438,39 @@ export default function AulaPage() {
     setConnection('idle');
     setTvOnline(false);
   }, [resetWarmupState]);
+
+  /** Soft-deletes the occurrence opened in the cockpit. */
+  const removeOccurrence = useCallback(async () => {
+    const lesson = activeLessonRef.current;
+    if (!lesson?.occurrenceId) return;
+
+    setRemoving(true);
+    setRemoveError('');
+    try {
+      const response = await fetch('/api/occurrences/remove', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ occurrenceId: lesson.occurrenceId }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Não foi possível remover a aula.');
+      }
+      setRemoveOpen(false);
+      endSession(true);
+      setLessonsNonce((value) => value + 1);
+      setAgendaNotice('Aula removida da agenda.');
+      window.setTimeout(() => setAgendaNotice(''), 5000);
+    } catch (cause) {
+      setRemoveError(
+        cause instanceof Error ? cause.message : 'Não foi possível remover a aula.'
+      );
+    } finally {
+      setRemoving(false);
+    }
+  }, [endSession]);
 
   const logout = useCallback(() => {
     removeStorage(AULA_GATE_STORAGE);
@@ -3531,6 +3567,62 @@ export default function AulaPage() {
   const welcomeMessage = activeLesson.welcome?.message || AULA_WELCOME_FALLBACK.message;
   const welcomeMessage2 = activeLesson.welcome?.message2 || AULA_WELCOME_FALLBACK.message2;
 
+  const removeModalView = removeOpen ? (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-3 sm:items-center sm:p-6"
+      onClick={() => {
+        if (!removing) setRemoveOpen(false);
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="remove-occurrence-title"
+        onClick={(event) => event.stopPropagation()}
+        className="w-full max-w-md rounded-3xl border-2 border-[var(--line)] bg-[var(--surface)] p-5 shadow-2xl sm:p-6"
+      >
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--danger)]">
+          Remover aula
+        </p>
+        <h2 id="remove-occurrence-title" className="mt-1 text-2xl font-black leading-tight">
+          Remover esta aula da agenda?
+        </h2>
+        <p className="mt-3 text-sm font-semibold text-[var(--muted)]">
+          Ela sai da agenda, do histórico e da lista de aulas. O snapshot e o class
+          report salvos deixam de aparecer no Supp.
+        </p>
+        <p className="mt-2 rounded-xl bg-[var(--surface-2)] px-3 py-2 text-[11px] font-semibold text-[var(--muted)]">
+          Se o class report já foi publicado na Passaporte, ele <strong>não</strong> é
+          apagado lá. O registro fica preservado no banco para auditoria.
+        </p>
+        {removeError ? (
+          <p className="mt-3 rounded-xl border border-rose-400/60 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-200">
+            {removeError}
+          </p>
+        ) : null}
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setRemoveOpen(false)}
+            disabled={removing}
+            className="rounded-xl border-2 border-[var(--line)] px-3 py-2 text-xs font-black uppercase tracking-wide text-[var(--muted)] disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => void removeOccurrence()}
+            disabled={removing}
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--danger)] px-4 py-2 text-xs font-black uppercase tracking-wide text-white disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            {removing ? 'Removendo…' : 'Remover aula'}
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   if (phase === 'welcome') {
     return (
       <main className="theme-dark game-shell min-h-dvh px-4 py-6 text-[var(--ink)] sm:px-8">
@@ -3558,6 +3650,21 @@ export default function AulaPage() {
                   <Pencil className="h-4 w-4" aria-hidden="true" />
                   Editar
                 </a>
+              ) : null}
+              {activeLesson.occurrenceId ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRemoveError('');
+                    setRemoveOpen(true);
+                  }}
+                  aria-label="Remover esta aula da agenda"
+                  title="Remover esta aula da agenda"
+                  className="flex items-center gap-1.5 rounded-full border-2 border-[var(--danger)]/50 bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--danger)] transition hover:border-[var(--danger)]"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  Remover
+                </button>
               ) : null}
               <ConnectionPill
                 status={connection}
@@ -3764,6 +3871,7 @@ export default function AulaPage() {
             </p>
           </section>
         </div>
+        {removeModalView}
         {warmupModalView}
       </main>
     );
@@ -3806,6 +3914,21 @@ export default function AulaPage() {
                 <Pencil className="h-4 w-4" aria-hidden="true" />
                 Editar
               </a>
+            ) : null}
+            {activeLesson.occurrenceId ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setRemoveError('');
+                  setRemoveOpen(true);
+                }}
+                aria-label="Remover esta aula da agenda"
+                title="Remover esta aula da agenda"
+                className="flex items-center gap-1.5 rounded-full border-2 border-[var(--danger)]/50 bg-[var(--surface)] px-3 py-1.5 text-xs font-black uppercase tracking-wide text-[var(--danger)] transition hover:border-[var(--danger)]"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                Remover
+              </button>
             ) : null}
             <button
               type="button"
@@ -4462,6 +4585,7 @@ export default function AulaPage() {
           </div>
         </div>
       ) : null}
+      {removeModalView}
       {warmupModalView}
     </main>
   );

@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.18] — 2026-11-18
+
+### Remover aula da agenda
+
+- Aulas abertas no cockpit ganharam o botão **Remover** (na tela de boas-vindas e
+  durante a aula), com confirmação.
+- A remoção é um **soft delete**: a aula sai da agenda, da lista “Aulas por dia” e
+  do histórico, mas a linha, o snapshot e o class report ficam preservados no banco
+  para auditoria.
+- Se o class report já foi publicado na Passaporte, ele **não** é apagado lá; o
+  diálogo avisa.
+- O endpoint `/api/occurrences/removed` informa os ids ocultos (as notas são
+  server-only) e a agenda, as aulas, o histórico e o editor filtram esses ids.
+- A Avulsa criada por engano com “Sem turma” na segunda aula de PSE Teens foi
+  removida; a aula real de Class 1 continua na agenda.
+
 ## [1.0.17] — 2026-11-16
 
 ### Class report no intervalo e tradução na metade do tempo

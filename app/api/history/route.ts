@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminSelect } from '@/lib/supabase/admin';
 import { isProfessorRequest } from '@/lib/auth/session';
+import { isRemovedOccurrence } from '@/lib/agenda/removed';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,7 @@ type OccurrenceRow = {
   platform_report_id: string | null;
   content_id: string | null;
   start_at: string | null;
+  notes: string | null;
   content: { title: string } | null;
 };
 
@@ -46,7 +48,7 @@ export async function GET() {
         'pp_classes?select=id,platform_class_id,short_code,name,discipline&limit=500'
       ),
       adminSelect<OccurrenceRow[]>(
-        'pp_occurrences?select=id,platform_report_id,content_id,start_at,content:pp_content(title)&platform_report_id=not.is.null&limit=1000'
+        'pp_occurrences?select=id,platform_report_id,content_id,start_at,notes,content:pp_content(title)&platform_report_id=not.is.null&limit=1000'
       ),
     ]);
 
@@ -57,8 +59,15 @@ export async function GET() {
         .filter((row) => row.platform_report_id)
         .map((row) => [row.platform_report_id as string, row])
     );
+    const removedReportIds = new Set(
+      occurrences
+        .filter((row) => row.platform_report_id && isRemovedOccurrence(row.notes))
+        .map((row) => row.platform_report_id as string)
+    );
 
-    const rows = reports.map((report) => {
+    const rows = reports
+      .filter((report) => !removedReportIds.has(report.id))
+      .map((report) => {
       const occurrence = occurrenceByReport.get(report.id);
       const classroom =
         (report.class_id ? classById.get(report.class_id) : undefined) ??
