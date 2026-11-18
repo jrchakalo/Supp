@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminSelect } from '@/lib/supabase/admin';
 import { isProfessorRequest } from '@/lib/auth/session';
 import { normalizeStudents } from '@/lib/aula/class-report';
+import { isRemovedOccurrence } from '@/lib/agenda/removed';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,6 +14,7 @@ type OccurrenceRow = {
   date: string;
   start_at: string;
   end_at: string;
+  notes: string | null;
 };
 type ClassRow = {
   id: string;
@@ -121,12 +123,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const [occurrence] = await adminSelect<OccurrenceRow[]>(
-      `pp_occurrences?select=id,class_id,content_id,date,start_at,end_at&id=eq.${encodeURIComponent(
+      `pp_occurrences?select=id,class_id,content_id,date,start_at,end_at,notes&id=eq.${encodeURIComponent(
         occurrenceId
       )}&limit=1`
     );
     if (!occurrence?.class_id) {
       return NextResponse.json({ error: 'Aula sem turma vinculada.' }, { status: 404 });
+    }
+    if (isRemovedOccurrence(occurrence.notes)) {
+      return NextResponse.json({ error: 'Aula removida da agenda.' }, { status: 410 });
     }
     const [classroom] = await adminSelect<ClassRow[]>(
       `pp_classes?select=id,short_code,discipline,platform_class_id,start_time,end_time&id=eq.${encodeURIComponent(

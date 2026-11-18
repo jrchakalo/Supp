@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const calendar = require('../../.test-build/agenda/calendar.js');
 const dashboard = require('../../.test-build/agenda/dashboard.js');
 const holidays = require('../../.test-build/agenda/holidays.js');
+const removed = require('../../.test-build/agenda/removed.js');
 
 const FRIDAY_OFF = {
   weekday: 5,
@@ -119,6 +120,19 @@ test('holidayFor exposes the official name, scope and source', () => {
 
   assert.equal(holidays.holidayFor('2026-02-16').optional, true);
   assert.equal(holidays.holidayFor('2026-11-16'), undefined);
+});
+
+test('removed marker hides the occurrence and preserves its notes', () => {
+  const original = JSON.stringify({ classReport: { text: 'relatório salvo' } });
+  const marked = removed.markOccurrenceRemoved(original, 'prévia');
+  const parsed = JSON.parse(marked);
+
+  assert.equal(removed.isRemovedOccurrence(marked), true);
+  assert.equal(removed.isRemovedOccurrence(original), false);
+  assert.equal(removed.isRemovedOccurrence(null), false);
+  assert.equal(parsed.classReport.text, 'relatório salvo');
+  assert.equal(parsed.removed.reason, 'prévia');
+  assert.equal(typeof parsed.removed.at, 'string');
 });
 
 test('class parity follows the 14-day class reports (week of 16/11)', () => {

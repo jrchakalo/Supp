@@ -1,6 +1,7 @@
 import type { AgendaData } from './types';
 import { classOccursOn } from './calendar';
 import { holidayFor } from './holidays';
+import { fetchRemovedOccurrenceIds } from './removed';
 
 const REQUEST_TIMEOUT_MS = 8000;
 
@@ -33,7 +34,7 @@ async function select<T>(path: string): Promise<T[]> {
 
 /** Loads everything the dashboard/agenda needs in one round of queries. */
 export async function fetchAgendaData(): Promise<AgendaData> {
-  const [occurrences, classes, rules, contents] = await Promise.all([
+  const [occurrences, classes, rules, contents, removed] = await Promise.all([
     select<AgendaData['occurrences'][number]>(
       'pp_occurrences?select=id,class_id,content_id,date,start_at,end_at,status,platform_report_id&order=date.asc,start_at.asc&limit=1000'
     ),
@@ -44,10 +45,12 @@ export async function fetchAgendaData(): Promise<AgendaData> {
       'pp_calendar_rules?select=weekday,date,from_date,to_date,kind,label&limit=200'
     ),
     select<AgendaData['contents'][number]>('pp_content?select=id,title&limit=200'),
+    fetchRemovedOccurrenceIds(),
   ]);
 
   const codeById = new Map(classes.map((row) => [row.id, row.short_code]));
   const visible = occurrences.filter((occurrence) => {
+    if (removed.has(occurrence.id)) return false;
     if (occurrence.status !== 'planned' && occurrence.status !== 'unplanned') return true;
     if (holidayFor(occurrence.date)) return false;
     if (!occurrence.class_id) return true;

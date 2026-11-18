@@ -4,6 +4,7 @@ import { adminPatch, adminSelect } from '@/lib/supabase/admin';
 import { isProfessorRequest } from '@/lib/auth/session';
 import { validateSegments } from '@/lib/content/validate';
 import { sanitizeRoomCode } from '@/lib/live/room';
+import { isRemovedOccurrence } from '@/lib/agenda/removed';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,7 @@ type OccurrenceRow = {
   snapshot_hash: string | null;
   session_code: string | null;
   started_at: string | null;
+  notes: string | null;
 };
 
 const LOCKED = new Set(['given', 'no_students', 'cancelled']);
@@ -44,10 +46,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const [occurrence] = await adminSelect<OccurrenceRow[]>(
-      `pp_occurrences?select=id,status,content_id,snapshot,snapshot_hash,session_code,started_at&id=eq.${encodeURIComponent(occurrenceId)}&limit=1`
+      `pp_occurrences?select=id,status,content_id,snapshot,snapshot_hash,session_code,started_at,notes&id=eq.${encodeURIComponent(occurrenceId)}&limit=1`
     );
     if (!occurrence) {
       return NextResponse.json({ error: 'Aula não encontrada.' }, { status: 404 });
+    }
+    if (isRemovedOccurrence(occurrence.notes)) {
+      return NextResponse.json({ error: 'Aula removida da agenda.' }, { status: 410 });
     }
     if (contentId && occurrence.content_id && occurrence.content_id !== contentId) {
       return NextResponse.json({ error: 'Aula não pertence a este conteúdo.' }, { status: 400 });
